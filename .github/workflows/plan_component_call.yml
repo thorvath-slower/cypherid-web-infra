@@ -23,11 +23,11 @@ on:
         description: "Then number of changes in the generated Plan"
         value: ${{ jobs.plan-component.outputs.change-count }}
       plan-artifact-id:
-        description: "Then number of changes in the generated Plan"
-        value: ${{ jobs.plan-component.outputs.count }}
+        description: "The Artifact ID of the generated Terraform Plan"
+        value: ${{ jobs.plan-component.outputs.plan-artifact-id }}
       result-artifact-id:
-        description: "The Artifact ID of the generated Plan"
-        value: "${{ jobs.plan-component.outputs.artifact-id }}"
+        description: "The Artifact ID of the Result JSON"
+        value: "${{ jobs.plan-component.outputs.result-artifact-id }}"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
