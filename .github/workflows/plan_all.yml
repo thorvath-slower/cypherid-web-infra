@@ -107,20 +107,20 @@ jobs:
     secrets: inherit
 
   plan-components-summary:
-    name: "Terraform Plan Components"
+    name: "Terraform Plan Results"
     if: ${{ !cancelled() }} # && contains(needs.plan-components.result, 'success') }}
     runs-on: ubuntu-latest
     needs:
       - plan-components
     steps:
       - name: "Download Results"
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           pattern: result-*
           path: results
       - name: "Generate Summary"
         run: |
-          echo "plan-components.result=${{ needs.plan-components.result }}"
+          echo "needs.plan-components.result=${{ needs.plan-components.result }}"
           ls -al results/*/*
           jq --slurp . results/result-*/*
           echo "|   | Component | Changes |" >> $GITHUB_STEP_SUMMARY
