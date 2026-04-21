@@ -96,7 +96,7 @@ jobs:
           - web-waf
           - auth0
           - resque
-          #- eks
+          - eks
           - k8s-core
           - happy
           - access-management
@@ -126,16 +126,16 @@ jobs:
           change_count=$(jq -n '[inputs.change_count] | add' results/result-*/*.json)
           echo "change-count=$change_count"
           
-          echo "|   | Changes |" >> $GITHUB_STEP_SUMMARY
-          echo "| - | ------- |" >> $GITHUB_STEP_SUMMARY
+          echo "|   | Total Changes |" >> $GITHUB_STEP_SUMMARY
+          echo "| - | ------------- |" >> $GITHUB_STEP_SUMMARY
           if [[ "$change_count" == "0" ]]; then
             echo "| :green_circle: | No Changes |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| :yellow_circle: | $change_count |" >> $GITHUB_STEP_SUMMARY
           fi
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Changes | Resources |" >> $GITHUB_STEP_SUMMARY
-          echo "| --------- | ------- | --------- |" >> $GITHUB_STEP_SUMMARY
-          jq -c '{component, change_count, resource_changes: .resource_changes|map(.address)|join("<br/>")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.resource_changes)|"'
-          jq -c '{component, change_count, resource_changes: .resource_changes|map(.address)|join("<br/>")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.resource_changes)|"' >> $GITHUB_STEP_SUMMARY
+          echo "<br/>" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Changes | Actions | Resources |" >> $GITHUB_STEP_SUMMARY
+          echo "| --------- | ------- | ------- | --------- |" >> $GITHUB_STEP_SUMMARY
+          jq -c '{component, change_count, actions: .resource_changes|map(.action)|join("<br/>"), addresses: .resource_changes|map(.address)|join("<br/>")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.actions)|\(.addresses)|"'
+          jq -c '{component, change_count, actions: .resource_changes|map(.action)|join("<br/>"), addresses: .resource_changes|map(.address)|join("<br/>")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.actions)|\(.addresses)|"' >> $GITHUB_STEP_SUMMARY
