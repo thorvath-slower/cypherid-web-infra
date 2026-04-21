@@ -19,9 +19,6 @@ on:
       AUTH0_DOMAIN:
         required: true
     outputs:
-      change-count:
-        description: "Then number of changes in the generated Plan"
-        value: ${{ jobs.plan-component.outputs.change-count }}
       plan-artifact-id:
         description: "The Artifact ID of the generated Terraform Plan"
         value: ${{ jobs.plan-component.outputs.plan-artifact-id }}
@@ -40,9 +37,8 @@ jobs:
     env:
       AWS_REGION: us-west-2
     outputs:
-      change-count: ${{ steps.terraform-plan.outputs.change-count }}
       plan-artifact-id: ${{ steps.upload-plan.outputs.artifact-id }}
-      result-artifact-id: "${{ steps.upload-result.outputs.artifact-id }}"
+      result-artifact-id: ${{ steps.upload-result.outputs.artifact-id }}
     steps:
       - name: Git clone the repository
         uses: actions/checkout@v6
@@ -51,6 +47,12 @@ jobs:
       - name: Reconfigure Git to use HTTP authentication
         run: |
           git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+      - name: Install AWS CLI
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 2
+          verbose: false
+          arch: amd64
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6.1.0
         if: ${{ !env.ACT }}
@@ -69,9 +71,8 @@ jobs:
           output-env-credentials: true
           #role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-          aws-profile: idseq-${{ inputs.environment }}
+          aws-profile: "idseq-${{ inputs.environment }}"
       - name: Setup Terraform
-        id: setup
         run: |
           make terraform
           .fogg/tfenv/bin/terraform --version
@@ -83,11 +84,9 @@ jobs:
           AUTH0_CLIENT_SECRET: "${{ secrets.AUTH0_CLIENT_SECRET }}"
           AUTH0_DOMAIN: "${{ secrets.AUTH0_DOMAIN }}"
         # TODO: Handle special cases, like route53 which needs idseq-prod access; or fix route53 to be profile-specific only
-        # NOTE: make check-plan should be sufficient, but it doesn't leave the plan file after it executes; other commands should also be make commands, but expect AWS CLI
-        #       make check-auth init fmt refresh check-plan
+        # NOTE: make check-plan should be sufficient, but it doesn't leave the plan file after it executes
         run: |
-          ${{ github.workspace }}/.fogg/tfenv/bin/terraform init -input=false
-          ${{ github.workspace }}/.fogg/tfenv/bin/terraform refresh
+          make check-auth init
           echo "Plan will be created in: ${{ github.workspace }}/tf.plan"
           set +e
           ${{ github.workspace }}/.fogg/tfenv/bin/terraform plan -input=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
@@ -100,38 +99,45 @@ jobs:
           change_count=$(jq -r '.resource_changes[].change.actions[]' plan.json | grep -v "no-op" | wc -l)
           echo "change-count=$change_count"
           echo "change-count=$change_count" >> "$GITHUB_OUTPUT"
+          resource_changes=$(jq '.resource_changes[] | select(.change.actions[0] != "no-op")' plan.json | jq '{address, action: .change.actions[0]}' | jq -c --slurp .)
+          echo "resource-changes=$resource_changes"
+          echo "resource-changes=$resource_changes" >> "$GITHUB_OUTPUT"
       # TODO: Only uncomment for local execution via nektos act, when testing outputs and artifacts
       #- name: Terraform Plan
       #  id: terraform-plan
       #  run: |
-      #    echo "foo" > "${{ github.workspace }}/tf.plan"
+      #    echo "foo" > '${{ github.workspace }}/tf.plan'
       #    change_count=$(( RANDOM % 3 ))
       #    echo "change-count=$change_count"
       #    echo "change-count=$change_count" >> "$GITHUB_OUTPUT"
+      #    resource_changes=$(jq -cn '["foo", "bar", "baz"]')
+      #    echo "resource-changes=$resource_changes"
+      #    echo "resource-changes=$resource_changes" >> "$GITHUB_OUTPUT"
       - name: Upload Plan as Artifact
         id: upload-plan
         uses: actions/upload-artifact@v4
         with:
-          name: "plan-${{ inputs.component }}"
-          path: "${{ github.workspace }}/tf.plan"
+          name: 'plan-${{ inputs.component }}'
+          path: '${{ github.workspace }}/tf.plan'
           retention-days: 1
           compression-level: 0 # Plan files are already pretty compact, and max compression gives at best 10% savings
           if-no-files-found: error
       - name: Create Result JSON
         id: create-result
         run: |
-          jq -cn \
-            --arg component "${{ inputs.component }}" \
+          jq -cnS \
+            --arg component '${{ inputs.component }}' \
             --arg change_count ${{ steps.terraform-plan.outputs.change-count }} \
-            --arg artifact_name "plan-${{ inputs.component }}" \
-            --arg artifact_id "${{ steps.upload-plan.outputs.artifact-id }}" \
-            '$ARGS.named' > "${{ github.workspace }}/result.json"
-          jq -c . "${{ github.workspace }}/result.json"
+            --argjson resource_changes '${{ steps.terraform-plan.outputs.resource-changes }}' \
+            --arg artifact_name 'plan-${{ inputs.component }}' \
+            --arg artifact_id '${{ steps.upload-plan.outputs.artifact-id }}' \
+            '$ARGS.named' > '${{ github.workspace }}/result.json'
+          jq -c . '${{ github.workspace }}/result.json'
       - name: Upload Result JSON as Artifact
         id: upload-result
         uses: actions/upload-artifact@v5
         with:
-          name: "result-${{ inputs.component }}"
-          path: "${{ github.workspace }}/result.json"
+          name: 'result-${{ inputs.component }}'
+          path: '${{ github.workspace }}/result.json'
           retention-days: 1
           if-no-files-found: error
