@@ -126,9 +126,6 @@ jobs:
           change_count=$(jq -n '[inputs.change_count] | add' results/result-*/*.json)
           echo "change-count=$change_count"
           
-          echo -e "| Files Changed | File1.txt\nFile2.txt\nFile3.txt |"
-          echo "| Files Changed | File1.txt\nFile2.txt\nFile3.txt |"
-
           echo "|   | Changes |" >> $GITHUB_STEP_SUMMARY
           echo "| - | ------- |" >> $GITHUB_STEP_SUMMARY
           if [[ "$change_count" == "0" ]]; then
@@ -140,5 +137,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Changes | Resources |" >> $GITHUB_STEP_SUMMARY
           echo "| --------- | ------- | --------- |" >> $GITHUB_STEP_SUMMARY
-          jq -c '{component, change_count, resource_changes: .resource_changes|map(.address)|join("\n")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.resource_changes)|"'
-          jq -c '{component, change_count, resource_changes: .resource_changes|map(.address)|join("\n")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.resource_changes)|"' >> $GITHUB_STEP_SUMMARY
+          jq -c '{component, change_count, resource_changes: .resource_changes|map(.address)|join("<br/>")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.resource_changes)|"'
+          jq -c '{component, change_count, resource_changes: .resource_changes|map(.address)|join("<br/>")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.resource_changes)|"' >> $GITHUB_STEP_SUMMARY
