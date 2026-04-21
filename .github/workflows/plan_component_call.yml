@@ -86,7 +86,8 @@ jobs:
         # TODO: Handle special cases, like route53 which needs idseq-prod access; or fix route53 to be profile-specific only
         # NOTE: make check-plan should be sufficient, but it doesn't leave the plan file after it executes
         run: |
-          make check-auth init
+          make check-auth
+          ${{ github.workspace }}/.fogg/tfenv/bin/terraform init -input=false -upgrade
           echo "Plan will be created in: ${{ github.workspace }}/tf.plan"
           set +e
           ${{ github.workspace }}/.fogg/tfenv/bin/terraform plan -input=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
@@ -97,7 +98,7 @@ jobs:
           fi
           set -e
           ${{ github.workspace }}/.fogg/tfenv/bin/terraform show -json "${{ github.workspace }}/tf.plan" > plan.json
-          jq '.resource_changes[] | select(.change.actions[0] != "no-op")' plan.json | jq '{address, action: .change.actions[0]}' | jq -c --slurp . > "${{ github.workspace }}/resource_changes.json"
+          jq '.resource_changes[] | select(.change.actions[0] != "no-op" and .change.actions[0] != "read")' plan.json | jq '{address, action: .change.actions[0]}' | jq -c --slurp . > "${{ github.workspace }}/resource_changes.json"
           jq -c . "${{ github.workspace }}/resource_changes.json"
       # TODO: Only uncomment for local execution via nektos act, when testing outputs and artifacts
       #- name: Terraform Plan
