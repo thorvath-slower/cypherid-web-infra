@@ -1,5 +1,5 @@
-name: Terraform Plan all Components
-run-name: Terraform Plan all Components in ${{ github.base_ref || github.ref_name }} by ${{ github.actor }}
+name: Plan all Components
+run-name: Plan all Components in env ${{ inputs.environment || github.base_ref || github.ref_name }} branch ${{ github.base_ref || github.ref_name }} by ${{ github.actor }}
 
 on:
   push:
@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Both Github Environment and AWS Environment"
+        description: Both Github Environment and AWS Environment
         required: true
         type: environment
         default: dev
@@ -36,13 +36,13 @@ concurrency:
 
 jobs:
   should-plan:
-    name: "Check if Terraform Plan should be performed"
+    name: Check if Terraform Plan should be performed
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.calculate-environment.outputs.environment }}
     steps:
-      - name: "Calculate Environment"
+      - name: Calculate Environment
         id: calculate-environment
         # TODO: Handle Releases
         run: |
@@ -68,7 +68,7 @@ jobs:
           fi
 
   plan-components:
-    name: "Terraform Plan each Component"
+    name: Terraform Plan each Component
     if: ${{ !cancelled() && needs.should-plan.outputs.environment }}
     needs:
       - should-plan
@@ -102,28 +102,43 @@ jobs:
           - access-management
     uses: ./.github/workflows/plan_component_call.yml
     with:
-      environment: "${{ needs.should-plan.outputs.environment }}"
+      environment: ${{ needs.should-plan.outputs.environment }}
       component: ${{ matrix.component }}
     secrets: inherit
 
   plan-components-summary:
-    name: "Terraform Plan Results"
+    name: Terraform Plan Results
     if: ${{ !cancelled() }} # && contains(needs.plan-components.result, 'success') }}
     runs-on: ubuntu-latest
     needs:
       - plan-components
     steps:
-      - name: "Download Results"
+      - name: Download Results
         uses: actions/download-artifact@v4
         with:
           pattern: result-*
           path: results
-      - name: "Generate Summary"
+      - name: Generate Summary
         run: |
           echo "needs.plan-components.result=${{ needs.plan-components.result }}"
           ls -al results/*/*
           jq --slurp . results/result-*/*
-          echo "|   | Component | Changes |" >> $GITHUB_STEP_SUMMARY
-          echo "| - | --------- | ------- |" >> $GITHUB_STEP_SUMMARY
-          jq -c '{component, change_count}' results/result-*/*.json | jq -r '. | "||\(.component)|\(.change_count)|"'
-          jq -c '{component, change_count}' results/result-*/*.json | jq -r '. | "||\(.component)|\(.change_count)|"' >> $GITHUB_STEP_SUMMARY
+          change_count=$(jq -n '[inputs.change_count] | add' results/result-*/*.json)
+          echo "change-count=$change_count"
+          
+          echo -e "| Files Changed | File1.txt\nFile2.txt\nFile3.txt |"
+          echo "| Files Changed | File1.txt\nFile2.txt\nFile3.txt |"
+
+          echo "|   | Changes |" >> $GITHUB_STEP_SUMMARY
+          echo "| - | ------- |" >> $GITHUB_STEP_SUMMARY
+          if [[ "$change_count" == "0" ]]; then
+            echo "| :green_circle: | No Changes |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| :yellow_circle: | $change_count |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Changes | Resources |" >> $GITHUB_STEP_SUMMARY
+          echo "| --------- | ------- | --------- |" >> $GITHUB_STEP_SUMMARY
+          jq -c '{component, change_count, resource_changes: .resource_changes|map(.address)|join("\n")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.resource_changes)|"'
+          jq -c '{component, change_count, resource_changes: .resource_changes|map(.address)|join("\n")}' results/result-*/*.json | jq -r '. | "|\(.component)|\(.change_count)|\(.resource_changes)|"' >> $GITHUB_STEP_SUMMARY

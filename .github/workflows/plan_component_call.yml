@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: "Both Github Environment and AWS Environment"
+        description: Both Github Environment and AWS Environment
         type: string
         required: true
       component:
-        description: "Fogg Component, located in the terraform/emvs/<environment>/<component> directory"
+        description: 'Fogg Component, located in the terraform/emvs/<environment>/<component> directory'
         type: string
         required: true
     secrets:
@@ -20,11 +20,11 @@ on:
         required: true
     outputs:
       plan-artifact-id:
-        description: "The Artifact ID of the generated Terraform Plan"
+        description: The Artifact ID of the generated Terraform Plan
         value: ${{ jobs.plan-component.outputs.plan-artifact-id }}
       result-artifact-id:
-        description: "The Artifact ID of the Result JSON"
-        value: "${{ jobs.plan-component.outputs.result-artifact-id }}"
+        description: The Artifact ID of the Result JSON
+        value: ${{ jobs.plan-component.outputs.result-artifact-id }}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -71,7 +71,7 @@ jobs:
           output-env-credentials: true
           #role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-          aws-profile: "idseq-${{ inputs.environment }}"
+          aws-profile: idseq-${{ inputs.environment }}
       - name: Setup Terraform
         run: |
           make terraform
@@ -80,9 +80,9 @@ jobs:
         id: terraform-plan
         working-directory: ./terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/
         env:
-          AUTH0_CLIENT_ID: "${{ secrets.AUTH0_CLIENT_ID }}"
-          AUTH0_CLIENT_SECRET: "${{ secrets.AUTH0_CLIENT_SECRET }}"
-          AUTH0_DOMAIN: "${{ secrets.AUTH0_DOMAIN }}"
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
         # TODO: Handle special cases, like route53 which needs idseq-prod access; or fix route53 to be profile-specific only
         # NOTE: make check-plan should be sufficient, but it doesn't leave the plan file after it executes
         run: |
@@ -95,49 +95,43 @@ jobs:
           if [[ $exitcode -eq 1 ]]; then
             exit $exitcode
           fi
+          set -e
           ${{ github.workspace }}/.fogg/tfenv/bin/terraform show -json "${{ github.workspace }}/tf.plan" > plan.json
-          change_count=$(jq -r '.resource_changes[].change.actions[]' plan.json | grep -v "no-op" | wc -l)
-          echo "change-count=$change_count"
-          echo "change-count=$change_count" >> "$GITHUB_OUTPUT"
-          resource_changes=$(jq '.resource_changes[] | select(.change.actions[0] != "no-op")' plan.json | jq '{address, action: .change.actions[0]}' | jq -c --slurp .)
-          echo "resource-changes=$resource_changes"
-          echo "resource-changes=$resource_changes" >> "$GITHUB_OUTPUT"
+          jq '.resource_changes[] | select(.change.actions[0] != "no-op")' plan.json | jq '{address, action: .change.actions[0]}' | jq -c --slurp . > "${{ github.workspace }}/resource_changes.json"
+          jq -c . "${{ github.workspace }}/resource_changes.json"
       # TODO: Only uncomment for local execution via nektos act, when testing outputs and artifacts
       #- name: Terraform Plan
       #  id: terraform-plan
       #  run: |
-      #    echo "foo" > '${{ github.workspace }}/tf.plan'
-      #    change_count=$(( RANDOM % 3 ))
-      #    echo "change-count=$change_count"
-      #    echo "change-count=$change_count" >> "$GITHUB_OUTPUT"
-      #    resource_changes=$(jq -cn '["foo", "bar", "baz"]')
-      #    echo "resource-changes=$resource_changes"
-      #    echo "resource-changes=$resource_changes" >> "$GITHUB_OUTPUT"
+      #    echo foo > "${{ github.workspace }}/tf.plan"
+      #    jq -cn '$ARGS.positional' --jsonargs '{"address": "foo", "action": "create"}' '{"address": "bar", "action": "update"}' '{"address": "baz", "action": "delete"}' > "${{ github.workspace }}/resource_changes.json"
       - name: Upload Plan as Artifact
         id: upload-plan
         uses: actions/upload-artifact@v4
         with:
-          name: 'plan-${{ inputs.component }}'
-          path: '${{ github.workspace }}/tf.plan'
+          name: plan-${{ inputs.component }}
+          path: ${{ github.workspace }}/tf.plan
           retention-days: 1
           compression-level: 0 # Plan files are already pretty compact, and max compression gives at best 10% savings
           if-no-files-found: error
       - name: Create Result JSON
         id: create-result
         run: |
+          change_count=$(jq 'length' "${{ github.workspace }}/resource_changes.json")
+          echo "change-count=$change_count"
           jq -cnS \
-            --arg component '${{ inputs.component }}' \
-            --arg change_count ${{ steps.terraform-plan.outputs.change-count }} \
-            --argjson resource_changes '${{ steps.terraform-plan.outputs.resource-changes }}' \
-            --arg artifact_name 'plan-${{ inputs.component }}' \
-            --arg artifact_id '${{ steps.upload-plan.outputs.artifact-id }}' \
-            '$ARGS.named' > '${{ github.workspace }}/result.json'
-          jq -c . '${{ github.workspace }}/result.json'
+            --arg component "${{ inputs.component }}" \
+            --arg artifact_name "plan-${{ inputs.component }}" \
+            --arg artifact_id "${{ steps.upload-plan.outputs.artifact-id }}" \
+            --argjson change_count "$change_count" \
+            --argjson resource_changes $(<"${{ github.workspace }}/resource_changes.json") \
+            '$ARGS.named' > "${{ github.workspace }}/result.json"
+          jq . "${{ github.workspace }}/result.json"
       - name: Upload Result JSON as Artifact
         id: upload-result
         uses: actions/upload-artifact@v5
         with:
-          name: 'result-${{ inputs.component }}'
-          path: '${{ github.workspace }}/result.json'
+          name: result-${{ inputs.component }}
+          path: ${{ github.workspace }}/result.json
           retention-days: 1
           if-no-files-found: error
