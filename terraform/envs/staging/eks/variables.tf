@@ -2,7 +2,7 @@ locals {
   owner_roles = [
     data.terraform_remote_state.access-management.outputs.gh_actions_executor_role.name, # TODO: Not sure if it is required to prevent Unauthorized in Github Actions
     #"poweruser",                                                                         # TODO - Where are these created, and are they necessary? Appear to be deployed via terraform from 'shared-infra'. For now, manually created a 'poweruser' IAM role that matches what is in the CZI dev account.
-    "AWSReservedSSO_AWSAdministratorAccess_f655aa408ec10f58",                            # SSO role used when locally applying terraform with an SSO profile
+    "AWSReservedSSO_AWSAdministratorAccess_f655aa408ec10f58", # SSO role used when locally applying terraform with an SSO profile
     # "gha-seqtoid", // Role used by GH Actions for applying terraform (cypherid-infra & cypherid-web-infra)
     # "okta-czi-admin",
     # "tfe-si"
