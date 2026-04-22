@@ -176,7 +176,7 @@ terraform {
     kubernetes = {
       source = "hashicorp/kubernetes"
 
-      version = "~> 3.0.1"
+      version = "~> 3.1.0"
 
     }
 
@@ -309,6 +309,20 @@ variable "s3_bucket_samples_v1" {
 variable "s3_bucket_secrets" {
   type    = string
   default = "idseq-secrets"
+}
+data "terraform_remote_state" "access-management" {
+  backend = "s3"
+  config = {
+
+
+    bucket = "tfstate-491013321714-test"
+
+    key     = "terraform/idseq/envs/dev/components/access-management.tfstate"
+    region  = "us-west-2"
+    profile = "idseq-dev"
+
+
+  }
 }
 data "terraform_remote_state" "cloud-env" {
   backend = "s3"

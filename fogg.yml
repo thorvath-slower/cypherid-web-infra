@@ -96,14 +96,15 @@ defaults:
       enabled: true
       #version: 2.23.0
       #version: 2.38.0
-      version: ~> 3.0.1
+      #version: ~> 3.0.1
+      version: ~> 3.1.0
     kubectl:
       #version: 1.14.0
       version: ~> 1.19.0
     helm:
       #version: 2.11.0
       version: ~> 2.17.0
-      #version: 3.1.1
+      #version: 3.1.2
     #datadog:
     #  custom_provider: true
     #  version: 3.20.0
@@ -173,6 +174,7 @@ envs:
       eks:
         depends_on:
           components:
+            - access-management
             - cloud-env
         module_source: github.com/chanzuckerberg/cztack//aws-eks-cluster?ref=v0.104.2
         variables:
@@ -436,6 +438,7 @@ envs:
       eks:
         depends_on:
           components:
+            - access-management
             - cloud-env
         module_source: github.com/chanzuckerberg/cztack//aws-eks-cluster?ref=v0.104.2
         variables:
