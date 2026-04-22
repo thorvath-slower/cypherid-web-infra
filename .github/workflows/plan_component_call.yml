@@ -77,7 +77,6 @@ jobs:
           make terraform
           .fogg/tfenv/bin/terraform --version
       - name: Terraform Plan
-        id: terraform-plan
         if: ${{ hashFiles('./terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/**') != '' }}
         working-directory: ./terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/
         env:
@@ -102,14 +101,12 @@ jobs:
           jq '.resource_changes[] | select(.change.actions[0] != "no-op" and .change.actions[0] != "read")' plan.json | jq '{address, action: .change.actions[0]}' | jq -c --slurp . > "${{ github.workspace }}/resource_changes.json"
           jq -c . "${{ github.workspace }}/resource_changes.json"
       - name: Terraform Plan
-        id: terraform-plan
         if: ${{ hashFiles('./terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/**') == '' }}
         # NOTE: make check-plan should be sufficient, but it doesn't leave the plan file after it executes
         run: |
           jq -cn '[]' > "${{ github.workspace }}/resource_changes.json"
       # TODO: Only uncomment for local execution via nektos act, when testing outputs and artifacts
       #- name: Terraform Plan
-      #  id: terraform-plan
       #  run: |
       #    echo foo > "${{ github.workspace }}/tf.plan"
       #    jq -cn '$ARGS.positional' --jsonargs '{"address": "foo", "action": "create"}' '{"address": "bar", "action": "update"}' '{"address": "baz", "action": "delete"}' > "${{ github.workspace }}/resource_changes.json"
