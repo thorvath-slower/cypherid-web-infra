@@ -49,23 +49,21 @@ jobs:
         run: |
           echo "branch_name=${{ env.branch_name }}"
           echo "environment=${{ inputs.environment }}"
-          echo "| Planning | Environment | Branch |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ---------------- | ----------- | ------ |" >> "$GITHUB_STEP_SUMMARY"
           if [[ -n "${{ inputs.environment }}" ]]; then
+            echo "environment=${{ inputs.environment }}"
             echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
-            echo "| :green_circle: Enabled | ${{ inputs.environment }} | ${{ env.branch_name }} |" >> "$GITHUB_STEP_SUMMARY"
           elif [[ "${{ env.branch_name }}" == "development" ]]; then
+            echo "environment=dev"
             echo "environment=dev" >> "$GITHUB_OUTPUT"
-            echo "| :green_circle: Enabled | dev | ${{ env.branch_name }} |" >> "$GITHUB_STEP_SUMMARY"
           elif [[ "${{ env.branch_name }}" == "staging" ]]; then
+            echo "environment=staging"
             echo "environment=staging" >> "$GITHUB_OUTPUT"
-            echo "| :green_circle: Enabled | staging | ${{ env.branch_name }} |" >> "$GITHUB_STEP_SUMMARY"
           elif [[ "${{ env.branch_name }}" == "main" ]]; then
+            echo "environment=prod"
             echo "environment=prod" >> "$GITHUB_OUTPUT"
-            echo "| :green_circle: Enabled | prod | ${{ env.branch_name }} |" >> "$GITHUB_STEP_SUMMARY"
           else
+            echo "environment="
             echo "environment=" >> "$GITHUB_OUTPUT"
-            echo "| :yellow_circle: Disabled | | ${{ env.branch_name }} |" >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Git clone the repository
         if: ${{ steps.calculate-environment.outputs.environment }}
@@ -80,6 +78,18 @@ jobs:
           components=$(find . -maxdepth 1 -mindepth 1 -type d -printf '%P\n' | jq -R . | jq -cs 'sort')
           echo "components=$components"
           echo "components=$components" >> "$GITHUB_OUTPUT"
+      - name: Generate Summary
+        run: |
+          component_count=$(jq 'length' <<< "${{ toJson(steps.list-components.outputs.components) }}")
+          echo "| Should Plan | Environment | Branch | Components |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ----------- | ----------- | ------ | ---------- |" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -n "${{ steps.calculate-environment.outputs.environment }}" ]]; then
+            echo "| :green_circle: Enabled | ${{ steps.calculate-environment.outputs.environment }} | ${{ env.branch_name }} | $component_count |"
+            echo "| :green_circle: Enabled | ${{ steps.calculate-environment.outputs.environment }} | ${{ env.branch_name }} | $component_count |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| :yellow_circle: Disabled | | ${{ env.branch_name }} | $component_count |"
+            echo "| :yellow_circle: Disabled | | ${{ env.branch_name }} | $component_count |" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   plan-components:
     name: Terraform Plan each Component
