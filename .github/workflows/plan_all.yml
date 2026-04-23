@@ -32,7 +32,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}-${{ inputs.environment }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   should-plan:
@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.calculate-environment.outputs.environment }}
+      components: ${{ steps.list-components.outputs.components }}
     steps:
       - name: Calculate Environment
         id: calculate-environment
@@ -66,40 +67,30 @@ jobs:
             echo "environment=" >> "$GITHUB_OUTPUT"
             echo "| :yellow_circle: Disabled | | ${{ env.branch_name }} |" >> $GITHUB_STEP_SUMMARY
           fi
+      - name: Git clone the repository
+        if: ${{ steps.calculate-environment.outputs.environment }}
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: List Components
+        id: list-components
+        if: ${{ steps.calculate-environment.outputs.environment }}
+        working-directory: "./terraform/envs/${{ steps.calculate-environment.outputs.environment }}/"
+        run: |
+          components=$(find . -maxdepth 1 -mindepth 1 -type d -printf '%P\n' | jq -R . | jq -cs 'sort')
+          echo "components=$components"
+          echo "components=$components" >> "$GITHUB_OUTPUT"
 
   plan-components:
     name: Terraform Plan each Component
-    if: ${{ !cancelled() && needs.should-plan.outputs.environment }}
+    if: ${{ needs.should-plan.outputs.environment }}
     needs:
       - should-plan
     strategy:
       fail-fast: false
       #max-parallel: 2
       matrix:
-        # TODO: List all folders in terraform/envs/<environment>>/
-        component:
-          - iam-password-policy
-          - params-secrets
-          #- route53
-          - czid-services-private-key
-          - cloud-env
-          - idseq-s3-tar-writer
-          - elb-access-logs
-          - maintenance
-          - heatmap-optimization
-          - db
-          - downloads
-          - ecs
-          - batch
-          - redis
-          - web
-          - web-waf
-          - auth0
-          - resque
-          - eks
-          - k8s-core
-          - happy
-          - access-management
+        component: ${{ fromJson(needs.should-plan.outputs.components )}}
     uses: ./.github/workflows/plan_component_call.yml
     with:
       environment: ${{ needs.should-plan.outputs.environment }}
