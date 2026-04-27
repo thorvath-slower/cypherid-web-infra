@@ -64,7 +64,7 @@ jobs:
         if: ${{ !env.ACT && steps.component-exists.outputs.files_exists == 'true' }}
         uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/czid-${{ inputs.environment }}-gh-actions-executor
+          role-to-assume: ${{ vars.AWS_ROLE }}
           output-env-credentials: true
           #role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
