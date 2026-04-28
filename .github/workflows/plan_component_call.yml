@@ -119,7 +119,6 @@ jobs:
           compression-level: 0 # Plan files are already pretty compact, and max compression gives at best 10% savings
           if-no-files-found: error
       - name: Create Result JSON
-        id: create-result
         run: |
           change_count=$(jq 'length' "${{ github.workspace }}/resource_changes.json")
           echo "change-count=$change_count"
