@@ -44,49 +44,33 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Check if Component directory exists
-        id: component-exists
-        uses: andstor/file-existence-action@v3
-        with:
-          files: "./terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/"
       - name: Reconfigure Git to use HTTP authentication
-        if: ${{ steps.component-exists.outputs.files_exists == 'true' }}
         run: |
           git config --global url."https://github.com/".insteadOf ssh://git@github.com/
       - name: Install AWS CLI
-        if: ${{ steps.component-exists.outputs.files_exists == 'true' }}
         uses: unfor19/install-aws-cli-action@v1
         with:
           version: 2
           verbose: false
           arch: amd64
       - name: Configure AWS Credentials
-        if: ${{ !env.ACT && steps.component-exists.outputs.files_exists == 'true' }}
         uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE }}
-          output-env-credentials: true
-          #role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: ${{ env.AWS_REGION }}
-          aws-profile: idseq-${{ inputs.environment }}
-      - name: Configure AWS Credentials for local execution using nektos act
-        if: ${{ env.ACT && steps.component-exists.outputs.files_exists == 'true' }}
-        uses: aws-actions/configure-aws-credentials@v6.1.0
-        with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          #output-credentials: true
           output-env-credentials: true
-          #role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
           aws-profile: idseq-${{ inputs.environment }}
       - name: Setup Terraform
-        if: ${{ steps.component-exists.outputs.files_exists == 'true' }}
         run: |
+          aws sts get-caller-identity --profile "idseq-${{ inputs.environment }}" --no-cli-pager --no-cli-auto-prompt
           make terraform
           .fogg/tfenv/bin/terraform --version
       - name: Terraform Plan
-        if: ${{ steps.component-exists.outputs.files_exists == 'true' }}
         working-directory: "./terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/"
         env:
           AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
@@ -109,11 +93,6 @@ jobs:
           ${{ github.workspace }}/.fogg/tfenv/bin/terraform show -json "${{ github.workspace }}/tf.plan" > plan.json
           jq '.resource_changes[] | select(.change.actions[0] != "no-op" and .change.actions[0] != "read")' plan.json | jq '{address, action: .change.actions[0]}' | jq -c --slurp . > "${{ github.workspace }}/resource_changes.json"
           jq -c . "${{ github.workspace }}/resource_changes.json"
-      - name: Dummy Terraform Plan
-        if: ${{ steps.component-exists.outputs.files_exists != 'true' }}
-        # NOTE: make check-plan should be sufficient, but it doesn't leave the plan file after it executes
-        run: |
-          jq -cn '[]' > "${{ github.workspace }}/resource_changes.json"
       # TODO: Only uncomment for local execution via nektos act, when testing outputs and artifacts
       #- name: Terraform Plan
       #  run: |
@@ -121,7 +100,6 @@ jobs:
       #    jq -cn '$ARGS.positional' --jsonargs '{"address": "foo", "action": "create"}' '{"address": "bar", "action": "update"}' '{"address": "baz", "action": "delete"}' > "${{ github.workspace }}/resource_changes.json"
       - name: Upload Plan as Artifact
         id: upload-plan
-        if: ${{ steps.component-exists.outputs.files_exists == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: plan-${{ inputs.component }}
