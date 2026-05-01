@@ -20,6 +20,7 @@ locals {
   assets_fqdn              = data.terraform_remote_state.web.outputs.assets_fqdn
 }
 
+# TODO: Move this to Prod!
 resource "auth0_role" "admin" {
   name        = "Admin"
   description = "Administrator"
@@ -64,9 +65,15 @@ resource "auth0_client" "idseq_web" {
   }
 }
 
+# Create a Resource Server
+resource "auth0_resource_server" "idseq_web" {
+  name       = "IDSeq Web ${var.env}"
+  identifier = local.env_seqtoid_org_url
+}
+
 resource "auth0_client_grant" "idseq_web_grant" {
   client_id    = auth0_client.idseq_web.id
-  audience     = "https://${var.auth0_domain}/api/v2/" # "https://${var.env}.seqtoid.org" TODO: Should be this?!!!
+  audience     = auth0_resource_server.idseq_web.identifier
   subject_type = "user"
   scopes       = []
 }
@@ -78,7 +85,8 @@ resource "auth0_client" "idseq_web_management" {
 
 resource "auth0_client_grant" "idseq_web_management_grant" {
   client_id = auth0_client.idseq_web_management.id
-  audience  = "https://${var.auth0_domain}/api/v2/" # "https://${var.env}.seqtoid.org" TODO: Should be this?!!!
+  audience  = auth0_resource_server.idseq_web.identifier
+  # subject_type = "client"
   scopes = [
     "read:users",
     "update:users",
@@ -143,8 +151,8 @@ resource "auth0_client_grant" "idseq_web_management_grant" {
 #   }
 # }
 
-# resource "auth0_custom_domain" "env_seqtoid_org" {
-#   domain     = "auth.sequtoid.com"
+# resource "auth0_custom_domain" "auth_env_seqtoid_org" {
+#   domain     = "auth.${local.env_seqtoid_org_fqdn}"
 #   type       = "auth0_managed_certs"
 #   tls_policy = "recommended"
 #   # domain_metadata = {
@@ -174,6 +182,7 @@ resource "auth0_client_grant" "idseq_web_management_grant" {
 #   # show_as_button             = true
 # }
 
+# TODO: Move all custom branding and similar to Prod
 resource "auth0_branding" "seqtoid_branding" {
   # depends_on  = [auth0_custom_domain.env_seqtoid_org]
   logo_url    = "https://${local.assets_fqdn}/assets/logo-new.png"
@@ -199,9 +208,9 @@ resource "auth0_prompt_custom_text" "seqtoid_login" {
     {
       "login" : {
         "description" : "Log in to continue",
-        # "logoAltText" : "SeqtoID [Dev]",
-        # "pageTitle" : "Log in | SeqtoID [Dev]",
-        "title" : "Welcome to SeqtoID [Dev]",
+        # "logoAltText" : "SeqtoID",
+        # "pageTitle" : "Log in | SeqtoID",
+        "title" : "Welcome to SeqtoID",
       }
     }
   )
@@ -215,19 +224,16 @@ resource "auth0_prompt_custom_text" "seqtoid_signup" {
     {
       "signup" : {
         "description" : "Sign Up to continue",
-        "title" : "Welcome to SeqtoID [Dev]",
+        "title" : "Welcome to SeqtoID",
       }
     }
   )
 }
 
-resource "auth0_connection" "username_password_authentication" {
-  name                 = "Username-Password-Authentication"
+resource "auth0_connection" "env_username_password" {
+  name                 = "username-password-${var.env}"
   strategy             = "auth0"
-  is_domain_connection = false
-  realms = [
-    "Username-Password-Authentication",
-  ]
+  is_domain_connection = false # TODO: Set to true to use custom DNS Domain
 
   options {
     import_mode                    = false # TODO: true when we can use a custom user DB?
@@ -276,12 +282,12 @@ resource "auth0_connection" "username_password_authentication" {
 }
 
 resource "auth0_connection_client" "idseq_web_connection_client" {
-  connection_id = auth0_connection.username_password_authentication.id
+  connection_id = auth0_connection.env_username_password.id
   client_id     = auth0_client.idseq_web.id
 }
 
 resource "auth0_connection_client" "idseq_web_management_connection_client" {
-  connection_id = auth0_connection.username_password_authentication.id
+  connection_id = auth0_connection.env_username_password.id
   client_id     = auth0_client.idseq_web_management.id
 }
 
@@ -293,6 +299,8 @@ data "auth0_client" "idseq_web_management" {
   client_id = auth0_client.idseq_web_management.id
 }
 
+data "auth0_tenant" "current" {}
+
 module "auth0-ssm-params" {
   source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.104.2"
   project = var.project
@@ -303,9 +311,10 @@ module "auth0-ssm-params" {
   parameters = {
     AUTH0_CLIENT_ID                = auth0_client.idseq_web.client_id
     AUTH0_CLIENT_SECRET            = data.auth0_client.idseq_web.client_secret
-    AUTH0_DOMAIN                   = var.auth0_domain
+    AUTH0_DOMAIN                   = data.auth0_tenant.current.domain
+    AUTH0_CONNECTION               = auth0_connection.env_username_password.name
     AUTH0_MANAGEMENT_CLIENT_ID     = auth0_client.idseq_web_management.client_id
     AUTH0_MANAGEMENT_CLIENT_SECRET = data.auth0_client.idseq_web_management.client_secret
-    AUTH0_MANAGEMENT_DOMAIN        = var.auth0_domain
+    AUTH0_DOMAIN                   = data.auth0_tenant.current.domain
   }
 }

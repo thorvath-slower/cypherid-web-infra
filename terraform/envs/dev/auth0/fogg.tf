@@ -124,7 +124,7 @@ provider "aws" {
 provider "assert" {}
 
 provider "auth0" {
-  domain = "dev-ep4y3efh1vxvw06z.us.auth0.com"
+  domain = "dev-k7ouxx6hy2bt2q8y.us.auth0.com"
 }
 terraform {
   required_version = "=1.14.8"
@@ -275,11 +275,6 @@ variable "tags" {
 variable "alignment_index_date" {
   type    = string
   default = "2021-01-22"
-}
-# tflint-ignore: terraform_unused_declarations
-variable "auth0_domain" {
-  type    = string
-  default = "dev-ep4y3efh1vxvw06z.us.auth0.com"
 }
 # tflint-ignore: terraform_unused_declarations
 variable "base_domain" {
