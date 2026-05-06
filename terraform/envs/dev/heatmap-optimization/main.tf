@@ -54,6 +54,7 @@ module "idseq-heatmap-es-param" {
   owner   = var.owner
 
   parameters = {
+    ES_ADDRESS         = "https://${module.elasticsearch.elasticsearch_endpoint}"
     HEATMAP_ES_ADDRESS = "https://${module.elasticsearch.elasticsearch_endpoint}"
   }
 }

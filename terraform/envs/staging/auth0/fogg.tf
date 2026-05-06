@@ -277,11 +277,6 @@ variable "alignment_index_date" {
   default = "2021-01-22"
 }
 # tflint-ignore: terraform_unused_declarations
-variable "auth0_domain" {
-  type    = string
-  default = "dev-ep4y3efh1vxvw06z.us.auth0.com"
-}
-# tflint-ignore: terraform_unused_declarations
 variable "base_domain" {
   type    = string
   default = "seqtoid.org"
@@ -295,11 +290,6 @@ variable "build_index_date" {
 variable "eks_cluster_name" {
   type    = string
   default = "czid-staging-eks"
-}
-# tflint-ignore: terraform_unused_declarations
-variable "s3_bucket_aegea_ecs_execute" {
-  type    = string
-  default = "aegea-ecs-execute-staging-030998640247"
 }
 # tflint-ignore: terraform_unused_declarations
 variable "s3_bucket_idseq_bench" {

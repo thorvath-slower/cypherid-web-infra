@@ -71,7 +71,6 @@ defaults:
     s3_bucket_public_references: seqtoid-public-references
     s3_bucket_idseq_bench: idseq-bench # TODO: what is this used for?
     s3_bucket_secrets: idseq-secrets # TODO: what is this used for?
-    #s3_bucket_workflows: cypherid-samples-deleteme # No longer hardcoded, but computed as "seqtoid-workflows-${env}-${account_id}"
   owner: biohub-tech@chanzuckerberg.com
   project: idseq
   providers:
@@ -178,14 +177,14 @@ envs:
             - cloud-env
         module_source: github.com/chanzuckerberg/cztack//aws-eks-cluster?ref=v0.104.2
         variables:
-          - cluster_name
-          - iam_cluster_name_prefix
-          - cluster_version
-          - owner_roles
-          - node_groups
-          - authorized_github_repos
           - addons
+          - authorized_github_repos
           #- aws_org_id # TODO: determine if this being set correctly matters or not, as the default is some CZI(?) Org
+          - cluster_name
+          - cluster_version
+          - iam_cluster_name_prefix
+          - node_groups
+          - owner_roles
         module_name: eks-cluster
         provider_aliases:
           aws.us-east-1: aws.us-east-1
@@ -204,10 +203,10 @@ envs:
       happy:
         depends_on:
           components:
-            - route53
             - cloud-env
-            - k8s-core
             - eks
+            - k8s-core
+            - route53
         module_source: terraform/modules/happy-env-eks
         variables:
           - additional_secrets
@@ -239,8 +238,10 @@ envs:
         module_source: terraform/modules/aws-env-v4.0.0
         module_name: aws-env
         variables:
-          - single_nat_gateway
+          - create_database_internet_gateway_route
+          - create_database_subnet_route_table
           - k8s_cluster_names
+          - single_nat_gateway
       downloads:
         depends_on:
           components:
@@ -303,16 +304,15 @@ envs:
       web:
         depends_on:
           components:
-            - route53
             - cloud-env
             - db
             - ecs
             - heatmap-optimization
             - elb-access-logs
             - redis
+            - route53
       web-waf:
     extra_vars:
-      s3_bucket_aegea_ecs_execute: aegea-ecs-execute-dev-491013321714
       s3_bucket_samples: idseq-samples-dev-491013321714
       s3_bucket_samples_v1: czi-infectious-disease-dev-samples-491013321714
       eks_cluster_name: czid-dev-eks
@@ -440,14 +440,14 @@ envs:
             - cloud-env
         module_source: github.com/chanzuckerberg/cztack//aws-eks-cluster?ref=v0.104.2
         variables:
+          - addons
+          - authorized_github_repos
+          #- aws_org_id # TODO: determine if this being set correctly matters or not, as the default is some CZI(?) Org
           - cluster_name
-          - iam_cluster_name_prefix
           - cluster_version
+          - iam_cluster_name_prefix
           - owner_roles
           - node_groups
-          - authorized_github_repos
-          - addons
-          #- aws_org_id # TODO: determine if this being set correctly matters or not, as the default is some CZI(?) Org
         module_name: eks-cluster
         provider_aliases:
           aws.us-east-1: aws.us-east-1
@@ -472,10 +472,10 @@ envs:
       happy:
         depends_on:
           components:
-            - route53
             - cloud-env
-            - k8s-core
             - eks
+            - k8s-core
+            - route53
         module_source: terraform/modules/happy-env-eks
         variables:
           - additional_secrets
@@ -503,8 +503,6 @@ envs:
         providers:
           auth0:
             domain: dev-ep4y3efh1vxvw06z.us.auth0.com
-        extra_vars:
-          auth0_domain: dev-ep4y3efh1vxvw06z.us.auth0.com
         depends_on:
           components:
             - route53
@@ -528,8 +526,10 @@ envs:
         module_source: terraform/modules/aws-env-v4.0.0
         module_name: aws-env
         variables:
-          - single_nat_gateway
+          - create_database_internet_gateway_route
+          - create_database_subnet_route_table
           - k8s_cluster_names
+          - single_nat_gateway
       czid-services-private-key:
         module_source: terraform/modules/czid-services-private-key
       db:
@@ -594,16 +594,15 @@ envs:
       web:
         depends_on:
           components:
-            - route53
             - cloud-env
             - db
             - ecs
             - heatmap-optimization
             - elb-access-logs
             - redis
+            - route53
       web-waf:
     extra_vars:
-      s3_bucket_aegea_ecs_execute: aegea-ecs-execute-staging-030998640247
       s3_bucket_samples: idseq-samples-staging-030998640247
       s3_bucket_samples_v1: czi-infectious-disease-staging-samples-030998640247
       eks_cluster_name: czid-staging-eks
@@ -735,8 +734,8 @@ envs:
         module_source: terraform/modules/aws-env-v4.0.0
         module_name: aws-env
         variables:
-          - single_nat_gateway
           - k8s_cluster_names
+          - single_nat_gateway
       #czid-services-private-key:
       #  module_source: terraform/modules/czid-services-private-key
       db:

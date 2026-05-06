@@ -20,6 +20,8 @@ locals {
   assets_fqdn              = data.terraform_remote_state.web.outputs.assets_fqdn
 }
 
+data "auth0_tenant" "current" {}
+
 # TODO: Move this to Prod!
 resource "auth0_role" "admin" {
   name        = "Admin"
@@ -182,7 +184,7 @@ resource "auth0_client_grant" "idseq_web_management_grant" {
 #   # show_as_button             = true
 # }
 
-# TODO: Move all custom branding and similar to Prod
+# TODO: Move all custom branding and similar to Global!
 resource "auth0_branding" "seqtoid_branding" {
   # depends_on  = [auth0_custom_domain.env_seqtoid_org]
   logo_url    = "https://${local.assets_fqdn}/assets/logo-new.png"
@@ -236,25 +238,13 @@ resource "auth0_connection" "env_username_password" {
   is_domain_connection = false # TODO: Set to true to use custom DNS Domain
 
   options {
-    import_mode                    = false # TODO: true when we can use a custom user DB?
+    import_mode                    = false
     disable_signup                 = false
     password_policy                = "excellent"
     strategy_version               = 2
     requires_username              = false
     brute_force_protection         = true
-    enabled_database_customization = false # TODO: true when we can use a custom user DB
-
-    # custom_scripts = {
-    #   login    = file("${path.module}/scripts/login.js")
-    #   get_user = file("${path.module}/scripts/get_user.js")
-    # }
-    #
-    # # NOTE: these are encrypted
-    # configuration = {
-    #   AUTH0_DOMAIN        = var.auth0_m2m_domain
-    #   AUTH0_CLIENT_ID     = auth0_client.idseq_web.client_id
-    #   AUTH0_CLIENT_SECRET = auth0_client.idseq_web.client_secret
-    # }
+    enabled_database_customization = false
 
     mfa {
       active                 = true
@@ -299,13 +289,11 @@ data "auth0_client" "idseq_web_management" {
   client_id = auth0_client.idseq_web_management.id
 }
 
-data "auth0_tenant" "current" {}
-
 module "auth0-ssm-params" {
   source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.104.2"
   project = var.project
   env     = var.env
-  service = "web" # var.component
+  service = "web"
   owner   = var.owner
 
   parameters = {

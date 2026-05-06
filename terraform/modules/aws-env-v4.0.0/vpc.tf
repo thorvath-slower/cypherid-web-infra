@@ -75,8 +75,9 @@ module "vpc" {
   enable_dns_support      = true
   map_public_ip_on_launch = true
 
-  create_database_subnet_group       = true
-  create_database_subnet_route_table = var.create_database_subnet_route_table
+  create_database_internet_gateway_route = var.create_database_internet_gateway_route
+  create_database_subnet_group           = true
+  create_database_subnet_route_table     = var.create_database_subnet_route_table
 
   tags = local.vpc_base_tags
 

@@ -5,10 +5,11 @@ resource "aws_rds_cluster" "db" {
   master_username                     = var.db_username
   master_password                     = module.db_password.value
   vpc_security_group_ids              = [aws_security_group.rds.id]
-  db_subnet_group_name                = aws_db_subnet_group.db.name
+  db_subnet_group_name                = "${var.project}-${var.env}"
   storage_encrypted                   = true
   iam_database_authentication_enabled = true
   engine                              = "aurora-mysql"
+  skip_final_snapshot                 = true
 
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db_8.id
 
@@ -19,12 +20,13 @@ resource "aws_rds_cluster_instance" "db" {
   count                   = 1
   identifier              = "${var.project}-${var.env}-${count.index}"
   cluster_identifier      = aws_rds_cluster.db.id
-  instance_class          = "db.r6i.large" # This was db.t3.medium, but needs to be larger to enable Query Editor in the AWS RDS UI
-  db_subnet_group_name    = aws_db_subnet_group.db.name
+  instance_class          = "db.r6g.large" # This was db.t3.medium, but needs to be larger to enable Query Editor in the AWS RDS UI
+  db_subnet_group_name    = "${var.project}-${var.env}"
   db_parameter_group_name = aws_db_parameter_group.db_8.name
   monitoring_interval     = 0
   ca_cert_identifier      = "rds-ca-ecc384-g1"
   engine                  = aws_rds_cluster.db.engine
+  # publicly_accessible     = true # Enables a public DNS name and IP
 
   tags = {
     terraform = true
@@ -92,15 +94,6 @@ resource "aws_db_parameter_group" "db_8" {
     name  = "group_concat_max_len"
     value = "1073741824"
   }
-
-  tags = {
-    terraform = true
-  }
-}
-
-resource "aws_db_subnet_group" "db" {
-  name       = "${var.project}-${var.env}-main"
-  subnet_ids = data.terraform_remote_state.cloud-env.outputs.private_subnets
 
   tags = {
     terraform = true

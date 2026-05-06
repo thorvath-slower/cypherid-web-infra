@@ -1,3 +1,7 @@
+locals {
+  s3_bucket_aegea_ecs_execute = "aegea-ecs-execute-${var.env}-${var.aws_accounts.idseq-staging}"
+}
+
 module "ecs-cluster" {
   source = "../../../modules/ecs-cluster-v2.4.0"
 
@@ -85,8 +89,9 @@ resource "aws_ecs_cluster" "idseq-fargate-tasks" {
 }
 
 resource "aws_s3_bucket" "aegea-ecs-execute" {
-  bucket = var.s3_bucket_aegea_ecs_execute
-  acl    = "private"
+  bucket        = local.s3_bucket_aegea_ecs_execute
+  acl           = "private"
+  force_destroy = true
 
   lifecycle_rule {
     id      = "ExpireRule"
@@ -119,4 +124,16 @@ resource "aws_security_group_rule" "aegea-ecs-egress-443-all-tcp" {
   protocol          = "tcp"
   security_group_id = aws_security_group.aegea-ecs.id
   cidr_blocks       = ["0.0.0.0/0"]
+}
+
+module "web-params" {
+  source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.104.2"
+  project = var.project
+  env     = var.env
+  service = "web"
+  owner   = var.owner
+
+  parameters = {
+    S3_AEGEA_ECS_EXECUTE_BUCKET = local.s3_bucket_aegea_ecs_execute
+  }
 }

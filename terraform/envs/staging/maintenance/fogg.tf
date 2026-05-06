@@ -281,11 +281,6 @@ variable "eks_cluster_name" {
   default = "czid-staging-eks"
 }
 # tflint-ignore: terraform_unused_declarations
-variable "s3_bucket_aegea_ecs_execute" {
-  type    = string
-  default = "aegea-ecs-execute-staging-030998640247"
-}
-# tflint-ignore: terraform_unused_declarations
 variable "s3_bucket_idseq_bench" {
   type    = string
   default = "idseq-bench"

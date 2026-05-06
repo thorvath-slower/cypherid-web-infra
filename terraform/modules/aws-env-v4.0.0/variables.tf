@@ -79,6 +79,12 @@ variable "create_database_subnet_route_table" {
   description = "Controls if separate route table for database should be created."
 }
 
+variable "create_database_internet_gateway_route" {
+  type        = bool
+  default     = false
+  description = "Controls if DB should be publicly accessible."
+}
+
 variable "datadog_api_key" {
   type        = string
   default     = ""
