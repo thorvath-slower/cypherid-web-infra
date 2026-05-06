@@ -319,20 +319,6 @@ data "terraform_remote_state" "cloud-env" {
 
   }
 }
-data "terraform_remote_state" "db" {
-  backend = "s3"
-  config = {
-
-
-    bucket = "tfstate-491013321714-test"
-
-    key     = "terraform/idseq/envs/dev/components/db.tfstate"
-    region  = "us-west-2"
-    profile = "idseq-dev"
-
-
-  }
-}
 data "terraform_remote_state" "ecs" {
   backend = "s3"
   config = {
@@ -355,20 +341,6 @@ data "terraform_remote_state" "elb-access-logs" {
     bucket = "tfstate-491013321714-test"
 
     key     = "terraform/idseq/envs/dev/components/elb-access-logs.tfstate"
-    region  = "us-west-2"
-    profile = "idseq-dev"
-
-
-  }
-}
-data "terraform_remote_state" "heatmap-optimization" {
-  backend = "s3"
-  config = {
-
-
-    bucket = "tfstate-491013321714-test"
-
-    key     = "terraform/idseq/envs/dev/components/heatmap-optimization.tfstate"
     region  = "us-west-2"
     profile = "idseq-dev"
 

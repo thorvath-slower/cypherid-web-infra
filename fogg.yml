@@ -305,9 +305,7 @@ envs:
         depends_on:
           components:
             - cloud-env
-            - db
             - ecs
-            - heatmap-optimization
             - elb-access-logs
             - redis
             - route53
@@ -408,13 +406,11 @@ envs:
       web:
         depends_on:
           components:
-            - route53
             - cloud-env
             - ecs
             - elb-access-logs
-            - db
             - redis
-            - heatmap-optimization
+            - route53
       web-waf:
     extra_vars:
       s3_bucket_aegea_ecs_execute: aegea-ecs-execute-sandbox-941377154785
@@ -595,9 +591,7 @@ envs:
         depends_on:
           components:
             - cloud-env
-            - db
             - ecs
-            - heatmap-optimization
             - elb-access-logs
             - redis
             - route53
@@ -808,10 +802,8 @@ envs:
         depends_on:
           components:
             - cloud-env
-            - db
             - ecs
             - elb-access-logs
-            - heatmap-optimization
             - redis
             - route53
       web-waf:
