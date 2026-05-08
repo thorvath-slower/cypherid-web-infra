@@ -714,8 +714,6 @@ envs:
         providers:
           auth0:
             domain: dev-ep4y3efh1vxvw06z.us.auth0.com
-        extra_vars:
-          auth0_domain: dev-ep4y3efh1vxvw06z.us.auth0.com
         depends_on:
           components:
             - route53

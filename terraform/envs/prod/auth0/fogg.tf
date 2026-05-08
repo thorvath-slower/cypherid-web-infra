@@ -277,11 +277,6 @@ variable "alignment_index_date" {
   default = "2021-01-22"
 }
 # tflint-ignore: terraform_unused_declarations
-variable "auth0_domain" {
-  type    = string
-  default = "dev-ep4y3efh1vxvw06z.us.auth0.com"
-}
-# tflint-ignore: terraform_unused_declarations
 variable "base_domain" {
   type    = string
   default = "seqtoid.org"
