@@ -1,0 +1,40 @@
+name: Terraform Apply all Components
+run-name: Terraform Apply all Components by ${{ github.actor }}
+
+on:
+  workflow_run:
+    workflows:
+      - Terraform Plan all Components
+    types:
+      - completed
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TERRAFORM_VERSION: "1.14.8"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  should-apply:
+    name: Check if Terraform Apply should be performed
+    if: ${{ !cancelled() && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "$GITHUB_CONTEXT"
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # Use the ID from the upstream workflow run
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: List downloaded Artifacts
+        run: |
+          find .
+          ls -l
