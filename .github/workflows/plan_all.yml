@@ -1,5 +1,5 @@
-name: Plan all Components
-run-name: Plan all Components in env ${{ inputs.environment || github.base_ref || github.ref_name }} branch ${{ github.base_ref || github.ref_name }} by ${{ github.actor }}
+name: Terraform Plan all Components
+run-name: Terraform Plan all Components in env ${{ inputs.environment || github.base_ref || github.ref_name }} branch ${{ github.base_ref || github.ref_name }} by ${{ github.actor }}
 
 on:
   push:
@@ -7,13 +7,13 @@ on:
       - development
       - staging
       - main
-      - 'releases/**'
+      #- 'releases/**' TODO: Handle releases
   pull_request:
     branches:
       - development
       - staging
       - main
-      - 'releases/**'
+      #- 'releases/**' TODO: Handle releases
   workflow_dispatch:
     inputs:
       environment:
@@ -43,9 +43,14 @@ jobs:
       environment: ${{ steps.calculate-environment.outputs.environment }}
       components: ${{ steps.list-components.outputs.components }}
     steps:
+      - name: Print GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "$GITHUB_CONTEXT"
       - name: Calculate Environment
         id: calculate-environment
-        # TODO: Handle Releases
+        # TODO: Handle releases
         run: |
           echo "branch_name=${{ env.branch_name }}"
           echo "environment=${{ inputs.environment }}"
@@ -73,7 +78,7 @@ jobs:
       - name: List Components
         id: list-components
         if: ${{ steps.calculate-environment.outputs.environment }}
-        working-directory: "./terraform/envs/${{ steps.calculate-environment.outputs.environment }}/"
+        working-directory: './terraform/envs/${{ steps.calculate-environment.outputs.environment }}/'
         run: |
           components=$(find . -maxdepth 1 -mindepth 1 -type d -printf '%P\n' | jq -R . | jq -cs 'sort')
           echo "components=$components"

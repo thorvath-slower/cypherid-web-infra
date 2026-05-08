@@ -1,4 +1,5 @@
-name: Plan Component Call
+name: Terraform Plan Component Call
+run-name: Terraform Plan Component Call with env ${{ inputs.environment }} component ${{ inputs.component }}
 
 on:
   workflow_call:
@@ -27,15 +28,14 @@ on:
         value: ${{ jobs.plan-component.outputs.result-artifact-id }}
 
 env:
+  AWS_REGION: us-west-2
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   plan-component:
-    name: Plan Component - ${{ inputs.component }}
+    name: Terraform Plan Component - ${{ inputs.component }}
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION: us-west-2
     outputs:
       plan-artifact-id: ${{ steps.upload-plan.outputs.artifact-id }}
       result-artifact-id: ${{ steps.upload-result.outputs.artifact-id }}
