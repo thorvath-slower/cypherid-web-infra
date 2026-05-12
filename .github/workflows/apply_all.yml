@@ -29,12 +29,23 @@ jobs:
         run: |
           echo "$GITHUB_CONTEXT"
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/github-script@v8
         with:
-          # Use the ID from the upstream workflow run
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: List downloaded Artifacts
-        run: |
-          find .
-          ls -l
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.payload.workflow_run.id,
+            });
+            console.log("artifacts.data.artifacts", artifacts.data.artifacts);
+            console.log("artifacts.data", artifacts.data);
+#      - name: Download all artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          # Use the ID from the upstream workflow run
+#          run-id: ${{ github.event.workflow_run.id }}
+#          github-token: ${{ secrets.GITHUB_TOKEN }}
+#      - name: List downloaded Artifacts
+#        run: |
+#          find .
+#          ls -l
