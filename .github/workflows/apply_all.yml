@@ -1,5 +1,5 @@
 name: Terraform Apply all Components
-run-name: Terraform Apply all Components by ${{ github.actor }}
+run-name: Terraform Apply all Components for Workflow ${{ github.event.workflow_run.id }} by ${{ github.actor }}
 
 on:
   workflow_run:
@@ -10,8 +10,6 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  TERRAFORM_VERSION: "1.14.8"
 
 permissions:
   id-token: write
@@ -22,30 +20,46 @@ jobs:
     name: Check if Terraform Apply should be performed
     if: ${{ !cancelled() && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.changed-components.outputs.environment }}
+      components: ${{ steps.changed-components.outputs.components }}
     steps:
       - name: Print GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: |
           echo "$GITHUB_CONTEXT"
-      - name: Download all artifacts
-        uses: actions/github-script@v8
+      - name: Download Result Artifacts
+        uses: actions/download-artifact@v5
         with:
-          script: |
-            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: context.payload.workflow_run.id,
-            });
-            console.log("artifacts.data.artifacts", artifacts.data.artifacts);
-            console.log("artifacts.data", artifacts.data);
-#      - name: Download all artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          # Use the ID from the upstream workflow run
-#          run-id: ${{ github.event.workflow_run.id }}
-#          github-token: ${{ secrets.GITHUB_TOKEN }}
-#      - name: List downloaded Artifacts
-#        run: |
-#          find .
-#          ls -l
+          pattern: result-*
+          path: results
+          run-id: ${{ github.event.workflow_run.id }}
+          #github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate Changed Components Matrix
+        id: changed-components
+        run: |
+          jq --slurp . results/result-*/*
+          components=$(jq -cn '[inputs | select(.change_count > 0) | .component]' results/result-*/*.json)
+          echo "components=$components"
+          echo "components=$components" >> "$GITHUB_OUTPUT"
+          environment=$(jq -cnr '[inputs.environment]|unique|.[0]' results/result-*/*.json)
+          echo "environment=$environment"
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+
+  apply-components:
+    name: Terraform Apply each Component
+    if: ${{ needs.should-apply.outputs.environment }}
+    needs:
+      - should-apply
+    strategy:
+      fail-fast: false
+      #max-parallel: 2
+      matrix:
+        component: ${{ fromJson(needs.should-apply.outputs.components) }}
+    uses: ./.github/workflows/apply_component_call.yml
+    with:
+      environment: ${{ needs.should-plan.outputs.environment }}
+      component: ${{ matrix.component }}
+      run-id: ${{ github.event.workflow_run.id }}
+    secrets: inherit
