@@ -108,10 +108,15 @@ jobs:
       #- name: Terraform Plan
       #  run: |
       #    echo foo > "${{ github.workspace }}/tf.plan"
-      #    jq -cn '$ARGS.positional' --jsonargs '{"address": "foo", "action": "create"}' '{"address": "bar", "action": "update"}' '{"address": "baz", "action": "delete"}' > "${{ github.workspace }}/resource_changes.json"
+      #    change_count=$(( RANDOM % 2 ))
+      #    if [[ $change_count -eq 0 ]]; then
+      #      jq -cn '$ARGS.positional' > "${{ github.workspace }}/resource_changes.json"
+      #    else
+      #      jq -cn '$ARGS.positional' --jsonargs '{"address": "foo", "action": "create"}' '{"address": "bar", "action": "update"}' '{"address": "baz", "action": "delete"}' > "${{ github.workspace }}/resource_changes.json"
+      #    fi
       - name: Upload Plan as Artifact
         id: upload-plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: plan-${{ inputs.component }}
           path: ${{ github.workspace }}/tf.plan
@@ -123,6 +128,7 @@ jobs:
           change_count=$(jq 'length' "${{ github.workspace }}/resource_changes.json")
           echo "change-count=$change_count"
           jq -cnS \
+            --arg environment "${{ inputs.environment }}" \
             --arg component "${{ inputs.component }}" \
             --arg artifact_name "plan-${{ inputs.component }}" \
             --arg artifact_id "${{ steps.upload-plan.outputs.artifact-id }}" \

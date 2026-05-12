@@ -43,6 +43,7 @@ jobs:
       environment: ${{ steps.calculate-environment.outputs.environment }}
       components: ${{ steps.list-components.outputs.components }}
     steps:
+      # TODO: Remove this Step
       - name: Print GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -85,7 +86,7 @@ jobs:
           echo "components=$components" >> "$GITHUB_OUTPUT"
       - name: Generate Summary
         run: |
-          component_count=$(jq 'length' <<< "${{ toJson(steps.list-components.outputs.components) }}")
+          component_count=$(jq 'length' <<< '${{ steps.list-components.outputs.components }}')
           echo "| Should Plan | Environment | Branch | Components |" >> "$GITHUB_STEP_SUMMARY"
           echo "| ----------- | ----------- | ------ | ---------- |" >> "$GITHUB_STEP_SUMMARY"
           if [[ -n "${{ steps.calculate-environment.outputs.environment }}" ]]; then
@@ -123,8 +124,8 @@ jobs:
     needs:
       - plan-components
     steps:
-      - name: Download Results
-        uses: actions/download-artifact@v4
+      - name: Download Result Artifacts
+        uses: actions/download-artifact@v5
         with:
           pattern: result-*
           path: results
