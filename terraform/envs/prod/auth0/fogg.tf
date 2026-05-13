@@ -187,7 +187,7 @@ terraform {
     kubernetes = {
       source = "hashicorp/kubernetes"
 
-      version = "~> 3.0.1"
+      version = "~> 3.1.0"
 
     }
 
@@ -275,11 +275,6 @@ variable "tags" {
 variable "alignment_index_date" {
   type    = string
   default = "2021-01-22"
-}
-# tflint-ignore: terraform_unused_declarations
-variable "auth0_domain" {
-  type    = string
-  default = "dev-ep4y3efh1vxvw06z.us.auth0.com"
 }
 # tflint-ignore: terraform_unused_declarations
 variable "base_domain" {

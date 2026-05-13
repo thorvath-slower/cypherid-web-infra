@@ -18,8 +18,12 @@ locals {
   env_seqtoid_org_url      = "https://${local.env_seqtoid_org_fqdn}"
   meta_env_seqtoid_org_url = "https://meta.${local.env_seqtoid_org_fqdn}"
   assets_fqdn              = data.terraform_remote_state.web.outputs.assets_fqdn
+  assets_url               = "https://${local.assets_fqdn}"
 }
 
+data "auth0_tenant" "current" {}
+
+# TODO: Move this to Global!
 resource "auth0_role" "admin" {
   name        = "Admin"
   description = "Administrator"
@@ -29,32 +33,35 @@ resource "auth0_client" "idseq_web" {
   name        = "idseq-web-${var.env}"
   description = "Seqtoid ${var.env} Web Application"
   allowed_clients = [
+    # auth0_client.idseq_web_management.id
     # var.auth0_m2m_client_id,
     # local.env_seqtoid_org_url
   ]
   allowed_logout_urls = [
-    "http://localhost:3000",
     local.env_seqtoid_org_url,
     local.meta_env_seqtoid_org_url,
+    "http://localhost:3000",
   ]
   allowed_origins = [
-    "http://localhost:3000",
     local.env_seqtoid_org_url,
     local.meta_env_seqtoid_org_url,
+    "http://localhost:3000",
   ]
   app_type = "regular_web"
   callbacks = [
     # "http://localhost:3000/auth/auth0/callback",
     # "http://127.0.0.2:4000/auth/auth0/callback",
     "${local.env_seqtoid_org_url}/auth/auth0/callback",
+    "${local.env_seqtoid_org_url}/login",
     # "${local.meta_env_seqtoid_org_url}/auth/auth0/callback",
   ]
-  logo_uri = "https://${local.assets_fqdn}/assets/logo-new.png"
-  sso      = true
+  initiate_login_uri = "${local.env_seqtoid_org_url}/login"
+  logo_uri           = "${local.assets_url}/assets/logo-new.png"
+  sso                = true
   web_origins = [
-    "http://localhost:3000",
     local.env_seqtoid_org_url,
     local.meta_env_seqtoid_org_url,
+    "http://localhost:3000",
   ]
 
   jwt_configuration {
@@ -64,9 +71,15 @@ resource "auth0_client" "idseq_web" {
   }
 }
 
+# Create a Resource Server
+# resource "auth0_resource_server" "idseq_web" {
+#   name       = "IDSeq Web ${var.env}"
+#   identifier = local.env_seqtoid_org_url
+# }
+
 resource "auth0_client_grant" "idseq_web_grant" {
   client_id    = auth0_client.idseq_web.id
-  audience     = "https://${var.auth0_domain}/api/v2/" # "https://${var.env}.seqtoid.org" TODO: Should be this?!!!
+  audience     = "https://${data.auth0_tenant.current.domain}/api/v2/" # TODO: Should be auth0_resource_server.idseq_web.identifier ??
   subject_type = "user"
   scopes       = []
 }
@@ -78,7 +91,8 @@ resource "auth0_client" "idseq_web_management" {
 
 resource "auth0_client_grant" "idseq_web_management_grant" {
   client_id = auth0_client.idseq_web_management.id
-  audience  = "https://${var.auth0_domain}/api/v2/" # "https://${var.env}.seqtoid.org" TODO: Should be this?!!!
+  audience  = "https://${data.auth0_tenant.current.domain}/api/v2/"
+  # subject_type = "client"
   scopes = [
     "read:users",
     "update:users",
@@ -89,62 +103,8 @@ resource "auth0_client_grant" "idseq_web_management_grant" {
   ]
 }
 
-# resource "auth0_client" "idseq_cli_v2" {
-#   name = "idseq-cli-v2"
-#   allowed_clients = [
-#     "JuxupFFHWAkv6g3IBYKe5fGBNTOAXNOV",
-#     "https://sandbox.idseq.net",
-#     or
-#     var.auth0_m2m_client_id,
-#       local.env_seqtoid_org_url,
-#   ]
-#   app_type = "native"
-# }
-#
-
-# resource "auth0_connection" "idseq_legacy_users" {
-#   name     = "idseq-legacy-users"
-#   strategy = "auth0"
-#   enabled_clients = [
-#     auth0_client.idseq_web_management.id,
-#     auth0_client.auth0_deploy_cli_extension.id,
-#     or
-#     auth0_m2m_client_id,
-#   ]
-#   is_domain_connection = false
-#   realms = [
-#     "idseq-legacy-users",
-#   ]
-#
-#   options {
-#     import_mode                    = false
-#     disable_signup                 = true
-#     password_policy                = "good"
-#     strategy_version               = 2
-#     requires_username              = true
-#     brute_force_protection         = true
-#     enabled_database_customization = false
-#
-#     mfa {
-#       active                 = true
-#       return_enroll_settings = true
-#     }
-#
-#     validation {
-#       username {
-#         max = 15
-#         min = 1
-#       }
-#     }
-#
-#     password_complexity_options {
-#       min_length = 1
-#     }
-#   }
-# }
-
-# resource "auth0_custom_domain" "env_seqtoid_org" {
-#   domain     = "auth.sequtoid.com"
+# resource "auth0_custom_domain" "auth_env_seqtoid_org" {
+#   domain     = "auth.${local.env_seqtoid_org_fqdn}"
 #   type       = "auth0_managed_certs"
 #   tls_policy = "recommended"
 #   # domain_metadata = {
@@ -158,7 +118,7 @@ resource "auth0_client_grant" "idseq_web_management_grant" {
 #   display_name = "Seqtoid Org"
 #
 #   branding {
-#     logo_url = "https://${local.assets_fqdn}/assets/CZID_Favicon_Black.png"
+#     logo_url = "${local.assets_url}/assets/CZID_Favicon_Black.png"
 #     colors = {
 #       primary         = "#f2f2f2"
 #       page_background = "#e1e1e1"
@@ -174,10 +134,11 @@ resource "auth0_client_grant" "idseq_web_management_grant" {
 #   # show_as_button             = true
 # }
 
+# TODO: Move all custom branding and similar to Global!
 resource "auth0_branding" "seqtoid_branding" {
   # depends_on  = [auth0_custom_domain.env_seqtoid_org]
-  logo_url    = "https://${local.assets_fqdn}/assets/logo-new.png"
-  favicon_url = "https://${local.assets_fqdn}/assets/CZID_Favicon_Black.png"
+  logo_url    = "${local.assets_url}/assets/logo-new.png"
+  favicon_url = "${local.assets_url}/assets/CZID_Favicon_Black.png"
 
   colors {
     primary         = "#3867fa"
@@ -199,9 +160,9 @@ resource "auth0_prompt_custom_text" "seqtoid_login" {
     {
       "login" : {
         "description" : "Log in to continue",
-        # "logoAltText" : "SeqtoID [Dev]",
-        # "pageTitle" : "Log in | SeqtoID [Dev]",
-        "title" : "Welcome to SeqtoID [Dev]",
+        # "logoAltText" : "SeqtoID",
+        # "pageTitle" : "Log in | SeqtoID",
+        "title" : "Welcome to SeqtoID",
       }
     }
   )
@@ -215,40 +176,25 @@ resource "auth0_prompt_custom_text" "seqtoid_signup" {
     {
       "signup" : {
         "description" : "Sign Up to continue",
-        "title" : "Welcome to SeqtoID [Dev]",
+        "title" : "Welcome to SeqtoID",
       }
     }
   )
 }
 
-resource "auth0_connection" "username_password_authentication" {
-  name                 = "Username-Password-Authentication"
+resource "auth0_connection" "env_username_password" {
+  name                 = "username-password-${var.env}"
   strategy             = "auth0"
-  is_domain_connection = false
-  realms = [
-    "Username-Password-Authentication",
-  ]
+  is_domain_connection = false # TODO: Set to true to use custom DNS Domain
 
   options {
-    import_mode                    = false # TODO: true when we can use a custom user DB?
+    import_mode                    = false
     disable_signup                 = false
     password_policy                = "excellent"
     strategy_version               = 2
     requires_username              = false
     brute_force_protection         = true
-    enabled_database_customization = false # TODO: true when we can use a custom user DB
-
-    # custom_scripts = {
-    #   login    = file("${path.module}/scripts/login.js")
-    #   get_user = file("${path.module}/scripts/get_user.js")
-    # }
-    #
-    # # NOTE: these are encrypted
-    # configuration = {
-    #   AUTH0_DOMAIN        = var.auth0_m2m_domain
-    #   AUTH0_CLIENT_ID     = auth0_client.idseq_web.client_id
-    #   AUTH0_CLIENT_SECRET = auth0_client.idseq_web.client_secret
-    # }
+    enabled_database_customization = false
 
     mfa {
       active                 = true
@@ -276,12 +222,12 @@ resource "auth0_connection" "username_password_authentication" {
 }
 
 resource "auth0_connection_client" "idseq_web_connection_client" {
-  connection_id = auth0_connection.username_password_authentication.id
+  connection_id = auth0_connection.env_username_password.id
   client_id     = auth0_client.idseq_web.id
 }
 
 resource "auth0_connection_client" "idseq_web_management_connection_client" {
-  connection_id = auth0_connection.username_password_authentication.id
+  connection_id = auth0_connection.env_username_password.id
   client_id     = auth0_client.idseq_web_management.id
 }
 
@@ -297,15 +243,16 @@ module "auth0-ssm-params" {
   source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.104.2"
   project = var.project
   env     = var.env
-  service = "web" # var.component
+  service = "web"
   owner   = var.owner
 
   parameters = {
     AUTH0_CLIENT_ID                = auth0_client.idseq_web.client_id
     AUTH0_CLIENT_SECRET            = data.auth0_client.idseq_web.client_secret
-    AUTH0_DOMAIN                   = var.auth0_domain
+    AUTH0_CONNECTION               = auth0_connection.env_username_password.name
+    AUTH0_DOMAIN                   = data.auth0_tenant.current.domain
     AUTH0_MANAGEMENT_CLIENT_ID     = auth0_client.idseq_web_management.client_id
     AUTH0_MANAGEMENT_CLIENT_SECRET = data.auth0_client.idseq_web_management.client_secret
-    AUTH0_MANAGEMENT_DOMAIN        = var.auth0_domain
+    AUTH0_MANAGEMENT_DOMAIN        = data.auth0_tenant.current.domain # TODO: Obsolete this, as it is always the same as AUTH0_DOMAIN; Need to replace it in idseq-web first, though.
   }
 }

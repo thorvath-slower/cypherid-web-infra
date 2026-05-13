@@ -176,7 +176,7 @@ terraform {
     kubernetes = {
       source = "hashicorp/kubernetes"
 
-      version = "~> 3.0.1"
+      version = "~> 3.1.0"
 
     }
 
@@ -279,11 +279,6 @@ variable "build_index_date" {
 variable "eks_cluster_name" {
   type    = string
   default = "czid-staging-eks"
-}
-# tflint-ignore: terraform_unused_declarations
-variable "s3_bucket_aegea_ecs_execute" {
-  type    = string
-  default = "aegea-ecs-execute-staging-030998640247"
 }
 # tflint-ignore: terraform_unused_declarations
 variable "s3_bucket_idseq_bench" {

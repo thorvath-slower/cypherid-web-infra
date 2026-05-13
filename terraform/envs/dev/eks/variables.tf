@@ -1,10 +1,11 @@
 locals {
   owner_roles = [
-    "poweruser",                                              # TODO - Where are these created, and are they necessary? Appear to be deployed via terraform from 'shared-infra'. For now, manually created a 'poweruser' IAM role that matches what is in the CZI dev account.
-    "AWSReservedSSO_AWSAdministratorAccess_0527ae95c0a72f8c", # SSO role used when locally applying terraform with an SSO profile
+    data.terraform_remote_state.access-management.outputs.gh_actions_executor_role.name, # TODO: From access-management; not sure if it is required to prevent Unauthorized in Github Actions
+    "poweruser",                                                                         # TODO - Where are these created, and are they necessary? Appear to be deployed via terraform from 'shared-infra'. For now, manually created a 'poweruser' IAM role that matches what is in the CZI dev account.
+    "AWSReservedSSO_AWSAdministratorAccess_0527ae95c0a72f8c",                            # SSO role used when locally applying terraform with an SSO profile
     # "gha-seqtoid", // Role used by GH Actions for applying terraform (cypherid-infra & cypherid-web-infra)
     # "okta-czi-admin",
-    # "tfe-si",
+    # "tfe-si"
   ]
 
   cluster_name            = var.eks_cluster_name
@@ -34,8 +35,15 @@ locals {
       }
     }
   }
+  # TODO: Not sure if it is required to prevent Unauthorized in Github Actions
   authorized_github_repos = {
-    chanzuckerberg = ["czid-graphql-federation-server"]
+    # TODO: Remove this fork
+    "jsims-slower" : [
+      "seqtoid-graphql-federation-server",
+    ],
+    "IT-Academic-Research-Services" : [
+      "seqtoid-graphql-federation-server",
+    ]
   }
   addons = {
     enable_guardduty = false # TODO: true

@@ -176,7 +176,7 @@ terraform {
     kubernetes = {
       source = "hashicorp/kubernetes"
 
-      version = "~> 3.0.1"
+      version = "~> 3.1.0"
 
     }
 
@@ -324,20 +324,6 @@ data "terraform_remote_state" "cloud-env" {
 
   }
 }
-data "terraform_remote_state" "db" {
-  backend = "s3"
-  config = {
-
-
-    bucket = "tfstate-283694049553"
-
-    key     = "terraform/idseq/envs/prod/components/db.tfstate"
-    region  = "us-west-2"
-    profile = "idseq-prod"
-
-
-  }
-}
 data "terraform_remote_state" "ecs" {
   backend = "s3"
   config = {
@@ -360,20 +346,6 @@ data "terraform_remote_state" "elb-access-logs" {
     bucket = "tfstate-283694049553"
 
     key     = "terraform/idseq/envs/prod/components/elb-access-logs.tfstate"
-    region  = "us-west-2"
-    profile = "idseq-prod"
-
-
-  }
-}
-data "terraform_remote_state" "heatmap-optimization" {
-  backend = "s3"
-  config = {
-
-
-    bucket = "tfstate-283694049553"
-
-    key     = "terraform/idseq/envs/prod/components/heatmap-optimization.tfstate"
     region  = "us-west-2"
     profile = "idseq-prod"
 

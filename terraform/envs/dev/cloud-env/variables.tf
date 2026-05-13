@@ -10,6 +10,8 @@ locals {
   region                = var.region
   service               = var.component
 
+  create_database_internet_gateway_route = false
+  create_database_subnet_route_table     = true
   #zone_id            = data.terraform_remote_state.idseq-dev.outputs.dev_seqtoid_org_zone_id
   single_nat_gateway = true
 

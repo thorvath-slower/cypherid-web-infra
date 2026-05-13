@@ -92,6 +92,7 @@ module "logs_bucket" {
   owner         = var.tags.owner
   bucket_name   = local.bucket_name
   bucket_policy = data.aws_iam_policy_document.waf_logs.json
+  force_destroy = true
   lifecycle_rules = [
     {
       id      = "Expire WAF Requests"

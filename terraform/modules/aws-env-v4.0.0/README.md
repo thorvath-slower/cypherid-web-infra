@@ -45,6 +45,7 @@ addition to multi-AZ VPC with public and private subnets, it also includes an ss
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_azs"></a> [azs](#input\_azs) | EC2 availability zones for the VPC. | `list(string)` | n/a | yes |
+| <a name="input_create_database_internet_gateway_route"></a> [create\_database\_internet\_gateway\_route](#input\_create\_database\_internet\_gateway\_route) | Controls if DB should be publicly accessible. | `bool` | `false` | no |
 | <a name="input_create_database_subnet_route_table"></a> [create\_database\_subnet\_route\_table](#input\_create\_database\_subnet\_route\_table) | Controls if separate route table for database should be created. | `bool` | `false` | no |
 | <a name="input_database_subnet_cidrs"></a> [database\_subnet\_cidrs](#input\_database\_subnet\_cidrs) | List of IP ranges for the database subnets. Must be same length as var.azs. | `list(string)` | n/a | yes |
 | <a name="input_datadog_api_key"></a> [datadog\_api\_key](#input\_datadog\_api\_key) | A datadog api key to enable the datadog agent on bastions. | `string` | `""` | no |

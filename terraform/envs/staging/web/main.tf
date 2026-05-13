@@ -1,5 +1,6 @@
 locals {
-  s3_bucket_workflows = "seqtoid-workflows-${var.env}-${var.aws_accounts.idseq-staging}"
+  s3_bucket_workflows         = "seqtoid-workflows-${var.env}-${var.aws_accounts.idseq-staging}"
+  s3_bucket_aegea_ecs_execute = data.terraform_remote_state.ecs.outputs.s3_bucket_aegea_ecs_execute
 
   zone_id      = data.terraform_remote_state.route53.outputs.env_seqtoid_org_zone_id
   env_fqdn     = data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn
@@ -95,7 +96,7 @@ data "aws_iam_policy_document" "idseq-web" {
       "arn:aws:s3:::${var.s3_bucket_samples_v1}",
       "arn:aws:s3:::${var.s3_bucket_public_references}",
       "arn:aws:s3:::${var.s3_bucket_idseq_bench}",
-      "arn:aws:s3:::${var.s3_bucket_aegea_ecs_execute}",
+      "arn:aws:s3:::${local.s3_bucket_aegea_ecs_execute}",
       "arn:aws:s3:::${local.s3_bucket_workflows}",
     ]
   }
@@ -111,7 +112,7 @@ data "aws_iam_policy_document" "idseq-web" {
       "arn:aws:s3:::${var.s3_bucket_samples_v1}/*",
       "arn:aws:s3:::${var.s3_bucket_public_references}/*",
       "arn:aws:s3:::${var.s3_bucket_idseq_bench}/*",
-      "arn:aws:s3:::${var.s3_bucket_aegea_ecs_execute}/*",
+      "arn:aws:s3:::${local.s3_bucket_aegea_ecs_execute}/*",
       "arn:aws:s3:::${local.s3_bucket_workflows}/*",
     ]
   }
@@ -125,7 +126,7 @@ data "aws_iam_policy_document" "idseq-web" {
     resources = [
       "arn:aws:s3:::${var.s3_bucket_samples}/*",
       "arn:aws:s3:::${var.s3_bucket_samples_v1}/*",
-      "arn:aws:s3:::${var.s3_bucket_aegea_ecs_execute}/*",
+      "arn:aws:s3:::${local.s3_bucket_aegea_ecs_execute}/*",
     ]
   }
 
@@ -271,14 +272,8 @@ module "web-service-params" {
   owner   = var.owner
 
   parameters = {
-    RDS_ADDRESS                    = data.terraform_remote_state.db.outputs.db_instance_address
-    DB_PORT                        = data.terraform_remote_state.db.outputs.db_instance_port
-    DB_USERNAME                    = data.terraform_remote_state.db.outputs.db_instance_username
     REDISCLOUD_URL                 = "rediss://${data.terraform_remote_state.redis.outputs.primary_endpoint_address}:6379"
-    SAMPLES_BUCKET_NAME            = data.terraform_remote_state.db.outputs.samples_bucket
-    SAMPLES_BUCKET_NAME_V1         = data.terraform_remote_state.db.outputs.samples_bucket_v1
     ALIGNMENT_CONFIG_DEFAULT_NAME  = var.alignment_index_date
-    ES_ADDRESS                     = "https://${data.terraform_remote_state.heatmap-optimization.outputs.elastic_search_endpoint}"
     CLOUDFRONT_ENDPOINT            = local.assets_fqdn
     CZID_CLOUDFRONT_ENDPOINT       = local.assets_fqdn
     S3_DATABASE_BUCKET             = var.s3_bucket_public_references
@@ -286,7 +281,6 @@ module "web-service-params" {
     SECRET_KEY_BASE                = random_string.secret_key_base.result
     SERVER_DOMAIN                  = "https://${data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn}"
     GRAPHQL_FEDERATION_SERVICE_URL = "https://${data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn}/graphqlfed"
-    S3_AEGEA_ECS_EXECUTE_BUCKET    = var.s3_bucket_aegea_ecs_execute
     AUTO_ACCOUNT_CREATION_V1       = 1
     S3_WORKFLOWS_BUCKET            = local.s3_bucket_workflows
     LAMBDA_ENV                     = var.env # TODO: Only necessary for dev, as it defaults to Rails.env ('development') in the code
