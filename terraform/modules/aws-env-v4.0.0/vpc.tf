@@ -107,8 +107,8 @@ resource "aws_default_security_group" "default" {
 }
 
 locals {
-  split   = split("/", var.vpc_cidr)
-  address = local.split[0]
+  split = split("/", var.vpc_cidr)
+  # address = local.split[0]
   # prefix  = local.split[1]
 
   # address_list = split(".", local.address)

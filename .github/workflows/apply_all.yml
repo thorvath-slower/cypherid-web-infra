@@ -7,6 +7,12 @@ on:
       - Terraform Plan all Components
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: 'Github Action Workflow Run ID'
+        type: string
+        required: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -18,7 +24,7 @@ permissions:
 jobs:
   should-apply:
     name: Check if Terraform Apply should be performed
-    if: ${{ !cancelled() && github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ !cancelled() && (inputs.run-id || github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.changed-components.outputs.environment }}
@@ -34,8 +40,8 @@ jobs:
         with:
           pattern: result-*
           path: results
-          run-id: ${{ github.event.workflow_run.id }}
-          #github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.run-id || github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Changed Components Matrix
         id: changed-components
         run: |
@@ -61,5 +67,5 @@ jobs:
     with:
       environment: ${{ needs.should-plan.outputs.environment }}
       component: ${{ matrix.component }}
-      run-id: ${{ github.event.workflow_run.id }}
+      run-id: ${{ inputs.run-id || github.event.workflow_run.id }}
     secrets: inherit

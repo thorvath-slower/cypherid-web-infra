@@ -12,15 +12,15 @@ locals {
     tags            = var.tags
     certificate_arn = module.cert.arn
     ci_roles        = var.github_actions_roles
-    ecrs            = { for name, ecr in module.ecrs : name => { "url" : ecr.repository_url } }
+    ecrs            = { for name, ecr in module.ecrs : name => { url : ecr.repository_url } }
     dbs = {
       for name, db in module.dbs :
       name => {
-        "database_user" : db.master_username,
-        "database_password" : db.master_password,
-        "database_host" : db.endpoint,
-        "database_name" : db.database_name,
-        "database_port" : db.port,
+        database_user : db.master_username,
+        database_password : db.master_password,
+        database_host : db.endpoint,
+        database_name : db.database_name,
+        database_port : db.port,
       }
     }
     # oidc_config = module.happy_okta_app.oidc_config
