@@ -189,7 +189,7 @@ resource "auth0_connection" "env_username_password" {
 
   options {
     import_mode                    = false
-    disable_signup                 = false
+    disable_signup                 = true
     password_policy                = "excellent"
     strategy_version               = 2
     requires_username              = false
