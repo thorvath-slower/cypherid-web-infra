@@ -1,0 +1,73 @@
+name: Terraform Apply all Components
+run-name: Terraform Apply all Components for Workflow ${{ github.event.workflow_run.id }} by ${{ github.actor }}
+
+on:
+  # TODO: Trigger automatically for branch deployments?
+  #push:
+  #  branches:
+  #    - development
+  #    - staging
+  #    - main
+  #    - 'releases/**' TODO: Handle releases
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: 'Github Action Workflow Run ID'
+        type: string
+        required: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  should-apply:
+    name: Check if Terraform Apply should be performed
+    if: ${{ !cancelled() && (inputs.run-id || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.changed-components.outputs.environment }}
+      components: ${{ steps.changed-components.outputs.components }}
+    steps:
+      - name: Print GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "$GITHUB_CONTEXT"
+      - name: Download Result Artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: result-*
+          path: results
+          run-id: ${{ inputs.run-id || github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate Changed Components Matrix
+        id: changed-components
+        run: |
+          jq --slurp . results/result-*/*
+          components=$(jq -cn '[inputs | select(.change_count > 0) | .component]' results/result-*/*.json)
+          echo "components=$components"
+          echo "components=$components" >> "$GITHUB_OUTPUT"
+          environment=$(jq -cnr '[inputs.environment]|unique|.[0]' results/result-*/*.json)
+          echo "environment=$environment"
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+
+  apply-components:
+    name: Terraform Apply each Component
+    if: ${{ needs.should-apply.outputs.environment }}
+    needs:
+      - should-apply
+    strategy:
+      fail-fast: false
+      #max-parallel: 2
+      matrix:
+        component: ${{ fromJson(needs.should-apply.outputs.components) }}
+    uses: ./.github/workflows/apply_component_call.yml
+    with:
+      environment: ${{ needs.should-plan.outputs.environment }}
+      component: ${{ matrix.component }}
+      run-id: ${{ inputs.run-id || github.event.workflow_run.id }}
+    secrets: inherit
