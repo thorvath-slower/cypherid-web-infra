@@ -1,6 +1,5 @@
 locals {
-  env_fqdn       = "${var.env}.${var.base_domain}"
-  happy_env_fqdn = "happy.${local.env_fqdn}"
+  happy_fqdn = "happy.${var.base_domain}"
 }
 
 # domain registration
@@ -15,37 +14,22 @@ locals {
 #   id = var.base_domain
 # }
 
-# root zone
+# root zone, which is the "prod" zone, but with no "prod" prefix
 
-resource "aws_route53_zone" "root-seqtoid-org" {
+resource "aws_route53_zone" "seqtoid-org" {
   name = var.base_domain
 }
 
-# prod zone
+# happy zone
 
-resource "aws_route53_zone" "env-seqtoid-org" {
-  name = local.env_fqdn
+resource "aws_route53_zone" "happy-seqtoid-org" {
+  name = local.happy_fqdn
 }
 
-resource "aws_route53_record" "env-seqtoid-org" {
-  zone_id  = aws_route53_zone.root-seqtoid-org.zone_id
-  name     = local.env_fqdn
-  type     = "NS"
-  ttl      = 300
-  records  = aws_route53_zone.env-seqtoid-org.name_servers
-  provider = aws.czi-si-us-east-1
-}
-
-# happy.prod zone
-
-resource "aws_route53_zone" "happy-env-seqtoid-org" {
-  name = local.happy_env_fqdn
-}
-
-resource "aws_route53_record" "happy-env-seqtoid-org" {
-  zone_id = aws_route53_zone.env-seqtoid-org.id
-  name    = local.happy_env_fqdn
+resource "aws_route53_record" "happy-seqtoid-org" {
+  zone_id = aws_route53_zone.seqtoid-org.id
+  name    = local.happy_fqdn
   type    = "NS"
   ttl     = 300
-  records = aws_route53_zone.happy-env-seqtoid-org.name_servers
+  records = aws_route53_zone.happy-seqtoid-org.name_servers
 }

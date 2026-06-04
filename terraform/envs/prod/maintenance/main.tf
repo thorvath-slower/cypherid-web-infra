@@ -1,8 +1,7 @@
 locals {
-  subdomain   = "maintenance"
-  domain      = "idseq.net"
-  full_domain = "${local.subdomain}.${local.domain}"
-  zone_id     = data.terraform_remote_state.idseq-prod.outputs.idseq_net_zone_id
+  full_domain = "${var.component}.${data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn}"
+  root_fqdn   = data.terraform_remote_state.route53.outputs.seqtoid_org_fqdn
+  zone_id     = data.terraform_remote_state.route53.outputs.env_seqtoid_org_zone_id
 
   aliases = {
     "www.${local.full_domain}" = local.zone_id
@@ -10,8 +9,9 @@ locals {
 }
 
 resource "aws_s3_bucket" "bucket" {
-  bucket = local.full_domain
-  acl    = "private"
+  bucket        = local.full_domain
+  acl           = "private"
+  force_destroy = true
 
   website {
     index_document = "index.html"
@@ -36,15 +36,32 @@ resource "aws_s3_bucket_policy" "s3_bucket_policy" {
   policy = data.aws_iam_policy_document.s3_iam_policy.json
 }
 
-module "assets-cert" {
-  source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.41.0"
+# module "assets-cert" {
+#   source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.104.2"
+#
+#   cert_domain_name               = local.full_domain
+#   aws_route53_zone_id            = local.zone_id
+#   cert_subject_alternative_names = local.aliases
+#   tags                           = var.tags # TODO: var.tags is deprecated
+#
+#   # cloudfront requires us-east-1 acm certs
+#   providers = {
+#     aws = aws.us-east-1
+#   }
+# }
 
-  cert_domain_name               = local.full_domain
-  aws_route53_zone_id            = local.zone_id
-  cert_subject_alternative_names = local.aliases
-  tags                           = var.tags
+module "root-cert" {
+  source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.104.2"
 
-  # cloudfront requires us-east-1 acm certs
+  cert_domain_name    = local.root_fqdn
+  aws_route53_zone_id = local.zone_id
+  tags                = var.tags # TODO: var.tags is deprecated
+
+  cert_subject_alternative_names = {
+    (local.full_domain)        = local.zone_id
+    "www.${local.full_domain}" = local.zone_id
+    "www.${local.root_fqdn}"   = local.zone_id
+  }
   providers = {
     aws = aws.us-east-1
   }
@@ -58,9 +75,12 @@ resource "aws_cloudfront_distribution" "distribution" {
 
   enabled             = true
   default_root_object = "index.html"
-  comment             = "Serves maintenance page from S3 bucket"
+  comment             = "Serves ${var.env} maintenance page from S3 bucket"
 
-  aliases = [local.full_domain]
+  aliases = [
+    local.full_domain,
+    local.root_fqdn,
+  ]
 
   origin {
     domain_name = aws_s3_bucket.bucket.bucket_regional_domain_name
@@ -91,9 +111,9 @@ resource "aws_cloudfront_distribution" "distribution" {
     target_origin_id       = aws_s3_bucket.bucket.bucket_regional_domain_name
     viewer_protocol_policy = "redirect-to-https"
 
+    default_ttl = 86400
+    max_ttl     = 31536000
     min_ttl     = 0
-    default_ttl = 3600
-    max_ttl     = 86400
 
     forwarded_values {
       query_string = false
@@ -113,7 +133,9 @@ resource "aws_cloudfront_distribution" "distribution" {
     compress               = true
     viewer_protocol_policy = "redirect-to-https"
 
-    default_ttl = 31536000 # 1 year
+    default_ttl = 86400
+    max_ttl     = 31536000
+    min_ttl     = 0
 
     forwarded_values {
       # This is only necessary to set Vary: Origin header. See
@@ -130,7 +152,7 @@ resource "aws_cloudfront_distribution" "distribution" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = module.assets-cert.arn
+    acm_certificate_arn      = module.root-cert.arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.1_2016"
   }
@@ -139,14 +161,6 @@ resource "aws_cloudfront_distribution" "distribution" {
     geo_restriction {
       restriction_type = "none"
     }
-  }
-
-  tags = {
-    project   = var.project
-    env       = var.env
-    service   = var.component
-    owner     = var.owner
-    managedBy = "terraform"
   }
 }
 
@@ -160,4 +174,53 @@ resource "aws_route53_record" "assets" {
     zone_id                = aws_cloudfront_distribution.distribution.hosted_zone_id
     evaluate_target_health = true
   }
+}
+
+resource "aws_route53_record" "root_domain_maintenance_redirect" {
+  zone_id = local.zone_id
+  name    = local.root_fqdn
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.distribution.domain_name
+    zone_id                = aws_cloudfront_distribution.distribution.hosted_zone_id
+    evaluate_target_health = true
+  }
+}
+
+# resource "aws_route53_record" "www_root_domain_maintenance_redirect" {
+#   zone_id = local.zone_id
+#   name    = "www.${local.root_fqdn}"
+#   type    = "A"
+#
+#   alias {
+#     name                   = aws_cloudfront_distribution.distribution.domain_name
+#     zone_id                = aws_cloudfront_distribution.distribution.hosted_zone_id
+#     evaluate_target_health = true
+#   }
+# }
+
+locals {
+  mime_types = {
+    "html" = "text/html"
+    "css"  = "text/css"
+    "js"   = "application/javascript"
+    "json" = "application/json"
+    "png"  = "image/png"
+    "jpg"  = "image/jpeg"
+    "jpeg" = "image/jpeg"
+  }
+}
+
+# Upload a single file
+resource "aws_s3_object" "landing_page" {
+  for_each = fileset("${path.module}/dist", "**/*")
+
+  bucket = aws_s3_bucket.bucket.id
+  key    = each.value
+  source = "${path.module}/dist/${each.value}"
+  etag   = filemd5("${path.module}/dist/${each.value}")
+
+  # Extracts the extension and looks up the MIME type, defaulting to octet-stream
+  content_type = lookup(local.mime_types, regex("[^.]+$", each.value), "application/octet-stream")
 }
