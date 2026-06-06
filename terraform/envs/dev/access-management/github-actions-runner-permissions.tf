@@ -82,6 +82,11 @@ resource "aws_iam_role_policy_attachment" "czid_ci_cd_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
 
+resource "aws_iam_role_policy_attachment" "czid_ci_cd_tagging" {
+  role       = module.czid_web_private_gh_actions_executor.role.name
+  policy_arn = "arn:aws:iam::aws:policy/ResourceGroupsTaggingAPITagUntagSupportedResources"
+}
+
 resource "aws_iam_policy" "czid_ci_cd" {
   name   = "czid-${var.env}-ci-cd"
   policy = data.aws_iam_policy_document.ci_cd_policy_document.json
