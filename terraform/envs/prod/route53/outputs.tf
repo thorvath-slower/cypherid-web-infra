@@ -1,11 +1,3 @@
-output "seqtoid_org_zone_id" {
-  value = aws_route53_zone.seqtoid-org.zone_id
-}
-
-output "seqtoid_org_fqdn" {
-  value = aws_route53_zone.seqtoid-org.name
-}
-
 output "env_seqtoid_org_zone_id" {
   value = aws_route53_zone.seqtoid-org.zone_id
 }
