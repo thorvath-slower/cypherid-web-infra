@@ -52,5 +52,9 @@ module "db-params" {
     RDS_ADDRESS            = aws_rds_cluster.db.endpoint
     SAMPLES_BUCKET_NAME    = aws_s3_bucket.samples.bucket
     SAMPLES_BUCKET_NAME_V1 = aws_s3_bucket.samples_v1.bucket
+    # NOTE: SKIP_TEST_DATABASE needs to be set, or else Rails.env.development will use the "test" DB
+    # See: active_record/tasks/database_tasks.rb:551
+    # https://stackoverflow.com/questions/9930361/rake-dbmigrate-and-rake-dbcreate-both-work-on-test-database-not-development-d
+    SKIP_TEST_DATABASE = true
   }
 }
