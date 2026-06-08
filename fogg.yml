@@ -89,7 +89,7 @@ defaults:
           additional_regions:
             - us-east-1
     auth0:
-      version: ~> 1.41.0 # 0.26.2
+      version: ~> 1.48.0 # 0.26.2
       source: auth0/auth0
     kubernetes:
       enabled: true
@@ -229,7 +229,7 @@ envs:
       auth0:
         providers:
           auth0:
-            domain: dev-k7ouxx6hy2bt2q8y.us.auth0.com
+            domain: "seqtoid-${var.env}.us.auth0.com"
         depends_on:
           components:
             - route53
@@ -498,7 +498,7 @@ envs:
       auth0:
         providers:
           auth0:
-            domain: dev-ep4y3efh1vxvw06z.us.auth0.com
+            domain: "seqtoid-${var.env}.us.auth0.com"
         depends_on:
           components:
             - route53
@@ -713,7 +713,7 @@ envs:
       auth0:
         providers:
           auth0:
-            domain: dev-ep4y3efh1vxvw06z.us.auth0.com
+            domain: "seqtoid-${var.env}.us.auth0.com"
         depends_on:
           components:
             - route53

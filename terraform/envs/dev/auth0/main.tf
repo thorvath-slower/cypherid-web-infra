@@ -1,6 +1,7 @@
 # NOTE: The following ENV Variables MUST be set, and must point to the machine-to-machine (m2m) Auth0 Application
 #     AUTH0_CLIENT_ID
 #     AUTH0_CLIENT_SECRET
+#     AUTH0_DOMAIN (optional)
 
 # resource "auth0_client" "global" {
 #   name                 = "All Applications"
@@ -14,24 +15,118 @@
 # }
 
 locals {
-  env_seqtoid_org_fqdn     = data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn
-  env_seqtoid_org_url      = "https://${local.env_seqtoid_org_fqdn}"
-  meta_env_seqtoid_org_url = "https://meta.${local.env_seqtoid_org_fqdn}"
-  assets_fqdn              = data.terraform_remote_state.web.outputs.assets_fqdn
-  assets_url               = "https://${local.assets_fqdn}"
+  env_seqtoid_org_fqdn      = data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn
+  env_seqtoid_org_url       = "https://${local.env_seqtoid_org_fqdn}"
+  env_seqtoid_org_zone_id   = data.terraform_remote_state.route53.outputs.env_seqtoid_org_zone_id
+  auth_env_seqtoid_org_fqdn = "auth.${local.env_seqtoid_org_fqdn}"
+  # meta_env_seqtoid_org_url = "https://meta.${local.env_seqtoid_org_fqdn}"
+  assets_fqdn = data.terraform_remote_state.web.outputs.assets_fqdn
+  assets_url  = "https://${local.assets_fqdn}"
 }
 
-data "auth0_tenant" "current" {}
+resource "auth0_custom_domain" "auth_env_seqtoid_org" {
+  domain     = local.auth_env_seqtoid_org_fqdn
+  type       = "auth0_managed_certs"
+  tls_policy = "recommended"
+  # domain_metadata = {}
+}
 
-# TODO: Move this to Global!
+# Map the CNAME verification record required by Auth0
+resource "aws_route53_record" "auth_env_cname" {
+  zone_id = local.env_seqtoid_org_zone_id
+  name    = auth0_custom_domain.auth_env_seqtoid_org.verification[0].methods[0].domain
+  type    = auth0_custom_domain.auth_env_seqtoid_org.verification[0].methods[0].name
+  ttl     = 300
+
+  records = [
+    auth0_custom_domain.auth_env_seqtoid_org.verification[0].methods[0].record
+  ]
+}
+
+resource "auth0_custom_domain_verification" "auth_env_cname" {
+  custom_domain_id = auth0_custom_domain.auth_env_seqtoid_org.id
+
+  depends_on = [aws_route53_record.auth_env_cname]
+}
+
+resource "auth0_custom_domain_default" "auth_env_seqtoid_org" {
+  domain = auth0_custom_domain.auth_env_seqtoid_org.domain
+
+  depends_on = [auth0_custom_domain_verification.auth_env_cname]
+}
+
+resource "auth0_tenant" "env_tenant" {
+  allow_organization_name_in_authentication_api = false
+  # allowed_logout_urls = ["${local.env_seqtoid_org_url}/logout"]
+  # default_audience
+  # default_directory = "auth0"
+  # default_redirection_uri = local.env_seqtoid_org_url
+  enabled_locales = ["en"]
+  # ephemeral_session_lifetime
+  friendly_name = "Seqtoid ${var.env}"
+  # idle_ephemeral_session_lifetime
+  # idle_session_lifetime
+  # phone_consolidated_experience
+  picture_url = "${local.assets_url}/assets/logo-new.png"
+  # sandbox_version         = "22"
+  # session_lifetime        = 8760
+  support_email = "seqtoid@ucsf.edu"
+  # support_url             = "${local.env_seqtoid_org_url}/support"
+
+  # error_page {
+  #   html          = "<html></html>"
+  #   show_log_link = false
+  #   url           = "${local.env_seqtoid_org_url}/error"
+  # }
+
+  flags {
+    # allow_legacy_delegation_grant_types=false
+    # allow_legacy_ro_grant_types=false
+    # allow_legacy_tokeninfo_endpoint =false
+    # dashboard_insights_view
+    # dashboard_log_streams_next =false
+    # disable_clickjack_protection_headers   = false
+    # disable_fields_map_fix                 = false
+    # disable_management_api_sms_obfuscation = false
+    # enable_adfs_waad_email_verification (Boolean) If enabled, users will be presented with an email verification prompt during their first login when using Azure AD or ADFS connections.
+    # enable_apis_section (Boolean) Indicates whether the APIs section is enabled for the tenant.
+    # enable_client_connections (Boolean) Indicates whether all current connections should be enabled when a new client is created.
+    enable_custom_domain_in_emails     = true
+    enable_dynamic_client_registration = false
+    # enable_idtoken_api2 (Boolean) Whether ID tokens can be used to authorize some types of requests to API v2 (true) or not (false).
+    # enable_legacy_logs_search_v2 (Boolean) Indicates whether to use the older v2 legacy logs search.
+    # enable_legacy_profile (Boolean) Whether ID tokens and the userinfo endpoint includes a complete user profile (true) or only OpenID Connect claims (false).
+    # enable_pipeline2 (Boolean) Indicates whether advanced API Authorization scenarios are enabled.
+    enable_public_signup_user_exists_error = true
+    # mfa_show_factor_list_on_enrollment (Boolean) Used to allow users to pick which factor to enroll with from the list of available MFA factors.
+    # no_disclose_enterprise_connections = true
+    # remove_alg_from_jwks (Boolean) Remove alg from jwks(JSON Web Key Sets).
+    # revoke_refresh_token_grant (Boolean) Delete underlying grant when a refresh token is revoked via the Authentication API.
+    # use_scope_descriptions_for_consent = true
+  }
+
+  session_cookie {
+    mode = "non-persistent"
+  }
+
+  # sessions {
+  #   oidc_logout_prompt_enabled = false
+  # }
+  depends_on = [auth0_custom_domain_default.auth_env_seqtoid_org]
+}
+
+data "auth0_tenant" "env_tenant" {
+  depends_on = [auth0_tenant.env_tenant]
+}
+
 resource "auth0_role" "admin" {
   name        = "Admin"
   description = "Administrator"
 }
 
 resource "auth0_client" "idseq_web" {
-  name        = "idseq-web-${var.env}"
-  description = "Seqtoid ${var.env} Web Application"
+  name        = "idseq-web"
+  description = "SeqtoID Web Application"
   allowed_clients = [
     # auth0_client.idseq_web_management.id
     # var.auth0_m2m_client_id,
@@ -39,12 +134,12 @@ resource "auth0_client" "idseq_web" {
   ]
   allowed_logout_urls = [
     local.env_seqtoid_org_url,
-    local.meta_env_seqtoid_org_url,
+    # local.meta_env_seqtoid_org_url,
     "http://localhost:3000",
   ]
   allowed_origins = [
     local.env_seqtoid_org_url,
-    local.meta_env_seqtoid_org_url,
+    # local.meta_env_seqtoid_org_url,
     "http://localhost:3000",
   ]
   app_type = "regular_web"
@@ -60,7 +155,7 @@ resource "auth0_client" "idseq_web" {
   sso                = true
   web_origins = [
     local.env_seqtoid_org_url,
-    local.meta_env_seqtoid_org_url,
+    # local.meta_env_seqtoid_org_url,
     "http://localhost:3000",
   ]
 
@@ -69,6 +164,11 @@ resource "auth0_client" "idseq_web" {
     lifetime_in_seconds = 36000
     secret_encoded      = false
   }
+
+  # refresh_token {
+  #   rotation_type   = "non-rotating"
+  #   expiration_type = "non-expiring"
+  # }
 }
 
 # Create a Resource Server
@@ -79,19 +179,19 @@ resource "auth0_client" "idseq_web" {
 
 resource "auth0_client_grant" "idseq_web_grant" {
   client_id    = auth0_client.idseq_web.id
-  audience     = "https://${data.auth0_tenant.current.domain}/api/v2/" # TODO: Should be auth0_resource_server.idseq_web.identifier ??
+  audience     = "https://${data.auth0_tenant.env_tenant.domain}/api/v2/" # TODO: Should be auth0_resource_server.idseq_web.identifier ??
   subject_type = "user"
   scopes       = []
 }
 
 resource "auth0_client" "idseq_web_management" {
-  name     = "idseq-web-${var.env}-management"
+  name     = "idseq-web-management"
   app_type = "non_interactive"
 }
 
 resource "auth0_client_grant" "idseq_web_management_grant" {
   client_id = auth0_client.idseq_web_management.id
-  audience  = "https://${data.auth0_tenant.current.domain}/api/v2/"
+  audience  = "https://${data.auth0_tenant.env_tenant.domain}/api/v2/"
   # subject_type = "client"
   scopes = [
     "read:users",
@@ -103,93 +203,16 @@ resource "auth0_client_grant" "idseq_web_management_grant" {
   ]
 }
 
-# resource "auth0_custom_domain" "auth_env_seqtoid_org" {
-#   domain     = "auth.${local.env_seqtoid_org_fqdn}"
-#   type       = "auth0_managed_certs"
-#   tls_policy = "recommended"
-#   # domain_metadata = {
-#   #   key1 : "value1"
-#   #   key2 : "value2"
-#   # }
-# }
-#
-# resource "auth0_organization" "seqtoid_org" {
-#   name         = "seqtoid"
-#   display_name = "Seqtoid Org"
-#
-#   branding {
-#     logo_url = "${local.assets_url}/assets/CZID_Favicon_Black.png"
-#     colors = {
-#       primary         = "#f2f2f2"
-#       page_background = "#e1e1e1"
-#     }
-#   }
-# }
-#
-# resource "auth0_organization_connection" "seqtoid_org_connection" {
-#   organization_id            = auth0_organization.seqtoid_org.id
-#   connection_id              = auth0_connection.username_password_authentication.id
-#   assign_membership_on_login = true
-#   is_signup_enabled          = false
-#   # show_as_button             = true
-# }
-
-# TODO: Move all custom branding and similar to Global!
-resource "auth0_branding" "seqtoid_branding" {
-  # depends_on  = [auth0_custom_domain.env_seqtoid_org]
-  logo_url    = "${local.assets_url}/assets/logo-new.png"
-  favicon_url = "${local.assets_url}/assets/CZID_Favicon_Black.png"
-
-  colors {
-    primary         = "#3867fa"
-    page_background = "#9a9996"
-  }
-
-  # font {}
-
-  # universal_login {
-  #   body = "<!DOCTYPE html><code><html><head>{%- auth0:head -%}</head><body>{%- auth0:widget -%}</body></html></code>"
-  # }
-}
-
-resource "auth0_prompt_custom_text" "seqtoid_login" {
-  prompt   = "login"
-  language = "en"
-
-  body = jsonencode(
-    {
-      "login" : {
-        "description" : "Log in to continue",
-        # "logoAltText" : "SeqtoID",
-        # "pageTitle" : "Log in | SeqtoID",
-        "title" : "Welcome to SeqtoID",
-      }
-    }
-  )
-}
-
-resource "auth0_prompt_custom_text" "seqtoid_signup" {
-  prompt   = "signup"
-  language = "en"
-
-  body = jsonencode(
-    {
-      "signup" : {
-        "description" : "Sign Up to continue",
-        "title" : "Welcome to SeqtoID",
-      }
-    }
-  )
-}
-
-resource "auth0_connection" "env_username_password" {
-  name                 = "username-password-${var.env}"
-  strategy             = "auth0"
-  is_domain_connection = false # TODO: Set to true to use custom DNS Domain
+resource "auth0_connection" "username_password_authentication" {
+  name     = "Username-Password-Authentication"
+  strategy = "auth0"
+  # realms = [
+  #   "Username-Password-Authentication"
+  # ]
 
   options {
     import_mode                    = false
-    disable_signup                 = false
+    disable_signup                 = true
     password_policy                = "excellent"
     strategy_version               = 2
     requires_username              = false
@@ -222,13 +245,73 @@ resource "auth0_connection" "env_username_password" {
 }
 
 resource "auth0_connection_client" "idseq_web_connection_client" {
-  connection_id = auth0_connection.env_username_password.id
+  connection_id = auth0_connection.username_password_authentication.id
   client_id     = auth0_client.idseq_web.id
 }
 
 resource "auth0_connection_client" "idseq_web_management_connection_client" {
-  connection_id = auth0_connection.env_username_password.id
+  connection_id = auth0_connection.username_password_authentication.id
   client_id     = auth0_client.idseq_web_management.id
+}
+
+# resource "auth0_branding" "seqtoid_branding" {
+#   depends_on  = [auth0_custom_domain.auth_env_seqtoid_org]
+#   logo_url    = "${local.assets_url}/assets/logo-new.png"
+#   favicon_url = "${local.assets_url}/assets/CZID_Favicon_Black.png"
+#
+#   colors {
+#     primary         = "#3867fa"
+#     page_background = "#9a9996"
+#   }
+#
+#   font {}
+#
+#   universal_login {
+#     body = "<!DOCTYPE html><code><html><head>{%- auth0:head -%}</head><body>{%- auth0:widget -%}</body></html></code>"
+#   }
+# }
+
+resource "auth0_prompt_custom_text" "login" {
+  prompt   = "login"
+  language = "en"
+
+  body = jsonencode(
+    {
+      "login" : {
+        "description" : "Log in to continue",
+        # "logoAltText" : "SeqtoID",
+        # "pageTitle" : "Log in | SeqtoID",
+        "title" : "Welcome to SeqtoID",
+      }
+    }
+  )
+}
+
+resource "auth0_prompt_custom_text" "login-password" {
+  prompt   = "login-password"
+  language = "en"
+
+  body = jsonencode(
+    {
+      "login-password" : {
+        "description" : "Enter your password",
+        "title" : "Welcome to SeqtoID",
+      }
+    }
+  )
+}
+
+resource "auth0_prompt_custom_text" "reset-password" {
+  prompt   = "reset-password"
+  language = "en"
+
+  body = jsonencode(
+    {
+      "reset-password-request" = {
+        "backToLoginLinkText" = "Back to Login"
+      }
+    }
+  )
 }
 
 data "auth0_client" "idseq_web" {
@@ -249,10 +332,10 @@ module "auth0-ssm-params" {
   parameters = {
     AUTH0_CLIENT_ID                = auth0_client.idseq_web.client_id
     AUTH0_CLIENT_SECRET            = data.auth0_client.idseq_web.client_secret
-    AUTH0_CONNECTION               = auth0_connection.env_username_password.name
-    AUTH0_DOMAIN                   = data.auth0_tenant.current.domain
+    AUTH0_CONNECTION               = auth0_connection.username_password_authentication.name
+    AUTH0_DOMAIN                   = aws_route53_record.auth_env_cname.fqdn
     AUTH0_MANAGEMENT_CLIENT_ID     = auth0_client.idseq_web_management.client_id
     AUTH0_MANAGEMENT_CLIENT_SECRET = data.auth0_client.idseq_web_management.client_secret
-    AUTH0_MANAGEMENT_DOMAIN        = data.auth0_tenant.current.domain # TODO: Obsolete this, as it is always the same as AUTH0_DOMAIN; Need to replace it in idseq-web first, though.
+    AUTH0_MANAGEMENT_DOMAIN        = aws_route53_record.auth_env_cname.fqdn # TODO: Obsolete this, as it is always the same as AUTH0_DOMAIN; Need to replace it in idseq-web first, though.
   }
 }
