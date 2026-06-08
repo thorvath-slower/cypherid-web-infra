@@ -124,7 +124,7 @@ provider "aws" {
 provider "assert" {}
 
 provider "auth0" {
-  domain = "dev-ep4y3efh1vxvw06z.us.auth0.com"
+  domain = "seqtoid-${var.env}.us.auth0.com"
 }
 terraform {
   required_version = "=1.14.8"
@@ -159,7 +159,7 @@ terraform {
     auth0 = {
       source = "auth0/auth0"
 
-      version = "~> 1.41.0"
+      version = "~> 1.48.0"
 
     }
 
