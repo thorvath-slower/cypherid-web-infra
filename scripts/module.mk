@@ -8,12 +8,12 @@ include $(SELF_DIR)/common.mk
 all: fmt lint doc
 .PHONY: all
 
-fmt: terraform ## run terraform fmt on this module
-	@$(terraform_command) fmt $(TF_ARGS)
+fmt: tofu ## run terraform fmt on this module
+	@$(tofu_command) fmt $(TF_ARGS)
 .PHONY: fmt
 
-validate: terraform ## run terraform validate on this module
-	@$(terraform_command) validate $(TF_ARGS)
+validate: tofu ## run terraform validate on this module
+	@$(tofu_command) validate $(TF_ARGS)
 .PHONY: validate
 
 check: lint check-docs ## run all checks on this module
@@ -22,8 +22,8 @@ check: lint check-docs ## run all checks on this module
 lint: lint-tf check-docs ## run all linters on this module
 .PHONY: lint
 
-lint-tf: terraform ## run terraform linters on this module
-	$(terraform_command) fmt $(TF_ARGS) --check=true --diff=true
+lint-tf: tofu ## run terraform linters on this module
+	$(tofu_command) fmt $(TF_ARGS) --check=true --diff=true
 .PHONY: lint-tf
 
 readme: ## update this module's README.md
