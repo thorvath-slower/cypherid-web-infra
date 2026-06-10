@@ -87,9 +87,10 @@ provider "auth0" {
   domain = "seqtoid-${var.env}.us.auth0.com"
 }
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.10"
 
   backend "s3" {
+    use_lockfile = true # bug-#006: native state locking (OpenTofu >= 1.10), portable (no DynamoDB)
 
     bucket = "tfstate-283694049553"
 
