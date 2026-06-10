@@ -56,7 +56,7 @@ variable "validity_period_hours_of_root_ca" {
 variable "early_renewal_hours_of_root_ca" {
   description = "The early renewal period in hours of the root CA"
   type        = number
-  default     = 24 * 30 * 12  # 12 months
+  default     = 24 * 30 * 12 # 12 months
 }
 
 variable "linkerd_trust_anchor_secret_name" {
