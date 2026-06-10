@@ -18,7 +18,6 @@
 *.swl
 *.swk
 
-.fogg
 /terraform.d/plugins
 /terraform.d/modules
 
