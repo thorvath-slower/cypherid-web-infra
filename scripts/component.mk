@@ -16,12 +16,12 @@ setup: ## set up local dependencies for this repo
 check: lint check-plan ## run all checks for this component
 .PHONY: check
 
-fmt: terraform ## format code in this component
-	$(terraform_command) fmt $(TF_ARGS)
+fmt: tofu ## format code in this component
+	$(tofu_command) fmt $(TF_ARGS)
 .PHONY: fmt
 
-validate: terraform ## validate code in this component
-	$(terraform_command) validate $(TF_ARGS)
+validate: tofu ## validate code in this component
+	$(tofu_command) validate $(TF_ARGS)
 .PHONY: validate
 
 lint: lint-terraform-fmt lint-tflint ## run all linters for this component
@@ -36,8 +36,8 @@ else
 endif
 .PHONY: lint-tflint
 
-lint-terraform-fmt: terraform ## run `terraform fmt` in check mode
-	$(terraform_command) fmt $(TF_ARGS) --check=true --diff=true
+lint-terraform-fmt: tofu ## run `terraform fmt` in check mode
+	$(tofu_command) fmt $(TF_ARGS) --check=true --diff=true
 .PHONY: lint-terraform-fmt
 
 check-auth: check-auth-aws check-auth-heroku ## check that authentication is properly set up for this component
@@ -65,7 +65,7 @@ endif
 
 refresh:
 	@if [ "$(TF_BACKEND_KIND)" != "remote" ]; then \
-		$(terraform_command) refresh $(TF_ARGS); \
+		$(tofu_command) refresh $(TF_ARGS); \
 		date +%s > .terraform/refreshed_at; \
 	else \
 		echo "remote backend does not support the refresh command, skipping"; \
@@ -84,11 +84,11 @@ refresh-cached:
 .PHONY: refresh-cached
 
 plan: check-auth init fmt refresh-cached ## run a terraform plan
-	$(terraform_command) plan $(TF_ARGS) -refresh=$(REFRESH) -input=false
+	$(tofu_command) plan $(TF_ARGS) -refresh=$(REFRESH) -input=false
 .PHONY: plan
 
 apply: check-auth init refresh ## run a terraform apply
-	@$(terraform_command) apply $(TF_ARGS) -refresh=$(REFRESH) -auto-approve=$(AUTO_APPROVE)
+	@$(tofu_command) apply $(TF_ARGS) -refresh=$(REFRESH) -auto-approve=$(AUTO_APPROVE)
 .PHONY: apply
 
 docs:
@@ -103,17 +103,17 @@ clean: ## clean modules and plugins for this component
 test:
 .PHONY: test
 
-init: terraform check-auth ## run terraform init for this component
-	@$(terraform_command) init -input=false
+init: tofu check-auth ## run terraform init for this component
+	@$(tofu_command) init -input=false
 .PHONY: init
 
 check-plan: check-auth init refresh-cached ## run a terraform plan and check that it does not fail
 	@if [ "$(TF_BACKEND_KIND)" != "remote" ]; then \
-		$(terraform_command) plan $(TF_ARGS) -detailed-exitcode -lock=false -refresh=$(REFRESH) -out=$(CHECK_PLANFILE_PATH) ; \
+		$(tofu_command) plan $(TF_ARGS) -detailed-exitcode -lock=false -refresh=$(REFRESH) -out=$(CHECK_PLANFILE_PATH) ; \
 		ERR=$$?; \
 		rm $(CHECK_PLANFILE_PATH) 2>/dev/null; \
 	else \
-		$(terraform_command) plan $(TF_ARGS) -detailed-exitcode -lock=false; \
+		$(tofu_command) plan $(TF_ARGS) -detailed-exitcode -lock=false; \
 		ERR=$$?; \
 	fi; \
 	if [ $$ERR -eq 0 ] ; then \
@@ -127,5 +127,5 @@ check-plan: check-auth init refresh-cached ## run a terraform plan and check tha
 .PHONY: check-plan
 
 run: check-auth ## run an arbitrary terraform command, CMD. ex `make run CMD='show'`
-	@$(terraform_command) $(CMD)
+	@$(tofu_command) $(CMD)
 .PHONY: run

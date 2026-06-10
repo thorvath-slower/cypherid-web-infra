@@ -107,7 +107,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           git-commit-message: |
             commit from fogg_ci -- ran terraform-docs and pushed
-      - name: fix terraform fmt
+      - name: setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: file:.opentofu-version
+      - name: fix tofu fmt
         run: |
           cd ${{matrix.tfmodule}}
           make fmt
@@ -115,7 +119,7 @@ jobs:
         with:
           add: -A
           message: |
-            commit from fogg_ci -- ran terraform fmt and pushed
+            commit from fogg_ci -- ran tofu fmt and pushed
       - name: tflint
         run: |
           make setup

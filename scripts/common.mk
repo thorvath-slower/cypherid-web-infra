@@ -8,11 +8,14 @@ REPO_RELATIVE_PATH := $(shell git rev-parse --show-prefix)
 AUTO_APPROVE := false
 export AWS_SDK_LOAD_CONFIG := 1
 
-TFENV_DIR ?= $(REPO_ROOT)/.fogg/tfenv
-export PATH :=$(TFENV_DIR)/libexec:$(TFENV_DIR)/versions/$(TERRAFORM_VERSION)/:$(REPO_ROOT)/.fogg/bin:$(PATH)
+# CZ ID stack runs on OpenTofu, not Terraform (Constitution Principle II).
+# OpenTofu reads the same TF_* env vars and *.tf as Terraform, so the engine
+# command is the only change here. fogg emits the Terraform/tfenv tooling; a
+# future `fogg apply` must re-apply this swap (see specs/002-tofu-conversion).
+export PATH := $(REPO_ROOT)/.fogg/bin:$(PATH)
 export TF_PLUGIN_CACHE_DIR=$(REPO_ROOT)/.terraform.d/plugin-cache
 export TF_IN_AUTOMATION=1
-terraform_command ?= $(TFENV_DIR)/versions/$(TERRAFORM_VERSION)/terraform
+tofu_command ?= tofu
 
 ifeq ($(TF_BACKEND_KIND),remote)
 	REFRESH := true
@@ -21,12 +24,12 @@ else
 endif
 
 
-tfenv: ## install the tfenv tool
-	@if [ ! -d ${TFENV_DIR} ]; then \
-		git clone -q https://github.com/tfutils/tfenv.git $(TFENV_DIR); \
-	fi
-.PHONY: tfenv
-
-terraform: tfenv ## ensure that the proper version of terraform is installed
-	@${TFENV_DIR}/bin/tfenv install $(TERRAFORM_VERSION)
-.PHONY: terraform
+tofu: ## ensure OpenTofu (tofu) is installed and on PATH
+	@command -v $(tofu_command) >/dev/null 2>&1 || { \
+		echo "OpenTofu not found on PATH. Install it: 'brew install opentofu',"; \
+		echo "or via tenv (https://github.com/tofuutils/tenv), or the"; \
+		echo "opentofu/setup-opentofu action in CI. Pinned version:"; \
+		cat $(REPO_ROOT)/.opentofu-version 2>/dev/null; \
+		exit 1; \
+	}
+.PHONY: tofu
