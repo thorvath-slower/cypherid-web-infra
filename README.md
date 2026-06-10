@@ -10,6 +10,11 @@ component level: `cd` into a component and run OpenTofu there.
 > TFC/TFE — the `terraform.tf` in each component is the hand-maintained source of
 > truth (see `specs/002-tofu-conversion/`).
 
+📖 **Full guide: [`docs/OPENTOFU.md`](docs/OPENTOFU.md)** — layout, state &
+locking, day-to-day workflow, common tasks (add a component, bump a provider,
+bootstrap an env), conventions, CI, and what changed from the fogg/TFC setup.
+The README below is the quick start.
+
 ## Prerequisites
 
 - [OpenTofu](https://opentofu.org/docs/intro/install/) — pinned in
