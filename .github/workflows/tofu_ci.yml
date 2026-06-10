@@ -1,0 +1,61 @@
+name: tofu-ci
+
+# Native OpenTofu CI (replaces the fogg-driven workflow removed in
+# improvement-#002). On every push/PR: find changed stacks, then fmt-check,
+# init (no backend) and validate each one. No fogg, no `fogg apply`.
+
+on:
+  push:
+  pull_request:
+  merge_group:
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  find-changed-dirs:
+    runs-on: ubuntu-latest
+    outputs:
+      stacks: ${{ steps.changed.outputs.stacks }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          list-files: json
+          filters: |
+            changed:
+              - added|modified: 'terraform/**/*.tf'
+      - uses: actions/github-script@v8
+        id: changed
+        with:
+          script: |
+            const path = require("path")
+            const files = ${{ steps.filter.outputs.changed_files }}
+            // Map each changed .tf to its stack dir; a stack is the dir holding the file.
+            const stacks = [...new Set(files
+              .filter(f => f.endsWith(".tf") && !f.includes("/.terraform/"))
+              .map(f => path.dirname(f)))]
+            core.setOutput("stacks", JSON.stringify(stacks))
+
+  validate-changed:
+    needs: find-changed-dirs
+    if: ${{ needs.find-changed-dirs.outputs.stacks != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: ${{ fromJson(needs.find-changed-dirs.outputs.stacks) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: file:.opentofu-version
+      - name: fmt check
+        run: tofu fmt -check -diff "${{ matrix.stack }}"
+      - name: init (no backend) + validate
+        working-directory: ${{ matrix.stack }}
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate
