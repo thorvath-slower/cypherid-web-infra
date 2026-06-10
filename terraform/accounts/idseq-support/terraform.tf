@@ -81,8 +81,6 @@ provider "aws" {
 
 provider "assert" {}
 terraform {
-  required_version = ">= 1.10"
-
   backend "s3" {
     use_lockfile = true # bug-#006: native state locking (OpenTofu >= 1.10), portable (no DynamoDB)
 
@@ -93,86 +91,6 @@ terraform {
     region  = "us-west-2"
     profile = "idseq-support"
 
-
-  }
-  required_providers {
-
-    archive = {
-      source = "hashicorp/archive"
-
-      version = "~> 2.0"
-
-    }
-
-    assert = {
-      source = "bwoznicki/assert"
-
-      version = "0.0.1"
-
-    }
-
-    aws = {
-      source = "hashicorp/aws"
-
-      version = "~> 5.100.0"
-
-    }
-
-    helm = {
-      source = "hashicorp/helm"
-
-      version = "~> 2.17.0"
-
-    }
-
-    kubectl = {
-      source = "gavinbunney/kubectl"
-
-      version = "~> 1.19.0"
-
-    }
-
-    kubernetes = {
-      source = "hashicorp/kubernetes"
-
-      version = "~> 3.1.0"
-
-    }
-
-    local = {
-      source = "hashicorp/local"
-
-      version = "~> 2.0"
-
-    }
-
-    null = {
-      source = "hashicorp/null"
-
-      version = "3.1.1"
-
-    }
-
-    okta-head = {
-      source = "okta/okta"
-
-      version = "> 3.30"
-
-    }
-
-    random = {
-      source = "hashicorp/random"
-
-      version = "~> 3.4"
-
-    }
-
-    tls = {
-      source = "hashicorp/tls"
-
-      version = "~> 3.0"
-
-    }
 
   }
 }

@@ -67,6 +67,7 @@ As a security reviewer, the deploy role is scoped and prefers GitHub OIDC over s
 - **FR-007**: Components MUST inherit shared infrastructure from `data.terraform_remote_state.foundation` outputs, never redefine it.
 - **FR-008**: The deploy role MUST be least-privilege and prefer OIDC over static credentials (`bug-#007`).
 - **FR-009**: Application behavior MUST be unchanged (Principle VIII); resource definitions are not altered except where required by the engine swap itself.
+- **FR-010**: Provider/version constraints MUST come from a **single source of truth** — one canonical `terraform/_shared/versions.tf` symlinked into every root stack — so a version bump is one edit and stacks cannot drift (Principle III). Modules keep their own minimal `versions.tf`.
 
 ## Success Criteria *(mandatory)*
 
