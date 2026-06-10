@@ -1,6 +1,5 @@
 provider "aws" {
 
-  version = "~> 3.5.0"
   region  = "us-west-2"
   profile = "idseq-dev"
 
@@ -11,7 +10,6 @@ provider "aws" {
 
 provider "aws" {
   alias   = "us-east-1"
-  version = "~> 3.5.0"
   region  = "us-east-1"
   profile = "idseq-dev"
 
@@ -21,7 +19,6 @@ provider "aws" {
 
 provider "aws" {
   alias   = "us-west-2"
-  version = "~> 3.5.0"
   region  = "us-west-2"
   profile = "idseq-dev"
 
@@ -239,20 +236,12 @@ variable "aws_accounts" {
   }
 }
 provider "random" {
-  version = "~> 2.2"
-}
-provider "template" {
-  version = "~> 2.1"
 }
 provider "archive" {
-  version = "~> 1.3"
 }
 provider "null" {
-  version = "~> 2.1"
 }
 provider "local" {
-  version = "~> 1.4"
 }
 provider "tls" {
-  version = "~> 2.1"
 }
