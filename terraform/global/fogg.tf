@@ -9,11 +9,11 @@ provider "aws" {
   # var.tags should be considered deprecated
   default_tags {
     tags = {
-      project                              = coalesce(var.tags.project, "unknown")
-      env                                  = coalesce(var.tags.env, "unknown")
-      service                              = coalesce(var.tags.service, "unknown")
-      owner                                = coalesce(var.tags.owner, "unknown")
-      managedBy                            = "terraform"
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
     }
   }
   allowed_account_ids = ["invalid-account-id"]
@@ -30,11 +30,11 @@ provider "aws" {
   # var.tags should be considered deprecated
   default_tags {
     tags = {
-      project                              = coalesce(var.tags.project, "unknown")
-      env                                  = coalesce(var.tags.env, "unknown")
-      service                              = coalesce(var.tags.service, "unknown")
-      owner                                = coalesce(var.tags.owner, "unknown")
-      managedBy                            = "terraform"
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
     }
   }
   allowed_account_ids = ["invalid-account-id"]
@@ -50,11 +50,11 @@ provider "aws" {
   # var.tags should be considered deprecated
   default_tags {
     tags = {
-      project                              = coalesce(var.tags.project, "unknown")
-      env                                  = coalesce(var.tags.env, "unknown")
-      service                              = coalesce(var.tags.service, "unknown")
-      owner                                = coalesce(var.tags.owner, "unknown")
-      managedBy                            = "terraform"
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
     }
   }
   allowed_account_ids = ["283694049553"]
@@ -70,11 +70,11 @@ provider "aws" {
   # var.tags should be considered deprecated
   default_tags {
     tags = {
-      project                              = coalesce(var.tags.project, "unknown")
-      env                                  = coalesce(var.tags.env, "unknown")
-      service                              = coalesce(var.tags.service, "unknown")
-      owner                                = coalesce(var.tags.owner, "unknown")
-      managedBy                            = "terraform"
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
     }
   }
   allowed_account_ids = ["283694049553"]
