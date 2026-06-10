@@ -7,9 +7,10 @@ SHELL := /bin/bash -o pipefail
 TOFU  ?= tofu
 
 # Every leaf stack: any directory under terraform/ that contains *.tf,
-# excluding the local .terraform working dirs.
+# excluding the local .terraform working dirs and the _shared canonical files
+# (terraform/_shared/versions.tf is symlinked into each stack, not a stack itself).
 STACKS := $(shell find terraform -type f -name '*.tf' -not -path '*/.terraform/*' \
-            -exec dirname {} \; 2>/dev/null | sort -u)
+            -not -path '*/_shared/*' -exec dirname {} \; 2>/dev/null | sort -u)
 
 .PHONY: help fmt fmt-check validate init plan apply
 

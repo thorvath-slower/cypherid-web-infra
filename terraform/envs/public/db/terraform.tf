@@ -29,8 +29,6 @@ provider "aws" {
 }
 
 terraform {
-  required_version = ">= 1.10"
-
   backend "s3" {
     use_lockfile = true # bug-#006: native state locking (OpenTofu >= 1.10), portable (no DynamoDB)
 

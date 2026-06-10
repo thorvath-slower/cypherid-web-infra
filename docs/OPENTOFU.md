@@ -33,11 +33,30 @@ Every stack is a self-contained root module. Conventional files:
 
 | File | Holds |
 |------|-------|
-| `terraform.tf` | The `terraform {}` block (backend + `required_version` + `required_providers`), the `provider` blocks, the standard input variables, and `data "terraform_remote_state"` references to upstream stacks. **This is the file the generator used to own; you now edit it directly.** |
+| `versions.tf` | **A symlink to the one canonical [`terraform/_shared/versions.tf`](../terraform/_shared/versions.tf)** — `required_version` + `required_providers` for every stack. You don't edit the per-stack copy; you edit the shared file once (see [§6, bump a provider](#bump-a-provider-version-across-the-repo)). |
+| `terraform.tf` | The `terraform { backend "s3" {} }` block (the unique state `key` + shared backend settings), the `provider` blocks, the standard input variables, and `data "terraform_remote_state"` references to upstream stacks. |
 | `main.tf` | The actual resources and module calls. |
 | `variables.tf` | Stack-specific variables (beyond the standard ones in `terraform.tf`). |
 | `outputs.tf` | Outputs other stacks consume via remote state. |
 | `override.tf` | (accounts only) A native [override file](https://opentofu.org/docs/language/files/override/) switching the backend to `local` for bootstrap. |
+
+### The single source of truth for versions
+
+`terraform/_shared/versions.tf` is the **one file** that declares the OpenTofu
+version and every provider constraint. It is symlinked into each root stack as
+`versions.tf`, so:
+
+- **A provider bump is one edit** — change the version in `_shared/versions.tf`
+  and every stack moves together. No drift between stacks, ever.
+- OpenTofu merges the `terraform {}` block from `versions.tf` (versions/providers)
+  with the one in `terraform.tf` (backend), so each stack still has exactly one
+  effective backend and one provider set.
+- A stack resolves every provider listed even if it uses only some. That's the
+  deliberate trade for zero drift; a CI plugin cache / appliance provider mirror
+  makes it free in practice.
+
+Modules under `terraform/modules/` keep their **own** minimal `versions.tf` — they
+are reusable and must not inherit the root stacks' full provider set.
 
 ---
 
@@ -148,8 +167,9 @@ Edit the stack's `main.tf`, then `tofu plan` / `tofu apply` in that directory.
    `variables.tf`, `outputs.tf`. The fastest start is to copy a small existing
    component (e.g. `route53`) and adjust.
 2. In `terraform.tf`, set a **unique** backend `key`
-   (`.../components/<name>.tfstate`) and trim `required_providers` to what the
-   stack actually uses.
+   (`.../components/<name>.tfstate`). Don't add a `required_providers` block —
+   symlink the shared one instead:
+   `ln -s ../../../_shared/versions.tf versions.tf` (adjust the `../` depth).
 3. `tofu init && tofu validate`, then `plan`.
 
 ### Reference another stack's output (dependency)
@@ -173,20 +193,20 @@ zone_id = data.terraform_remote_state.route53.outputs.env_seqtoid_org_zone_id
 Add an `output` to the upstream stack if the value you need isn't already exported.
 
 ### Bump a provider version across the repo
-This is the one workflow that used to be a single edit in `fogg.yml`. Without a
-generator you change the `required_providers` version in each stack's
-`terraform.tf`. Because the blocks are identical, do it with a scripted edit and
-review the diff, e.g.:
+**Edit one file:** [`terraform/_shared/versions.tf`](../terraform/_shared/versions.tf).
+Every root stack symlinks it, so the change applies everywhere at once with zero
+drift.
 
 ```bash
-# example: aws ~> 5.100 -> ~> 5.110 everywhere
-grep -rl 'source = "hashicorp/aws"' terraform --include='terraform.tf' \
-  | xargs sed -i '' 's/version = "~> 5\.100\.0"/version = "~> 5.110.0"/'
-make fmt && make validate
+# example: aws ~> 5.100 -> ~> 5.110, for every stack
+sed -i '' 's/version = "~> 5\.100\.0"/version = "~> 5.110.0"/' terraform/_shared/versions.tf
+make validate
 ```
 
-Then `tofu init -upgrade` per stack on the next apply. Keep the versions
-consistent across stacks unless a stack genuinely needs to differ.
+Then `tofu init -upgrade` per stack on its next apply. If a stack can't move to
+the new version, that's a **module** in it pinning an older constraint — fix the
+module, don't fork the version (see Troubleshooting). Keeping one version
+everywhere is the point.
 
 ### Bootstrap a new environment
 Apply in dependency order, starting from the account, then foundational
@@ -261,3 +281,10 @@ repo is generated, orchestrated, and run.
 - **`Reference to undeclared local/resource` on a stack you didn't change** — a
   handful of components have pre-existing gaps in upstream history (e.g. missing
   `locals`); these predate the OpenTofu conversion and are tracked separately.
+- **`Failed to resolve provider packages` / a constraint like
+  `aws ~> 3.5.0, ~> 5.100.0`** — a **module** inside that stack pins an older
+  provider than the shared `versions.tf`. The two constraints can't both be
+  satisfied. This is drift made visible (by design): upgrade the stale module to
+  one that accepts the standard version — don't downgrade the shared file. The
+  `public` environment currently trips this (its modules are aws-3.x-era) and is
+  tracked as separate module-upgrade debt.
