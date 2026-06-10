@@ -78,9 +78,13 @@ As a security reviewer, the deploy role is scoped and prefers GitHub OIDC over s
 ## Out of Scope / Bucket B (Tom, live env)
 
 - Live `tofu init -migrate-state` to move state objects into the shared foundation bucket, and any `tofu plan`/`apply`.
+- **FR-007 (foundation inheritance) is deferred.** This repo owns its own infra (`cloud-env`, `eks`, …) under per-account state buckets; rewiring every stack to read `data.terraform_remote_state.foundation` outputs and consolidating those buckets into the shared foundation bucket is a large refactor that presupposes the foundation is applied and a live state migration. Per-stack keys and locking (FR-006) are done; the foundation-inheritance rewiring is teed up as follow-up work.
 - Generalizing Auth0 into the OIDC boundary — that is `feature-#004`, not this slice. Here we only convert the existing Auth0 components, behavior-preserved.
 - Fetching/validating components that depend on private or `git@`-SSH module sources, which need credentials this environment doesn't have.
 
 ## Notes
 
-`fogg` (v0.92.46) is the generator of record for this repo and is **not installed** in the build environment. The generated files (`fogg.tf`, component `Makefile`s, `scripts/*.mk`) are therefore edited directly, and `fogg.yml` is updated in lockstep so that a future `fogg apply` reproduces — not reverts — these changes. The fogg toolchain itself should be re-pointed at OpenTofu (or the generated-file edits re-applied) whenever the repo is next regenerated; this is flagged for the maintainer rather than silently relied upon.
+**fogg regeneration (must address before merge).** `fogg` (v0.92.46) is the generator of record and is **not installed** in the build environment, so the generated files (`fogg.tf`, component `Makefile`s, `scripts/*.mk`) are edited directly and `fogg.yml` is updated in lockstep. Two consequences:
+
+1. fogg emits an *exact* `required_version = "=<terraform_version>"` pin and (in this version) injects the `TFC_*` workspace variables. A plain `fogg apply` would re-introduce the exact pin and the TFC coupling, **reverting this conversion**. The `fogg-apply` job in `.github/workflows/fogg_ci.yml` runs `fogg apply` on every push and commits the result — so as written, the first push after merge would undo the engine swap. fogg must be re-pointed at OpenTofu (or that job adjusted / the generated-file edits re-applied) **before this branch merges**.
+2. Until then, treat the generated `*.tf` as the source of truth for the OpenTofu behavior, with `fogg.yml` carrying the documented intent.
