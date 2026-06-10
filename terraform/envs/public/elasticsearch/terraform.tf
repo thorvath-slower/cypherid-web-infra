@@ -1,3 +1,8 @@
+# TODO(revisit): this `public` stack is EMPTY — no resources or modules, only
+# provider/backend/remote_state scaffolding (validated by bug-#013, but it
+# provisions nothing). Confirm whether the `public` environment is still live;
+# if it is dead, delete the whole environment rather than maintain empty stacks.
+
 provider "aws" {
 
   region  = "us-west-2"
