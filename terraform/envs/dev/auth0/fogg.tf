@@ -9,11 +9,11 @@ provider "aws" {
   # var.tags should be considered deprecated
   default_tags {
     tags = {
-      project                              = coalesce(var.tags.project, "unknown")
-      env                                  = coalesce(var.tags.env, "unknown")
-      service                              = coalesce(var.tags.service, "unknown")
-      owner                                = coalesce(var.tags.owner, "unknown")
-      managedBy                            = "terraform"
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
     }
   }
   allowed_account_ids = ["491013321714"]
@@ -30,11 +30,11 @@ provider "aws" {
   # var.tags should be considered deprecated
   default_tags {
     tags = {
-      project                              = coalesce(var.tags.project, "unknown")
-      env                                  = coalesce(var.tags.env, "unknown")
-      service                              = coalesce(var.tags.service, "unknown")
-      owner                                = coalesce(var.tags.owner, "unknown")
-      managedBy                            = "terraform"
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
     }
   }
   allowed_account_ids = ["491013321714"]
@@ -50,11 +50,11 @@ provider "aws" {
   # var.tags should be considered deprecated
   default_tags {
     tags = {
-      project                              = coalesce(var.tags.project, "unknown")
-      env                                  = coalesce(var.tags.env, "unknown")
-      service                              = coalesce(var.tags.service, "unknown")
-      owner                                = coalesce(var.tags.owner, "unknown")
-      managedBy                            = "terraform"
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
     }
   }
   allowed_account_ids = ["283694049553"]
@@ -70,11 +70,11 @@ provider "aws" {
   # var.tags should be considered deprecated
   default_tags {
     tags = {
-      project                              = coalesce(var.tags.project, "unknown")
-      env                                  = coalesce(var.tags.env, "unknown")
-      service                              = coalesce(var.tags.service, "unknown")
-      owner                                = coalesce(var.tags.owner, "unknown")
-      managedBy                            = "terraform"
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
     }
   }
   allowed_account_ids = ["283694049553"]
@@ -87,9 +87,10 @@ provider "auth0" {
   domain = "seqtoid-${var.env}.us.auth0.com"
 }
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.10"
 
   backend "s3" {
+    use_lockfile = true # bug-#006: native state locking (OpenTofu >= 1.10), portable (no DynamoDB)
 
     bucket = "tfstate-491013321714-test"
 
