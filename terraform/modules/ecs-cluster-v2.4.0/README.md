@@ -9,7 +9,7 @@ we will just use Fargate when its available.).
 
 Below example will create an ECS cluster in a VPC managed by our stack.
 
-You'll note that there is a fair amout of boilerplate, but much of it is auto-managed by fogg.
+You'll note that there is a fair amout of boilerplate, but much of it was auto-managed by the prior IaC tooling.
 
 ```
 module "ecs" {
@@ -19,12 +19,12 @@ module "ecs" {
   instance_type       = "m5.large"
   ssh_key_name        = "infra-ssh-key"
 
-  # Variables set by fogg. If not using fogg, set them yourself.
+  # Variables formerly set by the IaC tooling; set them yourself.
   region              = "${var.region}"
   project             = "${var.project}"
   env                 = "${var.env}"
 
-  # Also managed by fogg.
+  # Also formerly tool-managed.
   vpc_id              = "${data.terraform_remote_state.cloud-env.outputs.vpc_id}"
   subnets             = "${data.terraform_remote_state.cloud-env.outputs.private_subnets}"
   allowed_cidr_blocks = ["${data.terraform_remote_state.cloud-env.outputs.vpc_cidr_block}"]

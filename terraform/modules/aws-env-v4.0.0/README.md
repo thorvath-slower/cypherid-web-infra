@@ -69,7 +69,7 @@ addition to multi-AZ VPC with public and private subnets, it also includes an ss
 | Name | Description |
 |------|-------------|
 | <a name="output_azs"></a> [azs](#output\_azs) | EC2 availability zones for the VPC. |
-| <a name="output_bastion_configuration"></a> [bastion\_configuration](#output\_bastion\_configuration) | No longer used, but Fogg auto-generates it no matter what. |
+| <a name="output_bastion_configuration"></a> [bastion\_configuration](#output\_bastion\_configuration) | No longer used; retained for backward compatibility. |
 | <a name="output_database_route_table_ids"></a> [database\_route\_table\_ids](#output\_database\_route\_table\_ids) | database route table ids |
 | <a name="output_database_subnet_group"></a> [database\_subnet\_group](#output\_database\_subnet\_group) | ID of database subnet group |
 | <a name="output_database_subnets"></a> [database\_subnets](#output\_database\_subnets) | List of IDs of database subnets |
