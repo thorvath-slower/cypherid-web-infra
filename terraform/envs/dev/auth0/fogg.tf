@@ -127,7 +127,7 @@ provider "auth0" {
   domain = "seqtoid-${var.env}.us.auth0.com"
 }
 terraform {
-  required_version = "=1.14.8"
+  required_version = ">= 1.6"
 
   backend "s3" {
 

@@ -114,7 +114,13 @@ defaults:
     #  version: 3.41.0
     #  registry_namespace: okta
     #  org_name: czi-prod
-  terraform_version: 1.14.8
+  # CZ ID stack runs on OpenTofu, not Terraform (Constitution Principle II).
+  # NOTE: fogg emits this as an exact `required_version = "=<value>"` pin. The
+  # generated *.tf were hand-relaxed to `>= 1.6` in improvement-#002 because the
+  # exact pin (and the old 1.14.8 Terraform pin) blocks OpenTofu from initializing.
+  # When fogg is next run, re-apply that relaxation (or patch fogg to emit a
+  # range / target OpenTofu) — see specs/002-tofu-conversion/spec.md FR-001/FR-002.
+  terraform_version: 1.12.1
   tools:
     #tflint:
     #  enabled: true

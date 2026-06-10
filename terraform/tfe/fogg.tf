@@ -46,7 +46,7 @@ provider "tfe" {
   hostname = "si.prod.tfe.czi.technology"
 }
 terraform {
-  required_version = "=1.3.6"
+  required_version = ">= 1.6"
 
   backend "s3" {
 
