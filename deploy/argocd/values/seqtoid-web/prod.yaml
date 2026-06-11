@@ -25,3 +25,10 @@ autoscaling:
   minReplicas: 4
   maxReplicas: 12
   targetCPUUtilizationPercentage: 65
+# Public edge for prod. ALB via the AWS Load Balancer Controller -> active service.
+ingress:
+  enabled: true
+  host: czid.example.org               # REPLACE with the real prod DNS name
+  certificateArn: arn:aws:acm:us-west-2:REPLACE_PROD_ACCT:certificate/REPLACE_PROD_CERT
+  annotations:
+    alb.ingress.kubernetes.io/subnets: REPLACE_PROD_PUBLIC_SUBNETS
