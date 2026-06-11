@@ -1,0 +1,24 @@
+# staging overrides for the seqtoid-web chart.
+environment: staging
+image:
+  repository: REPLACE_STAGING_ACCT.dkr.ecr.us-west-2.amazonaws.com/czid-staging/seqtoid-web
+  tag: latest            # CI advances this to the immutable git-sha tag on deploy
+replicaCount: 2
+serviceAccount:
+  roleArn: arn:aws:iam::REPLACE_STAGING_ACCT:role/czid-staging-seqtoid-web
+blueGreen:
+  autoPromotionEnabled: true     # staging: automated gate (promote on smoke pass)
+  scaleDownDelaySeconds: 60
+  analysis:
+    enabled: true
+    postPromotion: true          # also re-smoke the new active color
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2Gi
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4

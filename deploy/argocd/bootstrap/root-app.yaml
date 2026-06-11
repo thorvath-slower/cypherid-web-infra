@@ -1,0 +1,28 @@
+# App-of-apps root. Apply this ONCE after Argo CD is installed; it then manages
+# everything under deploy/argocd/apps/ (the Rollouts controller + the per-env
+# seqtoid-web Applications). Add a new app by dropping a manifest in apps/ —
+# Argo CD picks it up on the next sync.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: czid-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: czid
+  source:
+    repoURL: https://github.com/chanzuckerberg/cypherid-web-infra.git
+    targetRevision: main
+    path: deploy/argocd/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
