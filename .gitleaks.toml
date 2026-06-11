@@ -1,0 +1,20 @@
+# gitleaks config (improvement-#010). Extends the default ruleset; the allowlist
+# is the secret-scan triage ledger — each entry is a reviewed false positive.
+title = "CZ ID gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+False positives: the hashicorp-tf-password rule matches the literal token
+"password" in the auth0 stacks' OAuth grant-type lists (e.g. "password",
+"password-realm" — partly in COMMENTED-OUT lines) and the auth0
+password_policy / password-policy config blocks. These are connection policy
+and grant-type configuration, not credentials. Real auth0 secrets (client
+secrets, API tokens) are supplied via the auth0 provider config and variables,
+not hardcoded in these files. Reviewed + accepted 2026-06-11.
+"""
+paths = [
+  '''terraform/envs/[^/]+/auth0/main\.tf''',
+]
