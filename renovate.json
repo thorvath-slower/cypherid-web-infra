@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":maintainLockFilesDisabled"
+  ],
+  "timezone": "America/Los_Angeles",
+  "schedule": ["before 9am on monday"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rebaseWhen": "conflicted",
+  "pinDigests": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track the OpenTofu version pinned in .opentofu-version.",
+      "fileMatch": ["(^|/)\\.opentofu-version$"],
+      "matchStrings": ["^(?<currentValue>\\S+)"],
+      "depNameTemplate": "opentofu/opentofu",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Group Terraform/OpenTofu provider + module updates (one PR instead of one per stack across the many envs).",
+      "matchManagers": ["terraform"],
+      "groupName": "terraform providers"
+    },
+    {
+      "description": "Group the Docker base images (grafana, idseq-s3-tar-writer) — maintains the bug-#012 @sha256 digests.",
+      "matchManagers": ["dockerfile"],
+      "groupName": "docker base images"
+    },
+    {
+      "description": "Group the idseq-s3-tar-writer pip deps.",
+      "matchManagers": ["pip_requirements"],
+      "groupName": "pip deps"
+    },
+    {
+      "description": "Group GitHub Actions bumps into one PR.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true
+  }
+}
