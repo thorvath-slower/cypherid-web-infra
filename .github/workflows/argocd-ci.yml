@@ -53,3 +53,17 @@ jobs:
             grep -q 'enabled: true' deploy/argocd/values/seqtoid-web/$e.yaml
           done
           echo "promotion gates OK (dev/staging auto, prod manual; analysis on everywhere)"
+
+      - name: Assert the load-balancer wiring (improvement-#015)
+        run: |
+          set -e
+          # The LB controller app must exist and target kube-system.
+          test -f deploy/argocd/apps/aws-load-balancer-controller.yaml
+          grep -q 'chart: aws-load-balancer-controller' deploy/argocd/apps/aws-load-balancer-controller.yaml
+          grep -q 'namespace: kube-system'              deploy/argocd/apps/aws-load-balancer-controller.yaml
+          # Every env must expose a public edge.
+          for e in dev staging prod; do
+            grep -qA1 '^ingress:' deploy/argocd/values/seqtoid-web/$e.yaml
+            grep -q 'enabled: true' <(grep -A1 '^ingress:' deploy/argocd/values/seqtoid-web/$e.yaml)
+          done
+          echo "load-balancer wiring OK (controller app + per-env ingress enabled)"

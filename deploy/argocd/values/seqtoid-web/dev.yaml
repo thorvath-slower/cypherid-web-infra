@@ -20,3 +20,10 @@ resources:
     memory: 1Gi
 autoscaling:
   enabled: false
+# Public edge for dev. ALB via the AWS Load Balancer Controller -> active service.
+ingress:
+  enabled: true
+  host: czid-dev.example.org           # REPLACE with the real dev DNS name
+  certificateArn: arn:aws:acm:us-west-2:REPLACE_DEV_ACCT:certificate/REPLACE_DEV_CERT
+  annotations:
+    alb.ingress.kubernetes.io/subnets: REPLACE_DEV_PUBLIC_SUBNETS   # subnet-...,subnet-...
