@@ -26,6 +26,11 @@ half-baked items. Forward-looking companion to the program-level
 - [x] [improvement-#002] Converted off fogg/Terraform-Cloud to OpenTofu; added `tofu_ci.yml`. *(done)*
 - [x] [improvement-#009] Renovate config (terraform providers grouped, digests, actions). *(done)*
 
+### Delivery pipeline follow-ups (from `improvement-#015`)
+- [ ] [improvement-#015 prerequisite] (P1) **AWS Load Balancer Controller IaC** — the controller app is wired but needs the IRSA **IAM role + AWSLoadBalancerControllerIAMPolicy**, per-env **ACM certs**, and public-subnet tags `kubernetes.io/role/elb=1` before any ALB can provision. Fill the `REPLACE_*` placeholders in `deploy/argocd/apps/aws-load-balancer-controller.yaml` + the env values. (IaC/live env → Bucket B.)
+- [ ] [improvement-#015 follow-up] (P2) **Cosign verify admission gate** — verify the keyless signature (from `improvement-#013`) before a rollout proceeds (policy-controller / Kyverno), so only signed images deploy.
+- [x] [improvement-#015] LB controller Argo app + per-env public edge (ingress enabled dev/staging/prod). *(done)*
+
 ## Data / infra
 - [ ] [DATA-1] (P1) Env-gate destructive flags: `force_destroy = var.env == "dev"`, `prevent_destroy = true` on prod/staging data buckets. `db/bucket.tf`.
 - [ ] [DATA-2/3, NET-1] (P1/P2) RDS resilience (deletion protection, backups, monitoring), stop `general_log=1`, keep RDS private. **NOTE:** the program is migrating to **PostgreSQL** (`improvement-#005`, seqtoid-web) — re-scope these MySQL/Aurora items to the Postgres target before acting.
