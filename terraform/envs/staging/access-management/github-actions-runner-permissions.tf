@@ -33,11 +33,12 @@ resource "aws_iam_openid_connect_provider" "github" {
   client_id_list  = ["sts.amazonaws.com"]
 }
 
-# TODO: Adds near-superuser power to the CI/CD process
-resource "aws_iam_role_policy_attachment" "czid_ci_cd_poweruser" {
-  role       = module.czid_web_private_gh_actions_executor.role.name
-  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
-}
+# bug-#007: removed the AWS-managed PowerUserAccess attachment (near-superuser
+# on the CI/CD deploy role) per Constitution Principle VII (least privilege).
+# The role keeps the scoped czid_ci_cd policy plus the specific read/ECR/SSM/
+# CloudWatch managed policies below; assumed via GitHub OIDC, no static keys.
+# If a deploy needs an action not covered, add it to czid_ci_cd — never reattach
+# PowerUserAccess. Verify against a real CI run / tofu plan before merge (Bucket B).
 
 resource "aws_iam_role_policy_attachment" "czid_ga_ci_cd" {
   role       = module.czid_web_private_gh_actions_executor.role.name

@@ -139,5 +139,5 @@ output "redshift_route_table_ids" {
 
 output "bastion_configuration" {
   value       = ""
-  description = "No longer used, but Fogg auto-generates it no matter what."
+  description = "No longer used; retained for backward compatibility."
 }

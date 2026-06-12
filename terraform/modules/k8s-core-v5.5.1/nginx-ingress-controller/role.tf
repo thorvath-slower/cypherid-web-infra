@@ -1,5 +1,5 @@
 module "eks_service_account_nginx_role" {
-  source = "git@github.com:chanzuckerberg/cztack//aws-iam-service-account-eks?ref=v0.104.2"
+  source = "github.com/chanzuckerberg/cztack//aws-iam-service-account-eks?ref=v0.104.2"
 
   eks_cluster   = var.eks_cluster
   k8s_namespace = var.namespace

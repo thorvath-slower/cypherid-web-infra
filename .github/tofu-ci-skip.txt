@@ -1,0 +1,12 @@
+# Stacks excluded from tofu-ci validation because they depend on the
+# inaccessible private/deleted module chanzuckerberg/shared-infra.
+# Tracked in Linear CZID-90. Remove an entry once shared-infra is
+# vendored / replaced / made accessible, so the stack is validated again.
+terraform/envs/prod/batch
+terraform/envs/prod/downloads
+terraform/envs/prod/ecs
+terraform/envs/prod/fivetran-ssh
+terraform/envs/prod/web
+terraform/envs/staging/fivetran-ssh-nextgen
+terraform/modules/ecs-cluster-v2.4.0
+terraform/modules/ecs-service-with-alb-v0.421.0
