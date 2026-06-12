@@ -52,6 +52,10 @@ jobs:
       - uses: opentofu/setup-opentofu@v1
         with:
           tofu_version_file: .opentofu-version
+      - name: Fetch git module sources over HTTPS (public modules; CI has no SSH key)
+        run: |
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
       - name: fmt check
         run: tofu fmt -check -diff "${{ matrix.stack }}"
       - name: init (no backend) + validate
