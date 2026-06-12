@@ -1,5 +1,5 @@
 module "terraform-aws-tfstate-backend" {
-  source            = "git@github.com:cloudposse/terraform-aws-tfstate-backend?ref=1.4.0"
+  source            = "github.com/cloudposse/terraform-aws-tfstate-backend?ref=1.4.0"
   attributes        = local.attributes
   billing_mode      = local.billing_mode
   environment       = local.environment

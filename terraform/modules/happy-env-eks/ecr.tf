@@ -1,7 +1,7 @@
 
 module "ecrs" {
   for_each = var.ecr_repos
-  source   = "git@github.com:chanzuckerberg/cztack//aws-ecr-repo?ref=v0.104.2"
+  source   = "github.com/chanzuckerberg/cztack//aws-ecr-repo?ref=v0.104.2"
 
   name       = each.value["name"]
   read_arns  = each.value["read_arns"]

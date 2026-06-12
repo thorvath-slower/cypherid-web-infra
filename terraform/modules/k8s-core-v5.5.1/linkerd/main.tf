@@ -23,7 +23,7 @@ data "aws_iam_policy_document" "gen_linkerd_ca_policy" {
 }
 
 module "linkerd-service-account" {
-  source              = "git@github.com:chanzuckerberg/happy//terraform/modules/happy-iam-service-account-eks?ref=v0.128.8"
+  source              = "github.com/chanzuckerberg/happy//terraform/modules/happy-iam-service-account-eks?ref=v0.128.8"
   aws_iam_policy_json = data.aws_iam_policy_document.gen_linkerd_ca_policy.json
   eks_cluster         = var.eks_cluster
   k8s_namespace       = "kube-system"

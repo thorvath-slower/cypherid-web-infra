@@ -39,10 +39,21 @@ jobs:
         with:
           script: |
             const path = require("path")
+            const fs = require("fs")
+            // Stacks listed here can't be validated in CI (e.g. they pull the
+            // inaccessible chanzuckerberg/shared-infra module — see CZID-90).
+            let skip = new Set()
+            try {
+              skip = new Set(fs.readFileSync(".github/tofu-ci-skip.txt", "utf8")
+                .split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#")))
+            } catch (e) {}
             const files = ${{ steps.filter.outputs.changed_files }}
-            const stacks = [...new Set(files
+            const all = [...new Set(files
               .filter(f => f.endsWith(".tf") && !f.includes("/.terraform/"))
               .map(f => path.dirname(f)))]
+            const skipped = all.filter(s => skip.has(s)).sort()
+            const stacks = all.filter(s => !skip.has(s))
+            if (skipped.length) core.notice(`Skipping ${skipped.length} stack(s) excluded by .github/tofu-ci-skip.txt (chanzuckerberg/shared-infra unavailable — CZID-90): ${skipped.join(", ")}`)
             // Tier each changed stack. envs/{dev,staging,prod} and their matching
             // account dir mirror each other; everything else runs last in "rest".
             const b = { dev: [], staging: [], prod: [], rest: [] }
