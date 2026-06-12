@@ -1,23 +1,30 @@
 name: tofu-ci
 
-# Native OpenTofu CI (replaces the fogg-driven workflow removed in
-# improvement-#002). On every push/PR: find changed stacks, then fmt-check,
-# init (no backend) and validate each one. No fogg, no `fogg apply`.
+# Staged native OpenTofu CI (replaces the fogg-driven workflow removed in
+# improvement-#002). find-changed -> dev -> staging -> prod -> rest. Each tier
+# validates only the CHANGED stacks in it, as a matrix. Tiers are chained so a
+# downstream tier is SKIPPED if any upstream tier failed: dev/staging/prod mirror
+# each other, so if the env in front is broken the rest would break too — no
+# point burning the runners.
 
 on:
   push:
+    branches: [main]
   pull_request:
   merge_group:
 
 concurrency:
-  group: ${{ github.ref }}
+  group: tofu-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  find-changed-dirs:
+  find-changed:
     runs-on: ubuntu-latest
     outputs:
-      stacks: ${{ steps.changed.outputs.stacks }}
+      dev: ${{ steps.bucket.outputs.dev }}
+      staging: ${{ steps.bucket.outputs.staging }}
+      prod: ${{ steps.bucket.outputs.prod }}
+      rest: ${{ steps.bucket.outputs.rest }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -28,38 +35,93 @@ jobs:
             changed:
               - added|modified: 'terraform/**/*.tf'
       - uses: actions/github-script@v8
-        id: changed
+        id: bucket
         with:
           script: |
             const path = require("path")
             const files = ${{ steps.filter.outputs.changed_files }}
-            // Map each changed .tf to its stack dir; a stack is the dir holding the file.
             const stacks = [...new Set(files
               .filter(f => f.endsWith(".tf") && !f.includes("/.terraform/"))
               .map(f => path.dirname(f)))]
-            core.setOutput("stacks", JSON.stringify(stacks))
+            // Tier each changed stack. envs/{dev,staging,prod} and their matching
+            // account dir mirror each other; everything else runs last in "rest".
+            const b = { dev: [], staging: [], prod: [], rest: [] }
+            for (const s of stacks) {
+              if (s.startsWith("terraform/envs/dev/") || s === "terraform/accounts/idseq-dev") b.dev.push(s)
+              else if (s.startsWith("terraform/envs/staging/") || s === "terraform/accounts/idseq-staging") b.staging.push(s)
+              else if (s.startsWith("terraform/envs/prod/") || s === "terraform/accounts/idseq-prod") b.prod.push(s)
+              else b.rest.push(s) // modules, _shared, accounts/idseq-support, envs/{public,sandbox}
+            }
+            for (const k of Object.keys(b)) core.setOutput(k, JSON.stringify(b[k].sort()))
 
-  validate-changed:
-    needs: find-changed-dirs
-    if: ${{ needs.find-changed-dirs.outputs.stacks != '[]' }}
+  validate-dev:
+    needs: find-changed
+    if: ${{ needs.find-changed.outputs.dev != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        stack: ${{ fromJson(needs.find-changed-dirs.outputs.stacks) }}
+        stack: ${{ fromJson(needs.find-changed.outputs.dev) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: opentofu/setup-opentofu@v1
+      - uses: ./.github/actions/tofu-validate
         with:
-          tofu_version_file: .opentofu-version
-      - name: Fetch git module sources over HTTPS (public modules; CI has no SSH key)
-        run: |
-          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-      - name: fmt check
-        run: tofu fmt -check -diff "${{ matrix.stack }}"
-      - name: init (no backend) + validate
-        working-directory: ${{ matrix.stack }}
-        run: |
-          tofu init -backend=false -input=false
-          tofu validate
+          stack: ${{ matrix.stack }}
+
+  validate-staging:
+    needs: [find-changed, validate-dev]
+    if: >-
+      ${{ always()
+          && needs.find-changed.result == 'success'
+          && needs.find-changed.outputs.staging != '[]'
+          && needs.validate-dev.result != 'failure'
+          && needs.validate-dev.result != 'cancelled' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: ${{ fromJson(needs.find-changed.outputs.staging) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tofu-validate
+        with:
+          stack: ${{ matrix.stack }}
+
+  validate-prod:
+    needs: [find-changed, validate-dev, validate-staging]
+    if: >-
+      ${{ always()
+          && needs.find-changed.result == 'success'
+          && needs.find-changed.outputs.prod != '[]'
+          && needs.validate-dev.result != 'failure' && needs.validate-dev.result != 'cancelled'
+          && needs.validate-staging.result != 'failure' && needs.validate-staging.result != 'cancelled' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: ${{ fromJson(needs.find-changed.outputs.prod) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tofu-validate
+        with:
+          stack: ${{ matrix.stack }}
+
+  validate-rest:
+    needs: [find-changed, validate-dev, validate-staging, validate-prod]
+    if: >-
+      ${{ always()
+          && needs.find-changed.result == 'success'
+          && needs.find-changed.outputs.rest != '[]'
+          && needs.validate-dev.result != 'failure' && needs.validate-dev.result != 'cancelled'
+          && needs.validate-staging.result != 'failure' && needs.validate-staging.result != 'cancelled'
+          && needs.validate-prod.result != 'failure' && needs.validate-prod.result != 'cancelled' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: ${{ fromJson(needs.find-changed.outputs.rest) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tofu-validate
+        with:
+          stack: ${{ matrix.stack }}
