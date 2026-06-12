@@ -7,6 +7,10 @@ locals {
   env_seqtoid_org_url      = "https://${local.env_seqtoid_org_fqdn}"
   meta_env_seqtoid_org_url = "https://meta.${local.env_seqtoid_org_fqdn}"
   assets_fqdn              = data.terraform_remote_state.web.outputs.assets_fqdn
+  # Auth0 tenant (Management API) domain — mirrors the auth0 provider's own
+  # `domain = "seqtoid-${var.env}.us.auth0.com"`. Was referenced as the
+  # undeclared var.auth0_domain; derived here so it tracks var.env per env.
+  auth0_domain = "seqtoid-${var.env}.us.auth0.com"
 }
 
 # TODO: This is created by DEV already
@@ -65,7 +69,7 @@ resource "auth0_client" "idseq_web" {
 
 resource "auth0_client_grant" "idseq_web_grant" {
   client_id    = auth0_client.idseq_web.id
-  audience     = "https://${var.auth0_domain}/api/v2/" # "https://${var.env}.seqtoid.org" TODO: Should be this?!!!
+  audience     = "https://${local.auth0_domain}/api/v2/" # "https://${var.env}.seqtoid.org" TODO: Should be this?!!!
   subject_type = "user"
   scopes       = []
 }
@@ -77,7 +81,7 @@ resource "auth0_client" "idseq_web_management" {
 
 resource "auth0_client_grant" "idseq_web_management_grant" {
   client_id = auth0_client.idseq_web_management.id
-  audience  = "https://${var.auth0_domain}/api/v2/" # "https://${var.env}.seqtoid.org" TODO: Should be this?!!!
+  audience  = "https://${local.auth0_domain}/api/v2/" # "https://${var.env}.seqtoid.org" TODO: Should be this?!!!
   scopes = [
     "read:users",
     "update:users",
@@ -143,9 +147,9 @@ module "auth0-ssm-params" {
   parameters = {
     AUTH0_CLIENT_ID                = auth0_client.idseq_web.client_id
     AUTH0_CLIENT_SECRET            = data.auth0_client.idseq_web.client_secret
-    AUTH0_DOMAIN                   = var.auth0_domain
+    AUTH0_DOMAIN                   = local.auth0_domain
     AUTH0_MANAGEMENT_CLIENT_ID     = auth0_client.idseq_web_management.client_id
     AUTH0_MANAGEMENT_CLIENT_SECRET = data.auth0_client.idseq_web_management.client_secret
-    AUTH0_MANAGEMENT_DOMAIN        = var.auth0_domain
+    AUTH0_MANAGEMENT_DOMAIN        = local.auth0_domain
   }
 }
