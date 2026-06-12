@@ -59,6 +59,15 @@ jobs:
               skip = new Set(fs.readFileSync(".github/tofu-ci-skip.txt", "utf8")
                 .split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#")))
             } catch (e) {}
+            // Quarantined stacks: known pre-existing defects tracked separately
+            // (CZID-91/92/93), excluded so they don't block unrelated PRs. An
+            // entry ending in "/" matches a whole tree (prefix); otherwise exact.
+            let quarantine = []
+            try {
+              quarantine = fs.readFileSync(".github/tofu-ci-quarantine.txt", "utf8")
+                .split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#"))
+            } catch (e) {}
+            const isQuarantined = d => quarantine.some(q => q.endsWith("/") ? d.startsWith(q) : d === q)
             const files = ${{ steps.filter.outputs.changed_files }}
             const dirs = [...new Set(files
               .filter(f => f.endsWith(".tf") && !f.includes("/.terraform/"))
@@ -81,10 +90,10 @@ jobs:
               }
             }
 
-            // A tier is validatable when the dir exists and isn't skip-listed.
-            // Strict mirror: include every existing, non-skipped env of a touched
+            // A tier is validatable when the dir exists and isn't skip-listed or
+            // quarantined. Strict mirror: include every existing env of a touched
             // stack, even envs whose files didn't change (drift guard).
-            const tier = p => (fs.existsSync(p) && !skip.has(p)) ? p : ""
+            const tier = p => (fs.existsSync(p) && !skip.has(p) && !isQuarantined(p)) ? p : ""
             const buckets = []
             for (const name of [...mirror].sort()) {
               const b = { name, dev: tier(`terraform/envs/dev/${name}`),
@@ -99,10 +108,12 @@ jobs:
                           prod: tier("terraform/accounts/idseq-prod") }
               if (b.dev || b.staging || b.prod) buckets.push(b)
             }
-            const restList = [...rest].filter(d => !skip.has(d)).sort()
+            const restList = [...rest].filter(d => !skip.has(d) && !isQuarantined(d)).sort()
 
             const skipped = dirs.filter(d => skip.has(d)).sort()
             if (skipped.length) core.notice(`Skipping ${skipped.length} stack(s) excluded by .github/tofu-ci-skip.txt (chanzuckerberg/shared-infra unavailable — CZID-90): ${skipped.join(", ")}`)
+            const quarantined = dirs.filter(d => isQuarantined(d) && !skip.has(d)).sort()
+            if (quarantined.length) core.notice(`Quarantining ${quarantined.length} stack(s) with known pre-existing defects (.github/tofu-ci-quarantine.txt — CZID-91/92/93): ${quarantined.join(", ")}`)
 
             core.setOutput("buckets", JSON.stringify(buckets))
             core.setOutput("rest", JSON.stringify(restList))
