@@ -1,7 +1,7 @@
 locals {
   vpc_flow_logs_cloudwatch_group_name = substr("${var.project}-${var.env}-${var.service}-vpc-flow-logs", 0, 63)
 
-  // HACK(el): Adding this here and not as a variable since fogg source_modules
+  // HACK(el): Adding this here and not as a variable since the source-module wiring
   //           will override defaults
   s3_vpc_flow_collection_bucket = "arn:aws:s3:::shared-infra-prod-vpc-logs"
 }
