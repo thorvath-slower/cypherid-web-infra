@@ -1,0 +1,28 @@
+name: tofu-validate
+description: fmt-check + init (no backend) + validate a single OpenTofu stack.
+
+inputs:
+  stack:
+    description: Path to the stack directory to validate.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: opentofu/setup-opentofu@v1
+      with:
+        tofu_version_file: .opentofu-version
+    - name: Fetch git module sources over HTTPS (public modules; CI has no SSH key)
+      shell: bash
+      run: |
+        git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+        git config --global url."https://github.com/".insteadOf "git@github.com:"
+    - name: fmt check
+      shell: bash
+      run: tofu fmt -check -diff "${{ inputs.stack }}"
+    - name: init (no backend) + validate
+      shell: bash
+      working-directory: ${{ inputs.stack }}
+      run: |
+        tofu init -backend=false -input=false
+        tofu validate
