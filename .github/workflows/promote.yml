@@ -1,0 +1,72 @@
+name: Promote (dev -> staging -> prod)
+run-name: Promote dev -> staging -> prod by ${{ github.actor }}
+
+# Promotion-gated deploy (CZID-96): an infrastructure change can only reach prod
+# after it has been applied successfully in dev AND staging. The two gates:
+#
+#   deploy-dev ──(must succeed)──▶ deploy-staging ──(must succeed)──▶ deploy-prod
+#
+# Each tier `needs:` the previous, so prod is unreachable unless dev and staging
+# both went green — no direct-to-prod deploy. The prod tier additionally runs
+# under the `prod` GitHub Environment (set inside apply_component_call), so once
+# environment protection rules exist (CZID-81) a required-reviewer approval is
+# layered on as the explicit second human gate. Plan-vs-apply OIDC role split is
+# CZID-26.
+#
+# NOTE: a real run needs the per-env AWS OIDC trust + role, AWS_ACCOUNT_ID var,
+# GitHub Environments and AUTH0_* secrets to exist (CZID-81). The ordering
+# enforcement here is effective regardless of that infra.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type "promote" to confirm a full dev -> staging -> prod promotion.
+        type: string
+        required: true
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  # One promotion at a time; never cancel an in-flight promotion.
+  group: promote-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Confirm promotion
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require explicit confirmation
+        run: |
+          if [[ "${{ inputs.confirm }}" != "promote" ]]; then
+            echo "::error::Type 'promote' in the confirm input to run a full dev -> staging -> prod promotion."
+            exit 1
+          fi
+
+  deploy-dev:
+    name: Deploy dev
+    needs: guard
+    uses: ./.github/workflows/deploy_env.yml
+    with:
+      environment: dev
+    secrets: inherit
+
+  deploy-staging:
+    name: Deploy staging (gated on dev)
+    needs: deploy-dev
+    uses: ./.github/workflows/deploy_env.yml
+    with:
+      environment: staging
+    secrets: inherit
+
+  deploy-prod:
+    name: Deploy prod (gated on staging)
+    needs: deploy-staging
+    uses: ./.github/workflows/deploy_env.yml
+    with:
+      environment: prod
+    secrets: inherit
