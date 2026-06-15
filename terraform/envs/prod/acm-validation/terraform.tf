@@ -1,6 +1,4 @@
 provider "aws" {
-
-  version = "~> 3.5.0"
   region  = "us-west-2"
   profile = "idseq-dev"
 
@@ -11,7 +9,6 @@ provider "aws" {
 
 provider "aws" {
   alias   = "us-east-1"
-  version = "~> 3.5.0"
   region  = "us-east-1"
   profile = "idseq-dev"
 
@@ -21,7 +18,6 @@ provider "aws" {
 
 provider "aws" {
   alias   = "us-west-2"
-  version = "~> 3.5.0"
   region  = "us-west-2"
   profile = "idseq-dev"
 
@@ -154,21 +150,12 @@ variable "aws_accounts" {
 
   }
 }
-provider "random" {
-  version = "~> 2.2"
-}
-provider "template" {
-  version = "~> 2.1"
-}
-provider "archive" {
-  version = "~> 1.3"
-}
-provider "null" {
-  version = "~> 2.1"
-}
-provider "local" {
-  version = "~> 1.4"
-}
-provider "tls" {
-  version = "~> 2.1"
-}
+# bug-#014: provider versions live in required_providers (versions.tf); the
+# deprecated inline `version` args were removed (they conflicted with the
+# aws ~>5.100 / tls ~>3.0 / etc. pins). The dead hashicorp/template provider
+# (deprecated, no template_file usage, not in required_providers) was dropped.
+provider "random" {}
+provider "archive" {}
+provider "null" {}
+provider "local" {}
+provider "tls" {}
