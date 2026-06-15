@@ -22,3 +22,10 @@ autoscaling:
   enabled: true
   minReplicas: 2
   maxReplicas: 4
+# Public edge for staging. ALB via the AWS Load Balancer Controller -> active service.
+ingress:
+  enabled: true
+  host: czid-staging.example.org       # REPLACE with the real staging DNS name
+  certificateArn: arn:aws:acm:us-west-2:REPLACE_STAGING_ACCT:certificate/REPLACE_STAGING_CERT
+  annotations:
+    alb.ingress.kubernetes.io/subnets: REPLACE_STAGING_PUBLIC_SUBNETS
