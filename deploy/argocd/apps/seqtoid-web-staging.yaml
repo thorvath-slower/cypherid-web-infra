@@ -1,0 +1,28 @@
+# seqtoid-web @ staging. See seqtoid-web-dev.yaml for the multi-source pattern.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seqtoid-web-staging
+  namespace: argocd
+spec:
+  project: czid
+  sources:
+    - repoURL: https://github.com/chanzuckerberg/seqtoid-web.git
+      targetRevision: main
+      path: deploy/charts/seqtoid-web
+      helm:
+        valueFiles:
+          - $values/deploy/argocd/values/seqtoid-web/staging.yaml
+    - repoURL: https://github.com/chanzuckerberg/cypherid-web-infra.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: czid-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
