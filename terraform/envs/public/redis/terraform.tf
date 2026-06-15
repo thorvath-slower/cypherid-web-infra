@@ -1,6 +1,10 @@
+# TODO(revisit): this `public` stack is EMPTY — no resources or modules, only
+# provider/backend/remote_state scaffolding (validated by bug-#013, but it
+# provisions nothing). Confirm whether the `public` environment is still live;
+# if it is dead, delete the whole environment rather than maintain empty stacks.
+
 provider "aws" {
 
-  version = "~> 3.5.0"
   region  = "us-west-2"
   profile = "idseq-dev"
 
@@ -11,7 +15,6 @@ provider "aws" {
 
 provider "aws" {
   alias   = "us-east-1"
-  version = "~> 3.5.0"
   region  = "us-east-1"
   profile = "idseq-dev"
 
@@ -21,7 +24,6 @@ provider "aws" {
 
 provider "aws" {
   alias   = "us-west-2"
-  version = "~> 3.5.0"
   region  = "us-west-2"
   profile = "idseq-dev"
 
@@ -239,20 +241,12 @@ variable "aws_accounts" {
   }
 }
 provider "random" {
-  version = "~> 2.2"
-}
-provider "template" {
-  version = "~> 2.1"
 }
 provider "archive" {
-  version = "~> 1.3"
 }
 provider "null" {
-  version = "~> 2.1"
 }
 provider "local" {
-  version = "~> 1.4"
 }
 provider "tls" {
-  version = "~> 2.1"
 }

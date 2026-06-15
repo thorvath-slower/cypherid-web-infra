@@ -9,10 +9,9 @@
 #
 # Remove an entry once its tracking issue is resolved, so CI validates it again.
 
-# CZID-91 — stale legacy envs (confirm live vs retire). Whole envs:
-#   public/*  : contradictory provider version constraints (root vs module)
-#   sandbox/* : dangling refs incl. retired idseq-newdev remote state
-terraform/envs/public/
+# CZID-91 — sandbox/* : dangling refs incl. retired idseq-newdev remote state.
+#   Confirm live vs retire. (public/* was fixed in bug-#013 — deprecated inline
+#   provider `version=` args removed — and un-quarantined; CI validates it again.)
 terraform/envs/sandbox/
 
 # CZID-92 — real prod-stack drift the per-stack CI exposed (dev/staging pass,
