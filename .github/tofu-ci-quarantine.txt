@@ -16,12 +16,12 @@ terraform/envs/sandbox/
 
 # CZID-92 — real prod-stack drift the per-stack CI exposed (dev/staging pass,
 #   prod fails validate). Prod tier only for the mirrored stacks; whole stack
-#   for the prod-only ones.
+#   for the prod-only ones. (acm-validation fixed in bug-#014 — provider
+#   resolution — and un-quarantined; CI validates it again.)
 terraform/envs/prod/redis
 terraform/envs/prod/maintenance
 terraform/envs/prod/email
 terraform/envs/prod/zendesk
-terraform/envs/prod/acm-validation
 
 # CZID-93 — vendored k8s-core module: helm provider v2->v3 `set` block break.
 terraform/modules/k8s-core-v5.5.1
