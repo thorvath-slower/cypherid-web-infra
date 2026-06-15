@@ -2,18 +2,12 @@ name: Terraform Plan all Components
 run-name: Terraform Plan all Components in env ${{ inputs.environment || github.base_ref || github.ref_name }} branch ${{ github.base_ref || github.ref_name }} by ${{ github.actor }}
 
 on:
-  push:
-#    branches:
-#      - development
-#      - staging
-#      - main
-#      #- 'releases/**' TODO: Handle releases
-#  pull_request:
-#    branches:
-#      - development
-#      - staging
-#      - main
-#      #- 'releases/**' TODO: Handle releases
+  # Manual deploy-plan only. (Previously triggered on every push — branch
+  # filters were commented out — which ran a fogg `terraform` plan on every
+  # branch and always failed; see CZID-94.) Auto-plan on pushes to the deploy
+  # branches (development/staging/main) and PR plans are future work: they need
+  # the per-env AWS OIDC trust + GitHub Environments wired up first. Until then,
+  # plan is dispatched on demand for a chosen environment.
   workflow_dispatch:
     inputs:
       environment:
