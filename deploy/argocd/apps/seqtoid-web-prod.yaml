@@ -1,0 +1,33 @@
+# seqtoid-web @ prod. Same multi-source pattern. Argo CD still auto-syncs the
+# manifests (so the preview color is created on a new image), but the values
+# pin autoPromotionEnabled: false — so traffic does NOT switch until a human runs
+# `kubectl argo rollouts promote`. That manual step IS the prod gate; the
+# smoke AnalysisRun must pass first either way.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seqtoid-web-prod
+  namespace: argocd
+spec:
+  project: czid
+  sources:
+    - repoURL: https://github.com/chanzuckerberg/seqtoid-web.git
+      # Prod should track an immutable release tag, advanced deliberately.
+      targetRevision: main
+      path: deploy/charts/seqtoid-web
+      helm:
+        valueFiles:
+          - $values/deploy/argocd/values/seqtoid-web/prod.yaml
+    - repoURL: https://github.com/chanzuckerberg/cypherid-web-infra.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: czid-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

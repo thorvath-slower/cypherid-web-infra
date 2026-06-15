@@ -1,0 +1,22 @@
+# dev overrides for the seqtoid-web chart. Layered over the chart defaults.
+environment: dev
+image:
+  repository: REPLACE_DEV_ACCT.dkr.ecr.us-west-2.amazonaws.com/czid-dev/seqtoid-web
+  tag: latest            # CI advances this to the immutable git-sha tag on deploy
+replicaCount: 2
+serviceAccount:
+  roleArn: arn:aws:iam::REPLACE_DEV_ACCT:role/czid-dev-seqtoid-web
+blueGreen:
+  autoPromotionEnabled: true     # dev: automated gate (promote on smoke pass)
+  scaleDownDelaySeconds: 30
+  analysis:
+    enabled: true
+    postPromotion: false
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+autoscaling:
+  enabled: false
