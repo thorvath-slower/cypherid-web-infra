@@ -1,5 +1,10 @@
+data "aws_route53_zone" "czid_org" {
+  name         = "czid.org"
+  private_zone = false
+}
+
 locals {
-  czid_zone_id   = data.terraform_remote_state.idseq-prod.outputs.czid_org_zone_id
+  czid_zone_id   = data.aws_route53_zone.czid_org.zone_id
   czid_help_host = "help.czid.org"
 }
 

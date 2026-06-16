@@ -1,8 +1,13 @@
+data "aws_route53_zone" "czid_org" {
+  name         = "czid.org"
+  private_zone = false
+}
+
 locals {
   czid_subdomain   = "maintenance"
   czid_domain      = "czid.org"
   czid_full_domain = "${local.czid_subdomain}.${local.czid_domain}"
-  czid_zone_id     = data.terraform_remote_state.idseq-prod.outputs.czid_org_zone_id
+  czid_zone_id     = data.aws_route53_zone.czid_org.zone_id
 
   czid_aliases = {
     "www.${local.czid_full_domain}" = local.czid_zone_id
