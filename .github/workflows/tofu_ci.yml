@@ -46,7 +46,7 @@ jobs:
           filters: |
             changed:
               - added|modified: 'terraform/**/*.tf'
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         id: bucket
         with:
           script: |
