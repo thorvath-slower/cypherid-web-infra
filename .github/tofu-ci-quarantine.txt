@@ -17,8 +17,8 @@ terraform/envs/sandbox/
 # CZID-92 — real prod-stack drift the per-stack CI exposed (dev/staging pass,
 #   prod fails validate). Prod tier only for the mirrored stacks; whole stack
 #   for the prod-only ones. (acm-validation fixed in bug-#014 — provider
-#   resolution — and un-quarantined; CI validates it again.)
-terraform/envs/prod/redis
+#   resolution; redis fixed in CZID-92 — prod locals block restored — both
+#   un-quarantined; CI validates them again.)
 terraform/envs/prod/maintenance
 terraform/envs/prod/email
 terraform/envs/prod/zendesk
