@@ -57,7 +57,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       #- name: 'Download Artifacts for Workflow Run ${{ inputs.run-id || github.event.workflow_run.id }} using nektos act'
       #  if: ${{ env.ACT }}
-      #  uses: actions/download-artifact@v3 # TODO: nektosact requires this version for local cross-workflow artifacts
+      #  uses: actions/download-artifact@v5 # TODO: nektosact requires this version for local cross-workflow artifacts
       #  with:
       #    path: results
       #- name: 'Decompress Artifacts for Workflow Run ${{ inputs.run-id || github.event.workflow_run.id }} using nektos act'

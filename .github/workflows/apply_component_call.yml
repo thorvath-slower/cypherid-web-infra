@@ -95,7 +95,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       #- name: 'Download Plan Artifact using nektos act'
       #  if: ${{ inputs.run-id && env.ACT }}
-      #  uses: actions/download-artifact@v3 # TODO: nektosact requires this for local cross-workflow artifacts
+      #  uses: actions/download-artifact@v5 # TODO: nektosact requires this for local cross-workflow artifacts
       #  with:
       #    name: 'plan-${{ inputs.component }}'
       #    path: './terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/'
