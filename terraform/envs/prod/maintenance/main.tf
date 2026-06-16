@@ -1,8 +1,13 @@
+data "aws_route53_zone" "idseq_net" {
+  name         = "idseq.net"
+  private_zone = false
+}
+
 locals {
   subdomain   = "maintenance"
   domain      = "idseq.net"
   full_domain = "${local.subdomain}.${local.domain}"
-  zone_id     = data.terraform_remote_state.idseq-prod.outputs.idseq_net_zone_id
+  zone_id     = data.aws_route53_zone.idseq_net.zone_id
 
   aliases = {
     "www.${local.full_domain}" = local.zone_id
