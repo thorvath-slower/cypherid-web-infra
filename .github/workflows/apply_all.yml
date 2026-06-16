@@ -108,6 +108,17 @@ jobs:
           jq -r '.[] | "|\(if .change_count == 0 then ":green_circle:" else ":yellow_circle:" end)|\(.component)|\(.change_count)|"' results.json
           jq -r '.[] | "|\(if .change_count == 0 then ":green_circle:" else ":yellow_circle:" end)|\(.component)|\(.change_count)|"' results.json >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Reject direct-to-prod apply
+        # No-direct-to-prod (CZID-96): apply_all may apply dev/staging on demand,
+        # but prod is reachable ONLY through the promote.yml chain
+        # (dev -> staging -> prod, each gated on the previous). The environment is
+        # derived from the plan artifacts above; if it resolves to prod, fail here
+        # so a prod plan can't be applied directly, bypassing the promotion gates.
+        if: ${{ steps.changing-components.outputs.environment == 'prod' }}
+        run: |
+          echo "::error::Direct apply to prod is not allowed. Use the 'Promote (dev -> staging -> prod)' workflow (promote.yml), which gates prod on successful dev then staging applies (CZID-96)."
+          exit 1
+
   apply-components:
     name: Terraform Apply each Component
     if: ${{ needs.should-apply.outputs.environment && needs.should-apply.outputs.changing-components != '[]' }}
