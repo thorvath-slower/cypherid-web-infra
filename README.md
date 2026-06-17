@@ -1,9 +1,16 @@
-# CZ ID — web infrastructure (OpenTofu)
+# seqtoid — web infrastructure (OpenTofu)
 
-Infrastructure-as-code for the CZ ID stack, using [OpenTofu](https://opentofu.org).
+Infrastructure-as-code for the seqtoid stack, using [OpenTofu](https://opentofu.org).
 The repo is divided into **accounts**, **environments** (`dev`, `staging`,
 `sandbox`, `prod`, `public`) and **components**. Changes are applied at the
 component level: `cd` into a component and run OpenTofu there.
+
+> **Naming:** the platform is being renamed to **seqtoid** and the repositories
+> are migrating to the `seqtoid-*` convention over time (this repo:
+> `cypherid-web-infra` → `seqtoid-web-infra`). **Functional** names that map to
+> live AWS resources — the `idseq-<env>` profiles, component directory names,
+> SSM paths — keep the legacy convention until a coordinated cutover, so the
+> commands below are correct as written.
 
 > This repo was previously generated and orchestrated by `fogg` and run through
 > Terraform Cloud/Enterprise. It now runs on plain OpenTofu with no fogg and no
