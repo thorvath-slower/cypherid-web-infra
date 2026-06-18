@@ -300,7 +300,7 @@ module "prod_east" {
 }
 
 module "web-service" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/ecs-service-with-alb?ref=v0.421.0"
+  source = "../../../modules/ecs-service-with-alb-v0.421.0"
 
   service             = "web"
   container_port      = 3000

@@ -1,12 +1,12 @@
-# Stacks excluded from tofu-ci validation because they depend on the
-# inaccessible private/deleted module chanzuckerberg/shared-infra.
-# Tracked in Linear CZID-90. Remove an entry once shared-infra is
-# vendored / replaced / made accessible, so the stack is validated again.
-terraform/envs/prod/batch
-terraform/envs/prod/downloads
-terraform/envs/prod/ecs
-terraform/envs/prod/fivetran-ssh
-terraform/envs/prod/web
-terraform/envs/staging/fivetran-ssh-nextgen
+# Stacks excluded from tofu-ci validation because of an unresolved dependency.
+# Tracked in Linear CZID-90. Remove an entry once the stack validates again.
+#
+# RESOLVED 2026-06-18 (CZID-90, shared-infra vendored in-tree, repointed to local
+# ../../../modules/...): prod/downloads, prod/fivetran-ssh, prod/web,
+# staging/fivetran-ssh-nextgen — these are now validated by CI.
+#
+# Still skipped:
+terraform/envs/prod/batch   # shared-infra resolved; pre-existing undeclared var s3_bucket_pipeline_public_assets (separate bug)
+terraform/envs/prod/ecs     # ecs-cluster module has transitive sub-module deps to vendor/adapt (instance-cloud-init-script, aws-iam-policy-orgwide-secrets)
 terraform/modules/ecs-cluster-v2.4.0
 terraform/modules/ecs-service-with-alb-v0.421.0
