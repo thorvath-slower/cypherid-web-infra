@@ -17,10 +17,18 @@ component level: `cd` into a component and run OpenTofu there.
 > TFC/TFE — the `terraform.tf` in each component is the hand-maintained source of
 > truth (see `specs/002-tofu-conversion/`).
 
+> **Vendored modules are human-maintained.** Some `terraform/modules/*` are in-tree
+> copies of the (inaccessible) `chanzuckerberg/shared-infra` modules, used via a
+> local `source = "../...".` Renovate **cannot** update a local-path module, so they
+> are **frozen snapshots** — updating one is a manual re-vendor, not a version bump.
+> Provider versions (in `_shared/versions.tf`) *are* Renovate-managed. `template` /
+> `cloudinit` are declared module-locally on purpose (never in `_shared`). See
+> [`docs/OPENTOFU.md` → Vendored modules](docs/OPENTOFU.md#vendored-modules-frozen-snapshots-human-maintained).
+
 📖 **Full guide: [`docs/OPENTOFU.md`](docs/OPENTOFU.md)** — layout, state &
 locking, day-to-day workflow, common tasks (add a component, bump a provider,
-bootstrap an env), conventions, CI, and what changed from the fogg/TFC setup.
-The README below is the quick start.
+update a vendored module, bootstrap an env), conventions, CI, and what changed
+from the fogg/TFC setup. The README below is the quick start.
 
 ## Prerequisites
 
