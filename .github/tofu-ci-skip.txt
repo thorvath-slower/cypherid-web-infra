@@ -1,12 +1,16 @@
-# Stacks excluded from tofu-ci validation because of an unresolved dependency.
-# Tracked in Linear CZID-90. Remove an entry once the stack validates again.
+# Stacks excluded from tofu-ci validation. Tracked in Linear CZID-90.
+# Parser does exact-match on each non-# line — keep BARE paths (no inline comments).
 #
-# RESOLVED 2026-06-18 (CZID-90, shared-infra vendored in-tree, repointed to local
-# ../../../modules/...): prod/downloads, prod/fivetran-ssh, prod/web,
-# staging/fivetran-ssh-nextgen — these are now validated by CI.
+# RESOLVED 2026-06-18 (CZID-90 — shared-infra vendored in-tree, repointed to local
+# ../../../modules/...): prod/downloads, prod/fivetran-ssh, staging/fivetran-ssh-nextgen
+# now validate in CI.
 #
-# Still skipped:
-terraform/envs/prod/batch   # shared-infra resolved; pre-existing undeclared var s3_bucket_pipeline_public_assets (separate bug)
-terraform/envs/prod/ecs     # ecs-cluster module has transitive sub-module deps to vendor/adapt (instance-cloud-init-script, aws-iam-policy-orgwide-secrets)
+# Still skipped (shared-infra resolved, but each has a SEPARATE latent bug — see tickets):
+#   prod/batch -> undeclared var s3_bucket_pipeline_public_assets (CZID-217)
+#   prod/web   -> prod-only undeclared resource; dev+staging pass (CZID-218)
+#   prod/ecs   -> ecs-cluster transitive sub-module deps (CZID-216)
+terraform/envs/prod/batch
+terraform/envs/prod/web
+terraform/envs/prod/ecs
 terraform/modules/ecs-cluster-v2.4.0
 terraform/modules/ecs-service-with-alb-v0.421.0
