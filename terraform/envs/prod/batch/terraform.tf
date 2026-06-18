@@ -167,6 +167,10 @@ variable "s3_bucket_idseq_bench" {
   type    = string
   default = "idseq-bench"
 }
+variable "s3_bucket_pipeline_public_assets" {
+  type    = string
+  default = "idseq-prod-pipeline-public-assets-us-west-2"
+}
 # tflint-ignore: terraform_unused_declarations
 variable "s3_bucket_public_references" {
   type    = string
