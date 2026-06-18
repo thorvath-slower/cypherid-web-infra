@@ -56,7 +56,39 @@ version and every provider constraint. It is symlinked into each root stack as
   makes it free in practice.
 
 Modules under `terraform/modules/` keep their **own** minimal `versions.tf` — they
-are reusable and must not inherit the root stacks' full provider set.
+are reusable and must not inherit the root stacks' full provider set. This is also
+where **niche providers live**: `hashicorp/template` and `hashicorp/cloudinit` are
+declared only in the vendored modules that need them, **never** in
+`_shared/versions.tf`. `template` has no `darwin_arm64` build (CZID-130); because
+`_shared` is symlinked into every stack, promoting `template` there would force
+*every* stack to resolve it and break local `tofu init` on Apple Silicon repo-wide
+— instead of only the two stacks (`prod/ecs`, `prod/web`) that actually use it.
+Keep them module-local.
+
+### Vendored modules (frozen snapshots, human-maintained)
+
+Some modules under `terraform/modules/` are **vendored** — in-tree copies of
+modules that used to come from `chanzuckerberg/shared-infra` (e.g.
+`ecs-cluster-v2.2.1`, `ecs-service-with-alb-v0.421.0`, `instance-cloud-init-script`,
+`machine-images`, the `aws-iam-policy-orgwide-secrets` pair). That upstream repo is
+**inaccessible to our org**, so the modules were copied in-house (CZID-90) and are
+referenced by a **local path**: `source = "../../../modules/<name>"`.
+
+Two consequences for maintenance:
+
+- **Renovate cannot update them.** A local-path `source` has no upstream datasource,
+  so Renovate never sees a "new version." The vendored HCL is **frozen** at the
+  version it was copied at. (Renovate *does* manage everything else — provider
+  constraints in `_shared/versions.tf` and in module `versions.tf`, external
+  `?ref=` module pins, GitHub Actions, Docker digests, pip — once the app is
+  enabled, CZID-212.)
+- **Updating one is a manual re-vendor**, not a version bump. See
+  [§6 → Update a vendored module](#update-a-vendored-module).
+
+The vendored module dirs are version-suffixed (`<name>-v<version>`) and excluded
+from standalone CI validation via `.github/tofu-ci-skip.txt` when they carry
+relative `../` sub-module deps or the `template` provider — they're validated
+*transitively* through the stacks that consume them, not in isolation.
 
 ---
 
@@ -207,6 +239,30 @@ Then `tofu init -upgrade` per stack on its next apply. If a stack can't move to
 the new version, that's a **module** in it pinning an older constraint — fix the
 module, don't fork the version (see Troubleshooting). Keeping one version
 everywhere is the point.
+
+### Update a vendored module
+Vendored modules (see [Vendored modules](#vendored-modules-frozen-snapshots-human-maintained))
+have **no upstream `source`**, so there's no version bump and Renovate won't open a
+PR. Updating one is a deliberate, manual re-vendor:
+
+1. **Get the new source.** Obtain the target version of the module from the
+   upstream snapshot (the private `chanzuckerberg/shared-infra` mirror; the
+   original repo is inaccessible). If the module pulls its own `../sub-module`
+   deps, get those at the matching ref too.
+2. **Add it alongside the old version** — `terraform/modules/<name>-v<newver>/`
+   (keep the version suffix). Strip `fogg.tf` / `Makefile` (vendoring convention;
+   the provider requirements live in the module's `versions.tf`). Vendor any new
+   transitive `../` sub-modules the same way.
+3. **Repoint consumers** one stack at a time: `source = "../../../modules/<name>-v<newver>"`.
+4. **Review the plan.** A version change is **not** behavior-neutral — run
+   `tofu plan` for each consumer and review the diff before merging (unlike a
+   like-for-like re-vendor of the same version).
+5. **Validate & clean up.** `make validate`; once every consumer is repointed,
+   delete the old `<name>-v<oldver>/` dir and its now-unused skip-list entries.
+
+If the module carries relative `../` sub-module deps or the `template` provider,
+add the new module dir to `.github/tofu-ci-skip.txt` (it can't validate standalone;
+it's covered transitively via its consumers).
 
 ### Bootstrap a new environment
 Apply in dependency order, starting from the account, then foundational
