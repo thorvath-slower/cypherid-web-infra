@@ -1,5 +1,5 @@
 module "ecs-cluster" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/ecs-cluster?ref=ecs-cluster-v2.2.1"
+  source = "../../../modules/ecs-cluster-v2.2.1"
 
   region  = var.region
   project = var.project
