@@ -77,7 +77,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           aws-profile: idseq-${{ inputs.environment }}
       - name: Set up OpenTofu
-        uses: opentofu/setup-opentofu@v1
+        uses: opentofu/setup-opentofu@v2
         with:
           tofu_version_file: .opentofu-version
       - name: Verify AWS auth + tofu
