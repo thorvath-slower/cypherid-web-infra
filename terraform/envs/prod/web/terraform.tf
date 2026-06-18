@@ -104,6 +104,10 @@ variable "project" {
   type    = string
   default = "idseq"
 }
+variable "project_v1" {
+  type    = string
+  default = "czid"
+}
 # tflint-ignore: terraform_unused_declarations
 variable "region" {
   type    = string
@@ -187,6 +191,10 @@ variable "s3_bucket_secrets" {
   type    = string
   default = "idseq-secrets"
 }
+variable "s3_bucket_workflows" {
+  type    = string
+  default = "idseq-workflows"
+}
 data "terraform_remote_state" "cloud-env" {
   backend = "s3"
   config = {
@@ -255,6 +263,33 @@ data "terraform_remote_state" "route53" {
     profile = "idseq-prod"
 
 
+  }
+}
+data "terraform_remote_state" "idseq-prod" {
+  backend = "s3"
+  config = {
+    bucket  = "tfstate-283694049553"
+    key     = "terraform/idseq/accounts/idseq-prod.tfstate"
+    region  = "us-west-2"
+    profile = "idseq-prod"
+  }
+}
+data "terraform_remote_state" "db" {
+  backend = "s3"
+  config = {
+    bucket  = "tfstate-283694049553"
+    key     = "terraform/idseq/envs/prod/components/db.tfstate"
+    region  = "us-west-2"
+    profile = "idseq-prod"
+  }
+}
+data "terraform_remote_state" "heatmap-optimization" {
+  backend = "s3"
+  config = {
+    bucket  = "tfstate-283694049553"
+    key     = "terraform/idseq/envs/prod/components/heatmap-optimization.tfstate"
+    region  = "us-west-2"
+    profile = "idseq-prod"
   }
 }
 # tflint-ignore: terraform_unused_declarations
