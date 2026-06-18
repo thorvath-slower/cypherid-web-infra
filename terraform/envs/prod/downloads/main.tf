@@ -16,7 +16,7 @@ resource "aws_iam_role" "downloads" {
 }
 
 module "downloads_iam_policy" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/aws-iam-policy-s3-writer?ref=v0.66.0"
+  source = "../../../modules/aws-iam-policy-s3-writer-v0.66.0"
 
   bucket_name   = var.s3_bucket_samples
   bucket_prefix = ""
@@ -35,7 +35,7 @@ resource "aws_iam_role" "downloads_v1" {
 }
 
 module "downloads_v1_iam_policy" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/aws-iam-policy-s3-writer?ref=v0.66.0"
+  source = "../../../modules/aws-iam-policy-s3-writer-v0.66.0"
 
   bucket_name   = var.s3_bucket_samples_v1
   bucket_prefix = ""
@@ -49,7 +49,7 @@ module "downloads_v1_iam_policy" {
 
 // The "czi-infectious-disease-downloads-${var.env}" task role also needs access to the old samples bucket to read the src_urls of an ECS bulk download.
 module "downloads_v1_iam_policy_for_old_samples_bucket" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/aws-iam-policy-s3-writer?ref=v0.66.0"
+  source = "../../../modules/aws-iam-policy-s3-writer-v0.66.0"
 
   bucket_name   = var.s3_bucket_samples
   bucket_prefix = ""

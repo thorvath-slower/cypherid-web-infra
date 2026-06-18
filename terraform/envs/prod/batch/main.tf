@@ -11,7 +11,7 @@ locals {
 data "aws_region" "current" {}
 
 module "images" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/machine-images?ref=v0.66.0"
+  source = "../../../modules/machine-images"
 }
 
 ######## Lambda NCBI copy tool

@@ -136,7 +136,7 @@ resource "kubernetes_deployment_v1" "fivetran_ssh" {
 }
 
 module "parameters" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/kubernetes-secret-from-aws-param?ref=v0.395.0"
+  source = "../../../modules/kubernetes-secret-from-aws-param-v0.395.0"
 
   project = var.tags.project
   env     = var.tags.env

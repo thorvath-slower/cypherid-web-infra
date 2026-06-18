@@ -17,7 +17,7 @@ module "czid-prod-cert" {
 }
 
 module "czid-web-service" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/ecs-service-with-alb?ref=v0.421.0"
+  source = "../../../modules/ecs-service-with-alb-v0.421.0"
 
   service             = "web"
   project             = var.project_v1
