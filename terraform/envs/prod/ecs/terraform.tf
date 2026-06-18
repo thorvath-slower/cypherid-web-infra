@@ -201,6 +201,15 @@ data "terraform_remote_state" "cloud-env" {
 
   }
 }
+data "terraform_remote_state" "global" {
+  backend = "s3"
+  config = {
+    bucket  = "idseq-terraform-infra"
+    key     = "terraform/idseq/global.tfstate"
+    region  = "us-west-2"
+    profile = "idseq-dev"
+  }
+}
 # tflint-ignore: terraform_unused_declarations
 variable "aws_accounts" {
   type = map(string)

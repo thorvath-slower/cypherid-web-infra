@@ -12,8 +12,15 @@
 # source + project_v1 variable, dropped during the idseq-infra import): prod/web now
 # validates in CI.
 #
-# Still skipped (shared-infra resolved, but each has a SEPARATE latent bug — see tickets):
-#   prod/ecs   -> ecs-cluster transitive sub-module deps (CZID-216)
-terraform/envs/prod/ecs
+# RESOLVED 2026-06-18 (CZID-216 — vendored ecs-cluster-v2.2.1 + its transitive
+# sub-modules instance-cloud-init-script / aws-iam-policy-orgwide-secrets /
+# aws-iam-policy-document-orgwide-secrets, repointed prod/ecs to the local copy):
+# prod/ecs now validates in CI.
+#
+# The vendored ecs-cluster module dirs are consumed (relative ../ sub-module deps,
+# template provider) — not standalone stacks — so they stay excluded from the flat
+# "rest" bucket. They are still validated transitively via the stacks that use them
+# (prod/ecs -> ecs-cluster-v2.2.1; ecs-service-with-alb is used by prod/web).
+terraform/modules/ecs-cluster-v2.2.1
 terraform/modules/ecs-cluster-v2.4.0
 terraform/modules/ecs-service-with-alb-v0.421.0
