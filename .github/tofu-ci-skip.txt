@@ -8,10 +8,12 @@
 # RESOLVED 2026-06-18 (CZID-217 — declared the missing s3_bucket_pipeline_public_assets
 # variable): prod/batch now validates in CI.
 #
+# RESOLVED 2026-06-18 (CZID-218 — declared the missing idseq-prod remote-state data
+# source + project_v1 variable, dropped during the idseq-infra import): prod/web now
+# validates in CI.
+#
 # Still skipped (shared-infra resolved, but each has a SEPARATE latent bug — see tickets):
-#   prod/web   -> prod-only undeclared resource; dev+staging pass (CZID-218)
 #   prod/ecs   -> ecs-cluster transitive sub-module deps (CZID-216)
-terraform/envs/prod/web
 terraform/envs/prod/ecs
 terraform/modules/ecs-cluster-v2.4.0
 terraform/modules/ecs-service-with-alb-v0.421.0
