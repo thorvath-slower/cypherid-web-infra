@@ -21,13 +21,14 @@ Each fans out to an SNS topic; an optional CloudWatch dashboard summarizes all f
 module "export_control_monitoring" {
   source = "../../modules/export-control-monitoring"
 
-  web_acl_name          = module.web_acl.name        # the regional WAF
-  region                = "us-west-2"
-  geo_block_metric_name = "<geo rule-group metric>"  # must match the web-acl visibility_config metric_name
-  alert_emails          = var.export_control_alert_emails   # owned by compliance — pass from the env, don't hard-code
+  # SSOT: every name is wired from the module that defines it — none are re-typed here.
+  web_acl_name           = module.web-service-waf.web_acl_name
+  anonymizer_metric_name = module.web-service-waf.rule_metric_names.anonymous_ip
+  geo_block_metric_name  = "${module.georestriction-rule.name}-metrics" # geo rule-group name + the web-acl "-metrics" suffix
+  region                 = "us-west-2"
+  alert_emails           = var.export_control_alert_emails # compliance-owned — pass from the env, don't hard-code
 
-  # optional: Layer-2 fail-closed alarm
-  fail_closed_log_group_name = ""  # see note below
+  fail_closed_log_group_name = "" # optional Layer-2 fail-closed alarm — see note below
 
   tags = local.tags
 }

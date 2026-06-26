@@ -24,9 +24,8 @@ variable "geo_block_metric_name" {
 }
 
 variable "anonymizer_metric_name" {
-  description = "Metric name of the AnonymousIpList rule (VPN/proxy/Tor/hosting hits)."
+  description = "Metric name of the AnonymousIpList rule (VPN/proxy/Tor/hosting hits). SINGLE SOURCE: wire from the web-acl module — module.<web_acl>.rule_metric_names.anonymous_ip — never re-type the literal (it would drift from the rule that emits it)."
   type        = string
-  default     = "aws-anonymous-ip-list"
 }
 
 # Alarm thresholds. Defaults are conservative starting points; tune per env during the canary.
