@@ -15,7 +15,7 @@ counsel/compliance determination — i.e. the steps that need Tom's explicit go-
 | CZID-323 | geo-block list → `CU,IR,KP,RU,SY,UA` | `modules/waf-georestriction-main/main.tf` |
 | CZID-324 | `AWSManagedRulesAnonymousIpList` rule (block VPN/proxy/Tor/hosting) | `modules/web-acl-regional-v3.3.1/main.tf` |
 | CZID-325 | `AWSManagedRulesAmazonIpReputationList` + rate-limit count→block | same |
-| CZID-331 | audit-log immutability/retention **spec** (documented, not applied) | `…/logging.tf` |
+| CZID-331 | immutable audit-log store — Object Lock (COMPLIANCE) bucket + versioning + TLS-only/WAF-log policy + optional edge-log Firehose; `tofu validate` clean | `modules/export-control-audit-log/` (+ `…/logging.tf` spec) |
 | CZID-327 | Layer-2 CloudFront + Lambda@Edge **scaffold** (provider-agnostic) | `modules/edge-ip-intel/` |
 | CZID-332 | monitoring + alerting (alarms, SNS, dashboard) — authored, `tofu validate` clean | `modules/export-control-monitoring/` |
 | CZID-333 | evasion test harness (pre-go-live gate), self-test passing | `tools/export-control-evasion-harness/` |

@@ -55,7 +55,7 @@ residential proxy → IP-intel + (Layer 3) identity/device.
 | CZID-326 | Layer-2 provider selection | `EXPORT-CONTROL-IP-INTEL-PROVIDER-EVAL.md` | ✅ eval done — **selection = counsel/procurement** |
 | CZID-322 | Blocked-jurisdiction list + governance | `export-control/blocked-jurisdictions.json`, `tools/validate-…py`, `…-LIST-GOVERNANCE.md` | ✅ mechanism — **content = counsel** |
 | CZID-330 | Fail-closed enforcement | Lambda + WAF | ✅ done (verified) |
-| CZID-331 | Immutable audit log | `web-acl/logging.tf` (spec) | ⏳ **spec only — IaC is the next task** |
+| CZID-331 | Immutable audit log | `modules/export-control-audit-log` | ✅ IaC authored (Object Lock COMPLIANCE) — apply = destructive migration (bucket-b) |
 | CZID-332 | Monitoring + alerting | `modules/export-control-monitoring` | ✅ authored (`tofu validate`) |
 | CZID-333 | Evasion test harness | `tools/export-control-evasion-harness` | ✅ built (self-test) — needs credentialed endpoints to fully close |
 | CZID-334 | IR runbook + review cadence | `EXPORT-CONTROL-IR-RUNBOOK.md` | ✅ done |
@@ -91,12 +91,12 @@ residential proxy → IP-intel + (Layer 3) identity/device.
 
 ## What still needs to be done
 
-**Engineering (provider-independent — can proceed):**
-- **CZID-331 — audit-log IaC** (the immediate next task): the immutable store (S3 Object Lock) + WAF-log /
-  edge-log delivery (Firehose) so every access decision is retained tamper-proof. Retention period is a
-  counsel-owned variable.
+**Engineering (provider-independent):**
+- **CZID-331 — audit-log IaC: ✅ authored** (`modules/export-control-audit-log` — Object Lock COMPLIANCE bucket
+  + versioning + TLS-only/WAF-log policy + optional edge-log Firehose). Remaining is the bucket-b apply (a
+  destructive WAF-log-bucket migration + the per-region edge subscription) and the counsel-set retention period.
 - **CZID-328/329 — Layer 3:** identity verification + export screening via Auth0 post-login Actions, and a
-  device-location feasibility spike. App/auth work, not IaC; partly gated on vendor/DPA.
+  device-location feasibility spike. App/auth work, not IaC; partly gated on vendor/DPA. (Not started.)
 
 **Counsel / compliance (gates go-live — not engineering):**
 - The blocked-jurisdiction list **content** + each rationale; ratifying staged entries (CZID-322).

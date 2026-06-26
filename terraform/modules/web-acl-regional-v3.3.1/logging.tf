@@ -95,7 +95,9 @@ data "aws_iam_policy_document" "waf_logs" {
 #       (object_lock_enabled = true), which the vendored cztack aws-s3-private-bucket module does NOT
 #       expose — so 331 needs either a cztack version that supports it or a dedicated object-locked log
 #       bucket. Migrating the existing bucket is DESTRUCTIVE (recreation) → do NOT apply inline; see the
-#       bucket-b outline for the migration plan.
+#       bucket-b outline for the migration plan. The dedicated object-locked bucket is now AUTHORED in
+#       modules/export-control-audit-log (CZID-331); at apply, repoint log_destination_configs to its
+#       bucket_arn and retire this cztack bucket.
 module "logs_bucket" {
   source        = "github.com/chanzuckerberg/cztack//aws-s3-private-bucket?ref=v0.104.2"
   project       = var.tags.project
