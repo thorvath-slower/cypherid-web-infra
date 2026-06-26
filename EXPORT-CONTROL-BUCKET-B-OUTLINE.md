@@ -31,10 +31,13 @@ All Layer-1/2 enforcement is gated behind `count_only` (canary) / `DRY_RUN` (Lam
    (us-east-1)**; create the **us-east-1 ACM cert**; `apply` the CloudFront distribution + published Lambda@Edge
    with `DRY_RUN` log-only → measure would-be blocks/false-positives on real traffic → tune `RISK_THRESHOLD` →
    flip `DRY_RUN=false` → dev → staging → prod. Re-point app DNS to CloudFront only after validation.
-3. **CZID-331 immutability (destructive):** enable S3 **Object Lock (COMPLIANCE)** on the WAF-log bucket — Object
-   Lock is creation-time only and the vendored cztack module doesn't expose it, so this is a **bucket migration
-   (recreation)**: stand up a new object-locked bucket, repoint logging, retire the old one. Set `log_retention_days`
-   to the record-keeping period.
+3. **CZID-331 evidence store (SEPARATE store, not a migration):** stand up the dedicated Object Lock
+   (COMPLIANCE) store (`modules/export-control-audit-log`) for export-control EVIDENCE only — kept **separate**
+   from the normal WAF/app log bucket (separation of concerns: don't conflate operational logs into the
+   compliance regime). Wire the **edge Lambda decisions** to it (per-region CloudWatch subscription → its
+   Firehose); the normal WAF log bucket stays as-is at operational retention. Optionally also route the
+   geo/anonymizer WAF *blocks* to it if counsel wants those immutable. Set the controlled store's
+   `retention_days` to the counsel-confirmed record-keeping period (COMPLIANCE can't be shortened later).
 4. **Env wiring:** pass `count_only = true` in `envs/{dev,staging,sandbox,prod}/web-waf/main.tf` for the canary,
    then remove to enforce.
 5. **CloudFront coordination:** fronting the app affects caching/headers/cost beyond security — land **one**

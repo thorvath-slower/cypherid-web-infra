@@ -30,17 +30,33 @@ module "export_control_audit_log" {
 }
 ```
 
-## Apply notes (bucket-b — destructive, sequenced)
+## Separation of concerns — what goes here (and what doesn't)
 
-1. **Stand up this bucket** in the target account (non-destructive on its own).
-2. **Repoint WAF logging** (`aws_wafv2_web_acl_logging_configuration` in the web-acl module) from the old cztack
-   bucket to `module.export_control_audit_log.bucket_id`. The old WAF-log bucket is then retired — this is the
-   **destructive migration**; do it deliberately, per `EXPORT-CONTROL-BUCKET-B-OUTLINE.md`.
-3. **Edge logs:** add a CloudWatch **subscription filter per edge-region** on the Lambda's log groups
-   (`/aws/lambda/<region>.<fn>`) targeting `module.export_control_audit_log.firehose_arn`, so the per-request
-   decisions land in the immutable store too.
+This is the **dedicated export-control compliance store**, kept SEPARATE from the normal WAF/app log bucket (the
+cztack `logs_bucket` in the web-acl module). The two have different governance **on purpose**:
+
+| | Normal log bucket (existing) | This controlled store |
+|---|---|---|
+| Holds | general WAF security + app logs | export-control **decision evidence** only |
+| Retention | operational | counsel-set record-keeping period (long) |
+| Mutability | normal lifecycle | Object Lock COMPLIANCE (immutable) |
+| Access | standard | restricted |
+
+**Do not repoint all WAF/app logging here** — that would conflate normal operational logs into the compliance
+regime (long, immutable retention + restricted access). Only export-control evidence flows here.
+
+## What flows in (apply, bucket-b)
+
+1. **Stand up this bucket** in the target account (non-destructive on its own; nothing migrates).
+2. **Edge Lambda decisions (primary evidence):** add a CloudWatch **subscription filter per edge-region** on
+   the Lambda's log groups (`/aws/lambda/<region>.<fn>`) → `module.export_control_audit_log.firehose_arn`, so
+   each per-request geo/VPN/residential decision lands in the immutable store. The normal WAF/app logs stay in
+   their existing bucket, untouched.
+3. **(Optional) export-control WAF decisions:** if counsel requires the Layer-1 geo/anonymizer *blocks* retained
+   immutably too, add a WAF logging stream filtered to those rules → this store (via Firehose). General WAF
+   security logs still go to the normal bucket.
 4. **Retention:** set `retention_days` to the **counsel-confirmed** record-keeping period before enforcing —
-   COMPLIANCE mode means it cannot be shortened afterward, so confirm the number first.
+   COMPLIANCE mode can't be shortened afterward, so confirm the number first.
 
 ## Owned by counsel
 

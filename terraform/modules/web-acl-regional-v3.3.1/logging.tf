@@ -84,20 +84,19 @@ data "aws_iam_policy_document" "waf_logs" {
   }
 }
 
-# CZID-331 (export-control audit immutability) — the WAF decision log is part of the compliance
-# evidence trail (epic CZID-321). Two changes are required here, both deferred to bucket-b because the
-# apply is environment-specific and/or destructive:
-#   (a) RETENTION: set var.log_retention_days to the export record-keeping period (commonly ~5 years =
-#       1825 days; counsel confirms — CZID-322/335). The lifecycle_rule below currently expires logs
-#       on the default retention, which is shorter than the record-keeping requirement.
-#   (b) IMMUTABILITY: enable S3 Object Lock in COMPLIANCE mode so decision records cannot be deleted or
-#       altered within the retention window. Object Lock can only be enabled at BUCKET CREATION
-#       (object_lock_enabled = true), which the vendored cztack aws-s3-private-bucket module does NOT
-#       expose — so 331 needs either a cztack version that supports it or a dedicated object-locked log
-#       bucket. Migrating the existing bucket is DESTRUCTIVE (recreation) → do NOT apply inline; see the
-#       bucket-b outline for the migration plan. The dedicated object-locked bucket is now AUTHORED in
-#       modules/export-control-audit-log (CZID-331); at apply, repoint log_destination_configs to its
-#       bucket_arn and retire this cztack bucket.
+# CZID-331 (export-control audit evidence) — SEPARATION OF CONCERNS. This bucket stays the NORMAL
+# WAF/app log store: general security signal (SQLi, common rules, rate-limit) plus the export-control
+# rules' counts/blocks, at operational retention (var.log_retention_days). It is deliberately NOT the
+# compliance store.
+#
+# The export-control COMPLIANCE EVIDENCE — the access decisions we are legally required to retain,
+# immutably — lives in a SEPARATE, controlled store: modules/export-control-audit-log (CZID-331), an
+# S3 Object Lock (COMPLIANCE) bucket with a counsel-set retention, fed by the Layer-2 edge Lambda's
+# per-request decisions (and, if counsel requires, a filtered geo/anonymizer WAF log stream).
+#
+# Do NOT repoint all WAF logging into the controlled store — that would conflate normal operational
+# logs into the compliance regime (its long, immutable retention + restricted access). Two buckets,
+# two retention/governance regimes, by design.
 module "logs_bucket" {
   source        = "github.com/chanzuckerberg/cztack//aws-s3-private-bucket?ref=v0.104.2"
   project       = var.tags.project

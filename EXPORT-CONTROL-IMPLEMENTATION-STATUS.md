@@ -82,6 +82,11 @@ residential proxy → IP-intel + (Layer 3) identity/device.
 - **Monitoring (CZID-332).** Alarms on blocked-jurisdiction attempts, anonymizer hits, total blocks, and
   Layer-2 fail-closed denials → an SNS topic + a dashboard. Metric names are sourced from the web-acl module's
   outputs (no re-typed literals).
+- **Audit evidence (CZID-331) — separated by concern.** The export-control decision trail goes to a **dedicated,
+  controlled store** (`modules/export-control-audit-log`) — S3 Object Lock COMPLIANCE, counsel-set retention,
+  restricted access — kept **separate** from the normal WAF/app log bucket, so compliance-held evidence isn't
+  mixed with (or imposing its long immutable retention on) operational logging. The edge Lambda decisions feed
+  it (Firehose); normal WAF/app logs stay in their existing bucket.
 - **Evasion harness (CZID-333).** Probes a deployed endpoint per threat-model vector and **fails the gate** if
   any expected-deny vector gets through; writes retained evidence. The pre-go-live gate + ongoing regression.
 - **IR runbook (CZID-334).** Detection → triage → containment → investigation → counsel escalation →
