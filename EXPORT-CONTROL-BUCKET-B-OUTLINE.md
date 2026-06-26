@@ -57,8 +57,10 @@ All Layer-1/2 enforcement is gated behind `count_only` (canary) / `DRY_RUN` (Lam
 ## D. Out of scope for Terraform (tracked, not here)
 - **CZID-326** provider decision — RFP/PoC **GeoComply** (legal-grade, Layer 2+3) vs **Spur** (Layer-2 only) +
   MaxMind/IPinfo baseline. The Lambda adapter swaps with one constant once chosen.
-- **Layer 3 (CZID-328/329)** — identity verification + export screening via **Auth0 post-login Actions**, and a
-  **device-location feasibility spike** (web-app vs client SDK). App/auth layer, not IaC.
+- **Layer 3 (CZID-328/329)** — Auth0 post-login Action **scaffold** (fail-closed, provider-agnostic) +
+  **device-location feasibility spike** now authored (`auth0/export-control-access-gate`, `…-LAYER3-DESIGN.md`).
+  Gated: the screening/IDV + device-location vendors + DPAs (counsel/procurement), the data classification +
+  lists (counsel), and deploying the Action to the Auth0 tenant. App/auth layer, not IaC.
 - **CZID-332** monitoring, **CZID-333** evasion harness, **CZID-334** IR runbook — **now authored** (see §A).
   Remaining to fully close: the harness needs credentialed proxy/VPN/residential endpoints + a blocked-country
   exit node to exercise every vector; monitoring + IR need the apply + compliance-owned alert recipients and the

@@ -59,7 +59,8 @@ residential proxy → IP-intel + (Layer 3) identity/device.
 | CZID-332 | Monitoring + alerting | `modules/export-control-monitoring` | ✅ authored (`tofu validate`) |
 | CZID-333 | Evasion test harness | `tools/export-control-evasion-harness` | ✅ built (self-test) — needs credentialed endpoints to fully close |
 | CZID-334 | IR runbook + review cadence | `EXPORT-CONTROL-IR-RUNBOOK.md` | ✅ done |
-| CZID-328/329 | Layer-3 identity + device | — | ⛔ not started (app/auth + device spike) |
+| CZID-328 | Layer-3 identity + export screening | `auth0/export-control-access-gate` + `…-LAYER3-DESIGN.md` | ✅ Action scaffold (fail-closed) + design — vendor/lists/classification gated |
+| CZID-329 | Layer-3 device/location attestation | `…-LAYER3-DESIGN.md` | ✅ feasibility spike documented — vendor PoC (GeoComply) + DPA gated |
 | CZID-335 | Docs + go-live sign-off | this + linked docs | 🔲 **counsel certifies** |
 
 ---
@@ -100,8 +101,10 @@ residential proxy → IP-intel + (Layer 3) identity/device.
 - **CZID-331 — audit-log IaC: ✅ authored** (`modules/export-control-audit-log` — Object Lock COMPLIANCE bucket
   + versioning + TLS-only/WAF-log policy + optional edge-log Firehose). Remaining is the bucket-b apply (a
   destructive WAF-log-bucket migration + the per-region edge subscription) and the counsel-set retention period.
-- **CZID-328/329 — Layer 3:** identity verification + export screening via Auth0 post-login Actions, and a
-  device-location feasibility spike. App/auth work, not IaC; partly gated on vendor/DPA. (Not started.)
+- **CZID-328/329 — Layer 3:** ✅ the identity/export-screening Auth0 Action **scaffold** (fail-closed,
+  provider-agnostic) + the device-location **feasibility spike** are authored (`auth0/export-control-access-gate`,
+  `EXPORT-CONTROL-LAYER3-DESIGN.md`). Remaining: wire the chosen screening/IDV + device-location vendors (gated on
+  selection + DPA), deploy the Action to the Auth0 tenant, and the counsel-owned data classification + lists.
 
 **Counsel / compliance (gates go-live — not engineering):**
 - The blocked-jurisdiction list **content** + each rationale; ratifying staged entries (CZID-322).
