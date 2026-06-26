@@ -12,13 +12,20 @@ locals {
     }
   }
 
-  # Define Priorities for the WebACL to track
-  many_requests_priority           = length(var.rule_groups) + 2
+  # Define Priorities for the WebACL to track.
+  # CZID-324/325: the AnonymousIpList + IP-reputation rules slot in right after the custom rule
+  # groups (the geo block) and before the rate-limit, so anonymizer / bad-reputation traffic is
+  # dropped early in the chain (the core "deny the evasion channel" for export control, CZID-321).
+  anonymous_ip_priority            = length(var.rule_groups) + 1
+  ip_reputation_priority           = length(var.rule_groups) + 2
+  many_requests_priority           = length(var.rule_groups) + 3 # was + 2; renumbered for the two new rules
   core_ruleset_priority            = local.many_requests_priority + 1
   bad_inputs_priority              = local.core_ruleset_priority + 1
   sql_ruleset_priority             = local.bad_inputs_priority + 1
   body_size_limit_ruleset_priority = local.sql_ruleset_priority + 1
 
+  anonymous_ip_rulename  = "aws-anonymous-ip-list"  # CZID-324
+  ip_reputation_rulename = "aws-ip-reputation-list" # CZID-325
   many_requests_rulename = "reaches-1000-per-5-min"
   core_ruleset_rulename  = "aws-common-rule-set"
   bad_inputs_rulename    = "aws-known-bad-inputs"
@@ -60,13 +67,102 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
+  # CZID-324: AWSManagedRulesAnonymousIpList — block known VPNs, proxies, Tor exit nodes, and
+  # hosting/cloud IPs. This is the core "deny the evasion channel" rule for the export-control
+  # mandate (CZID-321). Enforces (block) unless the count_only canary is on. NOTE: this catches the
+  # *known* anonymizer set; residential proxies are covered by Layer 2 IP-intel (CZID-327).
+  rule {
+    name     = local.anonymous_ip_rulename
+    priority = local.anonymous_ip_priority
+
+    dynamic "override_action" {
+      for_each = (var.count_only == true) ? [1] : []
+      content {
+        count {}
+      }
+    }
+    dynamic "override_action" {
+      for_each = (var.count_only == false) ? [1] : []
+      content {
+        none {}
+      }
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesAnonymousIpList"
+        vendor_name = "AWS"
+        # Soften individual sub-rules during tuning (e.g. HostingProviderIPList catching legit
+        # cloud-based API/CI clients). Default [] = block all sub-rules
+        # (AnonymousIPList, HostingProviderIPList, TorExitNodeList).
+        dynamic "rule_action_override" {
+          for_each = toset(var.anonymous_ip_count_rules)
+          content {
+            name = rule_action_override.key
+            action_to_use {
+              count {}
+            }
+          }
+        }
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = local.anonymous_ip_rulename
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # CZID-325: AWSManagedRulesAmazonIpReputationList — malicious / bot / abuse source IPs.
+  rule {
+    name     = local.ip_reputation_rulename
+    priority = local.ip_reputation_priority
+
+    dynamic "override_action" {
+      for_each = (var.count_only == true) ? [1] : []
+      content {
+        count {}
+      }
+    }
+    dynamic "override_action" {
+      for_each = (var.count_only == false) ? [1] : []
+      content {
+        none {}
+      }
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesAmazonIpReputationList"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = local.ip_reputation_rulename
+      sampled_requests_enabled   = true
+    }
+  }
+
   # Limit requests per 5 minutes
   rule {
     name     = local.many_requests_rulename
     priority = local.many_requests_priority
 
-    action {
-      count {}
+    # CZID-325: enforce (block) unless the count_only canary is on (was observe-only count {}).
+    dynamic "action" {
+      for_each = (var.count_only == true) ? [1] : []
+      content {
+        count {}
+      }
+    }
+    dynamic "action" {
+      for_each = (var.count_only == false) ? [1] : []
+      content {
+        block {}
+      }
     }
 
     statement {

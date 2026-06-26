@@ -76,6 +76,14 @@ variable "count_only" {
   default     = false
 }
 
+# CZID-324: AnonymousIpList sub-rules to run in COUNT while tuning false positives (e.g.
+# "HostingProviderIPList" catching legitimate cloud/CI egress). Empty = block all sub-rules.
+variable "anonymous_ip_count_rules" {
+  type        = list(string)
+  description = "AnonymousIpList sub-rules to run in COUNT (tuning). Empty = block all (AnonymousIPList, HostingProviderIPList, TorExitNodeList)."
+  default     = []
+}
+
 variable "max_body_size" {
   type        = number
   description = "The max number of bytes allowed in request body. Default is 1048576 (1 MB)."
