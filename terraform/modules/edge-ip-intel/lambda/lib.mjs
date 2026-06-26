@@ -1,10 +1,17 @@
 // CZID-327 shared helpers (no provider-specific logic here).
 
-// Blocked-jurisdiction list — the AUTHORITATIVE, versioned list is counsel-owned (CZID-322). Baked
-// into the artifact at build time OR read from SSM at cold start (draft §5); a list change is a
-// redeploy, not a code edit. Mirrors the Layer-1 WAF geo baseline (CU/IR/KP/RU/SY/UA); kept here for
-// the edge short-circuit + as defense-in-depth against the provider-resolved country.
-const BLOCKED_COUNTRIES = new Set(["CU", "IR", "KP", "RU", "SY", "UA"]);
+import { readFileSync } from "node:fs";
+
+// Blocked-jurisdiction list — read from the SINGLE SOURCE OF TRUTH, blocked-jurisdictions.json
+// (counsel-owned, CZID-322), which build.sh copies into this bundle from
+// export-control/blocked-jurisdictions.json. The Layer-1 WAF reads the SAME file via Terraform, so the
+// two layers cannot drift. NEVER hard-code the list here — a change happens in that one JSON only.
+// Loaded once at module init (synchronous, local file — fine for the viewer-request budget).
+const BLOCKED_COUNTRIES = new Set(
+  JSON.parse(
+    readFileSync(new URL("./blocked-jurisdictions.json", import.meta.url), "utf8")
+  ).blocked_country_codes.map((c) => c.toUpperCase())
+);
 
 export function isBlockedCountry(code) {
   return !!code && BLOCKED_COUNTRIES.has(code.toUpperCase());

@@ -1,10 +1,17 @@
 
+locals {
+  # SINGLE SOURCE for the export-control blocked-jurisdiction list (CZID-322) — the SAME file the
+  # Layer-2 Lambda bundles via build.sh. Change the list there, never here.
+  blocked_country_codes = jsondecode(file("${path.module}/../../../export-control/blocked-jurisdictions.json")).blocked_country_codes
+}
+
 module "georestriction-rule" {
   # tflint-ignore: terraform_module_pinned_source
   source = "../../../modules/waf-georestriction-main"
 
-  scope = "REGIONAL"
-  tags  = var.tags # TODO: var.tags is deprecated
+  scope                 = "REGIONAL"
+  blocked_country_codes = local.blocked_country_codes
+  tags                  = var.tags # TODO: var.tags is deprecated
 }
 
 module "web-service-waf" {

@@ -1,0 +1,3 @@
+# Build artifacts derived by build.sh from the SSOT list + sources — never commit these.
+blocked-jurisdictions.json
+*.zip

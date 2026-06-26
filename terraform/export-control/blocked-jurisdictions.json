@@ -1,0 +1,8 @@
+{
+  "_README": "SINGLE SOURCE OF TRUTH for the export-control blocked-jurisdiction list (CZID-322). The authoritative, versioned list is owned by the compliance office / counsel — engineering only wires it. This ONE file is consumed by BOTH enforcement layers: the Layer-1 WAF geo rule (Terraform, via jsondecode(file(...))) and the Layer-2 edge Lambda (bundled by build.sh and read at load). Change the list HERE only; never edit a consumer's copy. A change is a re-plan + a Lambda rebuild + a CZID-333 evasion-harness re-run.",
+  "blocked_country_codes": ["CU", "IR", "KP", "RU", "SY", "UA"],
+  "notes": {
+    "UA": "all of Ukraine — WAF geo-match is country-granular; Crimea/DNR/LNR region precision is handled by Layer 2 IP-intel (CZID-327)",
+    "RU": "added per Tom's directive 2026-06-25; pending counsel ratification — program-specific sanction, not a comprehensive embargo, so the all-Russia over-block carries business impact"
+  }
+}

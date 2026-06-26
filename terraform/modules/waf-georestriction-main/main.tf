@@ -16,13 +16,10 @@ resource "aws_wafv2_rule_group" "geo_restriction" {
     }
     statement {
       geo_match_statement {
-        # CZID-323: US export-embargoed jurisdictions. The AUTHORITATIVE, versioned list is owned by
-        # compliance/counsel (CZID-322) — this is the engineering enforced baseline, kept as config.
-        # UA = all of Ukraine: WAF geo-match is country-granular and cannot match the Crimea/DNR/LNR
-        # regions alone, so region precision is handled by Layer 2 IP-intel (CZID-327).
-        # RU added per Tom's directive (2026-06-25); pending counsel ratification — a program-specific
-        # sanction, not a comprehensive embargo, so the all-Russia over-block carries business impact.
-        country_codes = ["CU", "IR", "KP", "RU", "SY", "UA"]
+        # CZID-323: US export-embargoed jurisdictions. SINGLE SOURCE OF TRUTH:
+        # export-control/blocked-jurisdictions.json (counsel-owned, CZID-322), passed in by the env
+        # stack and read by the Layer-2 Lambda from the SAME file — no hard-coded copy here.
+        country_codes = var.blocked_country_codes
       }
     }
     visibility_config {
