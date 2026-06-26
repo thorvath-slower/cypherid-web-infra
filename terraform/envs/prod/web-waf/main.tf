@@ -7,6 +7,18 @@ locals {
   # SINGLE SOURCE for the export-control blocked-jurisdiction list (CZID-322) — the SAME file the
   # Layer-2 Lambda bundles via build.sh. Change the list there, never here.
   blocked_country_codes = jsondecode(file("${path.module}/../../../export-control/blocked-jurisdictions.json")).blocked_country_codes
+  # Counsel-owned audit retention (CZID-331), single source — see export-control/audit-config.json.
+  audit_log_retention_days = jsondecode(file("${path.module}/../../../export-control/audit-config.json")).audit_log_retention_days
+}
+
+# CZID-331 — the dedicated, immutable export-control evidence store, SEPARATE from the normal WAF/app log
+# bucket. Authored + plan-ready; apply is bucket-b. Retention is the counsel-set value above.
+module "export_control_audit_log" {
+  source                   = "../../../modules/export-control-audit-log"
+  name                     = "${var.tags.project}-${var.tags.env}-export-control"
+  retention_days           = local.audit_log_retention_days
+  create_edge_log_firehose = true
+  tags                     = var.tags
 }
 
 module "georestriction-rule" {

@@ -1,0 +1,4 @@
+{
+  "_README": "Counsel-owned export-control audit config (CZID-331), the single source the env stacks read (jsondecode) and pass to modules/export-control-audit-log. PLACEHOLDER values until counsel confirms. NOTE: Object Lock COMPLIANCE retention CANNOT be shortened after apply — counsel must confirm audit_log_retention_days before any apply (commonly ~1825 = 5 years for export record-keeping, balanced against privacy-law caps).",
+  "audit_log_retention_days": 1825
+}

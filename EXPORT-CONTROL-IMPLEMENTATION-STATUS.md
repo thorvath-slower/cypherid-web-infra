@@ -98,9 +98,11 @@ residential proxy → IP-intel + (Layer 3) identity/device.
 ## What still needs to be done
 
 **Engineering (provider-independent):**
-- **CZID-331 — audit-log IaC: ✅ authored** (`modules/export-control-audit-log` — Object Lock COMPLIANCE bucket
-  + versioning + TLS-only/WAF-log policy + optional edge-log Firehose). Remaining is the bucket-b apply (a
-  destructive WAF-log-bucket migration + the per-region edge subscription) and the counsel-set retention period.
+- **CZID-331 — audit-log IaC: ✅ authored + wired.** `modules/export-control-audit-log` (Object Lock COMPLIANCE
+  bucket + versioning + TLS-only/WAF-log policy + optional edge-log Firehose) is now instantiated in the
+  dev/staging/prod stacks (`tofu validate` clean, **plan-ready**); the counsel-owned retention is the single
+  source `export-control/audit-config.json`. Remaining: the bucket-b apply + the per-region edge-log
+  subscription, and counsel confirming the retention value before apply (COMPLIANCE can't be shortened later).
 - **CZID-328/329 — Layer 3:** ✅ the identity/export-screening Auth0 Action **scaffold** (fail-closed,
   provider-agnostic) + the device-location **feasibility spike** are authored (`auth0/export-control-access-gate`,
   `EXPORT-CONTROL-LAYER3-DESIGN.md`). Remaining: wire the chosen screening/IDV + device-location vendors (gated on
