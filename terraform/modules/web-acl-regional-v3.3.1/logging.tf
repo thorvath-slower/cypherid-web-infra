@@ -84,6 +84,18 @@ data "aws_iam_policy_document" "waf_logs" {
   }
 }
 
+# CZID-331 (export-control audit immutability) — the WAF decision log is part of the compliance
+# evidence trail (epic CZID-321). Two changes are required here, both deferred to bucket-b because the
+# apply is environment-specific and/or destructive:
+#   (a) RETENTION: set var.log_retention_days to the export record-keeping period (commonly ~5 years =
+#       1825 days; counsel confirms — CZID-322/335). The lifecycle_rule below currently expires logs
+#       on the default retention, which is shorter than the record-keeping requirement.
+#   (b) IMMUTABILITY: enable S3 Object Lock in COMPLIANCE mode so decision records cannot be deleted or
+#       altered within the retention window. Object Lock can only be enabled at BUCKET CREATION
+#       (object_lock_enabled = true), which the vendored cztack aws-s3-private-bucket module does NOT
+#       expose — so 331 needs either a cztack version that supports it or a dedicated object-locked log
+#       bucket. Migrating the existing bucket is DESTRUCTIVE (recreation) → do NOT apply inline; see the
+#       bucket-b outline for the migration plan.
 module "logs_bucket" {
   source        = "github.com/chanzuckerberg/cztack//aws-s3-private-bucket?ref=v0.104.2"
   project       = var.tags.project
