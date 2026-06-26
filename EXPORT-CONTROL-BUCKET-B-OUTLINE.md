@@ -17,8 +17,11 @@ counsel/compliance determination — i.e. the steps that need Tom's explicit go-
 | CZID-325 | `AWSManagedRulesAmazonIpReputationList` + rate-limit count→block | same |
 | CZID-331 | audit-log immutability/retention **spec** (documented, not applied) | `…/logging.tf` |
 | CZID-327 | Layer-2 CloudFront + Lambda@Edge **scaffold** (provider-agnostic) | `modules/edge-ip-intel/` |
+| CZID-332 | monitoring + alerting (alarms, SNS, dashboard) — authored, `tofu validate` clean | `modules/export-control-monitoring/` |
+| CZID-333 | evasion test harness (pre-go-live gate), self-test passing | `tools/export-control-evasion-harness/` |
+| CZID-334 | IR runbook + periodic-review cadence | `EXPORT-CONTROL-IR-RUNBOOK.md` |
 
-All gated behind `count_only` (canary) / `DRY_RUN` (Lambda log-only).
+All Layer-1/2 enforcement is gated behind `count_only` (canary) / `DRY_RUN` (Lambda log-only).
 
 ## B. Bucket-B — AWS apply steps (need Tom's go-ahead, canary-first)
 1. **Layer 1 WAF (323/324/325):** `tofu fmt && validate && plan` per env → apply to **dev with `count_only = true`**
@@ -53,4 +56,7 @@ All gated behind `count_only` (canary) / `DRY_RUN` (Lambda log-only).
   MaxMind/IPinfo baseline. The Lambda adapter swaps with one constant once chosen.
 - **Layer 3 (CZID-328/329)** — identity verification + export screening via **Auth0 post-login Actions**, and a
   **device-location feasibility spike** (web-app vs client SDK). App/auth layer, not IaC.
-- **CZID-333** evasion test harness (pre-go-live gate); **CZID-332** monitoring; **CZID-334** IR + periodic review.
+- **CZID-332** monitoring, **CZID-333** evasion harness, **CZID-334** IR runbook — **now authored** (see §A).
+  Remaining to fully close: the harness needs credentialed proxy/VPN/residential endpoints + a blocked-country
+  exit node to exercise every vector; monitoring + IR need the apply + compliance-owned alert recipients and the
+  counsel-defined retention period.
