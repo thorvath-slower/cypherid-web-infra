@@ -144,3 +144,19 @@ resource "aws_s3_bucket_versioning" "samples" {
     status = "Enabled"
   }
 }
+
+resource "aws_s3_bucket_public_access_block" "samples" {
+  bucket                  = aws_s3_bucket.samples.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_public_access_block" "samples_v1" {
+  bucket                  = aws_s3_bucket.samples_v1.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
