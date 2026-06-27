@@ -11,6 +11,7 @@ spec:
     - https://github.com/chanzuckerberg/seqtoid-web.git        # app chart
     - https://github.com/chanzuckerberg/cypherid-web-infra.git # env values + apps
     - https://argoproj.github.io/argo-helm                     # argo-rollouts controller chart
+    - https://charts.external-secrets.io                       # external-secrets operator chart
   destinations:
     - server: https://kubernetes.default.svc
       namespace: czid-dev
@@ -20,6 +21,8 @@ spec:
       namespace: czid-prod
     - server: https://kubernetes.default.svc
       namespace: argo-rollouts
+    - server: https://kubernetes.default.svc
+      namespace: external-secrets
   # The Rollouts controller installs cluster-scoped CRDs + RBAC.
   clusterResourceWhitelist:
     - group: "*"
