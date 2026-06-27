@@ -12,6 +12,7 @@ spec:
     - https://github.com/chanzuckerberg/cypherid-web-infra.git # env values + apps
     - https://argoproj.github.io/argo-helm                     # argo-rollouts controller chart
     - https://charts.external-secrets.io                       # external-secrets operator chart
+    - https://aws.github.io/eks-charts                          # aws load balancer controller chart
   destinations:
     - server: https://kubernetes.default.svc
       namespace: czid-dev
