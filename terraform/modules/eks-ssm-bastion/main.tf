@@ -76,6 +76,8 @@ resource "aws_instance" "bastion" {
   iam_instance_profile        = aws_iam_instance_profile.bastion.name
   vpc_security_group_ids      = [aws_security_group.bastion.id]
   associate_public_ip_address = false
+  monitoring                  = true # CKV_AWS_126
+  ebs_optimized               = true # CKV_AWS_135
 
   metadata_options {
     http_endpoint = "enabled"
