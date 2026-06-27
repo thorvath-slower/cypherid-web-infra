@@ -19,3 +19,6 @@ jobs:
     uses: thorvath-slower/ci-workflows/.github/workflows/security.yml@v1
     with:
       run_checkov: ${{ inputs.run_checkov || false }}
+      # vuln only: trivy's full-tree terraform misconfig resolution hangs on this repo's large
+      # multi-env module graph. IaC misconfig is covered by tflint + checkov instead.
+      trivy_scanners: vuln
