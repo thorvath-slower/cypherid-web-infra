@@ -19,9 +19,12 @@ resource "tls_private_key" "ecdsa-p384" {
 }
 
 resource "aws_secretsmanager_secret" "services_private_key_pem" {
-  name                    = local.secret_name
-  description             = "Private key used to authenticate the user so they can use the GraphQL federated service & next-gen service >> openssl ecparam -name secp384r1 -genkey -noout -out czid-private-key.pem"
-  recovery_window_in_days = 0 # Forces immediate deletion
+  name        = local.secret_name
+  description = "Private key used to authenticate the user so they can use the GraphQL federated service & next-gen service >> openssl ecparam -name secp384r1 -genkey -noout -out czid-private-key.pem"
+  # SEC-1 (CZID-42): keep a recovery window in shared/long-lived envs so an accidental destroy of this
+  # services private key is recoverable. dev/sandbox keep 0 for frictionless teardown+rebuild (a deleted
+  # secret name is otherwise locked for the recovery window, blocking immediate recreate).
+  recovery_window_in_days = contains(["dev", "sandbox"], var.env) ? 0 : 7
 }
 
 resource "aws_secretsmanager_secret_version" "api_key_version" {
