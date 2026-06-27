@@ -21,6 +21,9 @@ help: ## show this help
 fmt: ## terraform fmt across the whole tree
 	$(TF) fmt -recursive terraform
 
+check: ## run all CI checks locally: fmt + validate + security scanners (CZID-311)
+	@./bin/check
+
 fmt-check: ## check formatting only (CI)
 	$(TF) fmt -recursive -check terraform
 
