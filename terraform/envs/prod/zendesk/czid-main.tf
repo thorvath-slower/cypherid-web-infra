@@ -114,3 +114,10 @@ resource "aws_route53_record" "czid_help_site" {
   ttl     = "300"
   records = [aws_cloudfront_distribution.czid_help_s3_distribution.domain_name]
 }
+
+resource "aws_s3_bucket_versioning" "czid_help_redirect_bucket" {
+  bucket = aws_s3_bucket.czid_help_redirect_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}

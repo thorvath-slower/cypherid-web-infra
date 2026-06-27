@@ -137,3 +137,10 @@ resource "aws_s3_bucket" "samples_v1" {
     allowed_origins = ["https://clades.nextstrain.org", "https://v2.clades.nextstrain.org"]
   }
 }
+
+resource "aws_s3_bucket_versioning" "samples" {
+  bucket = aws_s3_bucket.samples.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}

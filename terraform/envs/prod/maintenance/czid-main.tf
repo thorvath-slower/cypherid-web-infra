@@ -170,3 +170,10 @@ resource "aws_route53_record" "czid-assets" {
     evaluate_target_health = true
   }
 }
+
+resource "aws_s3_bucket_versioning" "maintenance_bucket" {
+  bucket = aws_s3_bucket.maintenance_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}

@@ -100,3 +100,10 @@ resource "aws_s3_bucket" "aegea-ecs-execute" {
     terraform = "true"
   }
 }
+
+resource "aws_s3_bucket_versioning" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}

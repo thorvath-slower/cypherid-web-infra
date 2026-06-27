@@ -155,3 +155,10 @@ resource "aws_route53_record" "zendesk_verification" {
   records = ["33670b975db85bad"]
 }
 
+
+resource "aws_s3_bucket_versioning" "help_redirect_bucket" {
+  bucket = aws_s3_bucket.help_redirect_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}

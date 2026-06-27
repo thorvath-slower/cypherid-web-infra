@@ -166,3 +166,10 @@ resource "aws_route53_record" "assets" {
     evaluate_target_health = true
   }
 }
+
+resource "aws_s3_bucket_versioning" "bucket" {
+  bucket = aws_s3_bucket.bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
