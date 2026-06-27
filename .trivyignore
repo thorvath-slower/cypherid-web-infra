@@ -1,0 +1,5 @@
+# Trivy triaged-exceptions baseline for cypherid-web-infra (CZID-264).
+# Policy: ACCEPT the inherited HIGH/CRITICAL backlog, hard-fail on NEW only. Do NOT remediate here —
+# log findings to backlog #294 for fix-forward. Filled from the first security-scan run.
+#
+# (empty until the first run reveals what's present — see PR CI)
