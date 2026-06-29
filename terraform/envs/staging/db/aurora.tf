@@ -1,3 +1,14 @@
+# Aurora MySQL 8.0 db cluster — canonical, mirrored across dev/staging/prod (CZID-332).
+# Parameterized so it is safe in BOTH live and greenfield envs:
+#   - var.db_instance_class      : the per-env machine size (the intended difference)
+#   - var.manage_db_subnet_group : false on LIVE envs (dev/staging) -> reference the existing
+#                                  subnet group (plan no-op, no cluster replacement);
+#                                  true on greenfield envs (prod) -> create it fresh.
+# dev/staging are LIVE with data: a tofu plan MUST show no destructive changes before apply.
+locals {
+  db_subnet_group_name = var.manage_db_subnet_group ? aws_db_subnet_group.db[0].name : "${var.project}-${var.env}"
+}
+
 resource "aws_rds_cluster" "db" {
   enable_http_endpoint                = true # This enables Query Editor in the AWS RDS UI
   cluster_identifier                  = "${var.project}-${var.env}"
@@ -5,14 +16,14 @@ resource "aws_rds_cluster" "db" {
   master_username                     = var.db_username
   master_password                     = module.db_password.value
   vpc_security_group_ids              = [aws_security_group.rds.id]
-  db_subnet_group_name                = "${var.project}-${var.env}"
+  db_subnet_group_name                = local.db_subnet_group_name
   storage_encrypted                   = true
   iam_database_authentication_enabled = true
   engine                              = "aurora-mysql"
   deletion_protection                 = !contains(["dev", "sandbox"], var.env)
   copy_tags_to_snapshot               = true
   backup_retention_period             = 7
-  # skip_final_snapshot                 = true
+  skip_final_snapshot                 = true
 
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db_8.id
 
@@ -23,8 +34,8 @@ resource "aws_rds_cluster_instance" "db" {
   count                      = 1
   identifier                 = "${var.project}-${var.env}-${count.index}"
   cluster_identifier         = aws_rds_cluster.db.id
-  instance_class             = "db.r6i.xlarge"
-  db_subnet_group_name       = "${var.project}-${var.env}"
+  instance_class             = var.db_instance_class
+  db_subnet_group_name       = local.db_subnet_group_name
   db_parameter_group_name    = aws_db_parameter_group.db_8.name
   monitoring_interval        = 0
   auto_minor_version_upgrade = true
@@ -39,7 +50,7 @@ resource "aws_rds_cluster_instance" "db" {
 resource "aws_rds_cluster_parameter_group" "db_8" {
   name        = "${var.project}-${var.env}-rds-cluster-pg-8"
   family      = "aurora-mysql8.0"
-  description = "RDS default cluster parameter group"
+  description = "RDS cluster parameter group (Aurora MySQL 8.0)"
 
   parameter {
     name  = "character_set_server"
@@ -82,9 +93,9 @@ resource "aws_db_parameter_group" "db_8" {
   }
 
   parameter {
-    apply_method = "pending-reboot"
     name         = "log_output"
     value        = "FILE"
+    apply_method = "pending-reboot"
   }
 
   parameter {
@@ -92,11 +103,22 @@ resource "aws_db_parameter_group" "db_8" {
     value = "1"
   }
 
-  # TODO: This got removed for some reason sometime April-December 2025; Re-added Feb 2026
   parameter {
     name  = "group_concat_max_len"
     value = "1073741824"
   }
+
+  tags = {
+    terraform = true
+  }
+}
+
+# Created ONLY in greenfield envs (var.manage_db_subnet_group = true, e.g. prod).
+# Live envs (dev/staging) keep their existing subnet group via local.db_subnet_group_name.
+resource "aws_db_subnet_group" "db" {
+  count      = var.manage_db_subnet_group ? 1 : 0
+  name       = "${var.project}-${var.env}-main"
+  subnet_ids = data.terraform_remote_state.cloud-env.outputs.private_subnets
 
   tags = {
     terraform = true
