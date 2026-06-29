@@ -1,15 +1,13 @@
-data "aws_ssm_parameter" "db_secret" {
-  name = "${local.ssm_param_name}_password"
-  depends_on = [
-    aws_ssm_parameter.db_master_password
-  ]
-}
-
+# Aurora MySQL 8.0 db cluster — canonical, mirrored across all envs (CZID-332).
+# This file is byte-identical in every account; the ONLY per-env difference is
+# var.db_instance_class (machine size). Greenfield: the first apply creates the
+# 8.0 cluster (there is no live cluster / no in-place upgrade).
 resource "aws_rds_cluster" "db" {
+  enable_http_endpoint                = true # This enables Query Editor in the AWS RDS UI
   cluster_identifier                  = "${var.project}-${var.env}"
   database_name                       = "${var.project}_${var.env}"
   master_username                     = var.db_username
-  master_password                     = data.aws_ssm_parameter.db_secret.value
+  master_password                     = module.db_password.value
   vpc_security_group_ids              = [aws_security_group.rds.id]
   db_subnet_group_name                = aws_db_subnet_group.db.name
   storage_encrypted                   = true
@@ -18,34 +16,34 @@ resource "aws_rds_cluster" "db" {
   deletion_protection                 = !contains(["dev", "sandbox"], var.env)
   copy_tags_to_snapshot               = true
   backup_retention_period             = 7
+  skip_final_snapshot                 = true
 
-  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db.id
+  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db_8.id
 
   final_snapshot_identifier = "${var.project}-${var.env}-final"
 }
-//R3 and R4 have been deprecated as of 2023. Upgraded to R5.
+
 resource "aws_rds_cluster_instance" "db" {
   count                      = 1
   identifier                 = "${var.project}-${var.env}-${count.index}"
   cluster_identifier         = aws_rds_cluster.db.id
-  instance_class             = "db.t3.medium"
+  instance_class             = var.db_instance_class
   db_subnet_group_name       = aws_db_subnet_group.db.name
-  db_parameter_group_name    = aws_db_parameter_group.db.name
+  db_parameter_group_name    = aws_db_parameter_group.db_8.name
   monitoring_interval        = 0
   auto_minor_version_upgrade = true
+  ca_cert_identifier         = "rds-ca-ecc384-g1"
   engine                     = aws_rds_cluster.db.engine
 
   tags = {
     terraform = true
-    project   = var.project
-    env       = var.env
   }
 }
 
-resource "aws_rds_cluster_parameter_group" "db" {
-  name        = "${var.project}-${var.env}-rds-cluster-pg"
+resource "aws_rds_cluster_parameter_group" "db_8" {
+  name        = "${var.project}-${var.env}-rds-cluster-pg-8"
   family      = "aurora-mysql8.0"
-  description = "RDS default cluster parameter group"
+  description = "RDS cluster parameter group (Aurora MySQL 8.0)"
 
   parameter {
     name  = "character_set_server"
@@ -65,13 +63,11 @@ resource "aws_rds_cluster_parameter_group" "db" {
 
   tags = {
     terraform = true
-    project   = var.project
-    env       = var.env
   }
 }
 
-resource "aws_db_parameter_group" "db" {
-  name   = "${var.project}-${var.env}-rds-pg"
+resource "aws_db_parameter_group" "db_8" {
+  name   = "${var.project}-${var.env}-rds-pg-8"
   family = "aurora-mysql8.0"
 
   parameter {
@@ -90,8 +86,9 @@ resource "aws_db_parameter_group" "db" {
   }
 
   parameter {
-    name  = "log_output"
-    value = "FILE"
+    name         = "log_output"
+    value        = "FILE"
+    apply_method = "pending-reboot"
   }
 
   parameter {
@@ -99,20 +96,23 @@ resource "aws_db_parameter_group" "db" {
     value = "1"
   }
 
+  parameter {
+    name  = "group_concat_max_len"
+    value = "1073741824"
+  }
+
   tags = {
     terraform = true
-    project   = var.project
-    env       = var.env
   }
 }
 
+# Self-contained: the db stack owns its subnet group (built from the cloud-env
+# foundation's private subnets) — no reliance on an externally-named group.
 resource "aws_db_subnet_group" "db" {
   name       = "${var.project}-${var.env}-main"
   subnet_ids = data.terraform_remote_state.cloud-env.outputs.private_subnets
 
   tags = {
     terraform = true
-    project   = var.project
-    env       = var.env
   }
 }

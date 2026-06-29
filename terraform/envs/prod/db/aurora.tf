@@ -1,4 +1,9 @@
+# Aurora MySQL 8.0 db cluster — canonical, mirrored across all envs (CZID-332).
+# This file is byte-identical in every account; the ONLY per-env difference is
+# var.db_instance_class (machine size). Greenfield: the first apply creates the
+# 8.0 cluster (there is no live cluster / no in-place upgrade).
 resource "aws_rds_cluster" "db" {
+  enable_http_endpoint                = true # This enables Query Editor in the AWS RDS UI
   cluster_identifier                  = "${var.project}-${var.env}"
   database_name                       = "${var.project}_${var.env}"
   master_username                     = var.db_username
@@ -7,47 +12,38 @@ resource "aws_rds_cluster" "db" {
   db_subnet_group_name                = aws_db_subnet_group.db.name
   storage_encrypted                   = true
   iam_database_authentication_enabled = true
-  backup_retention_period             = 7
   engine                              = "aurora-mysql"
   deletion_protection                 = !contains(["dev", "sandbox"], var.env)
   copy_tags_to_snapshot               = true
+  backup_retention_period             = 7
+  skip_final_snapshot                 = true
 
-  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db.id
+  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db_8.id
 
   final_snapshot_identifier = "${var.project}-${var.env}-final"
-
-  engine_mode = "provisioned"
-
 }
 
 resource "aws_rds_cluster_instance" "db" {
   count                      = 1
   identifier                 = "${var.project}-${var.env}-${count.index}"
   cluster_identifier         = aws_rds_cluster.db.id
+  instance_class             = var.db_instance_class
+  db_subnet_group_name       = aws_db_subnet_group.db.name
+  db_parameter_group_name    = aws_db_parameter_group.db_8.name
   monitoring_interval        = 0
   auto_minor_version_upgrade = true
-
-  # In January 2018 US-West-2
-  # r4.4xlarge = 8 physical CPU cores, 122 GiB RAM, ** 437 MB/sec EBS bw **
-  # r4.2xlarge = 4 physical CPU cores,  61 GiB RAM, ** 213 MB/sec EBS bw **
-  instance_class = "db.r4.4xlarge"
-
-  db_subnet_group_name    = aws_db_subnet_group.db.name
-  db_parameter_group_name = aws_db_parameter_group.db.name
-  ca_cert_identifier      = "rds-ca-ecc384-g1"
-  engine                  = aws_rds_cluster.db.engine
+  ca_cert_identifier         = "rds-ca-ecc384-g1"
+  engine                     = aws_rds_cluster.db.engine
 
   tags = {
     terraform = true
-    project   = var.project
-    env       = var.env
   }
 }
 
-resource "aws_rds_cluster_parameter_group" "db" {
-  name        = "${var.project}-${var.env}-rds-cluster-pg"
-  family      = "aurora-mysql5.7"
-  description = "RDS default cluster parameter group"
+resource "aws_rds_cluster_parameter_group" "db_8" {
+  name        = "${var.project}-${var.env}-rds-cluster-pg-8"
+  family      = "aurora-mysql8.0"
+  description = "RDS cluster parameter group (Aurora MySQL 8.0)"
 
   parameter {
     name  = "character_set_server"
@@ -62,37 +58,17 @@ resource "aws_rds_cluster_parameter_group" "db" {
   parameter {
     apply_method = "pending-reboot"
     name         = "binlog_format"
-    value        = "row"
-  }
-
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "max_allowed_packet"
-    value        = 1073741824
-  }
-
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "performance_schema"
-    value        = 1
-  }
-
-  parameter {
-    apply_method = "immediate"
-    name         = "group_concat_max_len"
-    value        = "1048576"
+    value        = "ROW"
   }
 
   tags = {
     terraform = true
-    project   = var.project
-    env       = var.env
   }
 }
 
-resource "aws_db_parameter_group" "db" {
-  name   = "${var.project}-${var.env}-rds-pg"
-  family = "aurora-mysql5.7"
+resource "aws_db_parameter_group" "db_8" {
+  name   = "${var.project}-${var.env}-rds-pg-8"
+  family = "aurora-mysql8.0"
 
   parameter {
     name  = "general_log"
@@ -110,8 +86,9 @@ resource "aws_db_parameter_group" "db" {
   }
 
   parameter {
-    name  = "log_output"
-    value = "file"
+    name         = "log_output"
+    value        = "FILE"
+    apply_method = "pending-reboot"
   }
 
   parameter {
@@ -124,26 +101,18 @@ resource "aws_db_parameter_group" "db" {
     value = "1073741824"
   }
 
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "performance_schema"
-    value        = "1"
-  }
-
   tags = {
     terraform = true
-    project   = var.project
-    env       = var.env
   }
 }
 
+# Self-contained: the db stack owns its subnet group (built from the cloud-env
+# foundation's private subnets) — no reliance on an externally-named group.
 resource "aws_db_subnet_group" "db" {
   name       = "${var.project}-${var.env}-main"
   subnet_ids = data.terraform_remote_state.cloud-env.outputs.private_subnets
 
   tags = {
     terraform = true
-    project   = var.project
-    env       = var.env
   }
 }
