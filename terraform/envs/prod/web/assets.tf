@@ -28,6 +28,13 @@ resource "aws_cloudfront_distribution" "distribution" {
   enabled = true
   comment = "Caches Rails web server static assets in Amazon's edge servers"
 
+  # CZID-354: access logging to the shared log bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_logs.bucket_domain_name
+    prefix          = "assets/"
+    include_cookies = false
+  }
+
   aliases = [local.full_domain]
 
   # Rails web server

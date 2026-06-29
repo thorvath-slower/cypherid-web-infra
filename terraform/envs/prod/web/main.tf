@@ -368,6 +368,13 @@ resource "aws_cloudfront_distribution" "redirect_distribution" {
   retain_on_delete    = false
   wait_for_deployment = true
 
+  # CZID-354: access logging to the shared log bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_logs.bucket_domain_name
+    prefix          = "redirect/"
+    include_cookies = false
+  }
+
   default_cache_behavior {
     allowed_methods = [
       "GET",
