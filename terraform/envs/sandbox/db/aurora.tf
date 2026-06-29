@@ -15,6 +15,9 @@ resource "aws_rds_cluster" "db" {
   storage_encrypted                   = true
   iam_database_authentication_enabled = true
   engine                              = "aurora-mysql"
+  deletion_protection                 = !contains(["dev", "sandbox"], var.env)
+  copy_tags_to_snapshot               = true
+  backup_retention_period             = 7
 
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db.id
 
@@ -22,14 +25,15 @@ resource "aws_rds_cluster" "db" {
 }
 //R3 and R4 have been deprecated as of 2023. Upgraded to R5.
 resource "aws_rds_cluster_instance" "db" {
-  count                   = 1
-  identifier              = "${var.project}-${var.env}-${count.index}"
-  cluster_identifier      = aws_rds_cluster.db.id
-  instance_class          = "db.t3.medium"
-  db_subnet_group_name    = aws_db_subnet_group.db.name
-  db_parameter_group_name = aws_db_parameter_group.db.name
-  monitoring_interval     = 0
-  engine                  = aws_rds_cluster.db.engine
+  count                      = 1
+  identifier                 = "${var.project}-${var.env}-${count.index}"
+  cluster_identifier         = aws_rds_cluster.db.id
+  instance_class             = "db.t3.medium"
+  db_subnet_group_name       = aws_db_subnet_group.db.name
+  db_parameter_group_name    = aws_db_parameter_group.db.name
+  monitoring_interval        = 0
+  auto_minor_version_upgrade = true
+  engine                     = aws_rds_cluster.db.engine
 
   tags = {
     terraform = true
@@ -72,7 +76,7 @@ resource "aws_db_parameter_group" "db" {
 
   parameter {
     name  = "general_log"
-    value = "1"
+    value = "0"
   }
 
   parameter {
@@ -82,7 +86,7 @@ resource "aws_db_parameter_group" "db" {
 
   parameter {
     name  = "long_query_time"
-    value = "0"
+    value = "2"
   }
 
   parameter {

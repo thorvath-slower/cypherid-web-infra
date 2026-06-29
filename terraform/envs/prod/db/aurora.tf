@@ -9,6 +9,8 @@ resource "aws_rds_cluster" "db" {
   iam_database_authentication_enabled = true
   backup_retention_period             = 7
   engine                              = "aurora-mysql"
+  deletion_protection                 = !contains(["dev", "sandbox"], var.env)
+  copy_tags_to_snapshot               = true
 
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db.id
 
@@ -19,10 +21,11 @@ resource "aws_rds_cluster" "db" {
 }
 
 resource "aws_rds_cluster_instance" "db" {
-  count               = 1
-  identifier          = "${var.project}-${var.env}-${count.index}"
-  cluster_identifier  = aws_rds_cluster.db.id
-  monitoring_interval = 0
+  count                      = 1
+  identifier                 = "${var.project}-${var.env}-${count.index}"
+  cluster_identifier         = aws_rds_cluster.db.id
+  monitoring_interval        = 0
+  auto_minor_version_upgrade = true
 
   # In January 2018 US-West-2
   # r4.4xlarge = 8 physical CPU cores, 122 GiB RAM, ** 437 MB/sec EBS bw **
@@ -93,7 +96,7 @@ resource "aws_db_parameter_group" "db" {
 
   parameter {
     name  = "general_log"
-    value = "1"
+    value = "0"
   }
 
   parameter {
@@ -103,7 +106,7 @@ resource "aws_db_parameter_group" "db" {
 
   parameter {
     name  = "long_query_time"
-    value = "0"
+    value = "2"
   }
 
   parameter {
