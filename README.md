@@ -1,9 +1,9 @@
-# seqtoid — web infrastructure (OpenTofu)
+# seqtoid — web infrastructure (Terraform)
 
-Infrastructure-as-code for the seqtoid stack, using [OpenTofu](https://opentofu.org).
+Infrastructure-as-code for the seqtoid stack, using [Terraform](https://terraform.org).
 The repo is divided into **accounts**, **environments** (`dev`, `staging`,
 `sandbox`, `prod`, `public`) and **components**. Changes are applied at the
-component level: `cd` into a component and run OpenTofu there.
+component level: `cd` into a component and run Terraform there.
 
 > **Naming:** the platform is being renamed to **seqtoid** and the repositories
 > are migrating to the `seqtoid-*` convention over time (this repo:
@@ -13,9 +13,9 @@ component level: `cd` into a component and run OpenTofu there.
 > commands below are correct as written.
 
 > This repo was previously generated and orchestrated by `fogg` and run through
-> Terraform Cloud/Enterprise. It now runs on plain OpenTofu with no fogg and no
+> Terraform Cloud/Enterprise. It now runs on plain Terraform with no fogg and no
 > TFC/TFE — the `terraform.tf` in each component is the hand-maintained source of
-> truth (see `specs/002-tofu-conversion/`).
+> truth (see `specs/002-terraform-conversion/`).
 
 > **Vendored modules are human-maintained.** Some `terraform/modules/*` are in-tree
 > copies of the (inaccessible) `chanzuckerberg/shared-infra` modules, used via a
@@ -32,8 +32,8 @@ from the fogg/TFC setup. The README below is the quick start.
 
 ## Prerequisites
 
-- [OpenTofu](https://opentofu.org/docs/intro/install/) — pinned in
-  `.opentofu-version` (`brew install opentofu`, or use
+- [Terraform](https://terraform.org/docs/intro/install/) — pinned in
+  `.terraform-version` (`brew install terraform`, or use
   [`tenv`](https://github.com/tofuutils/tenv)).
 - AWS CLI with an `idseq-<env>` profile in `~/.aws/config`.
 
@@ -51,40 +51,40 @@ export AWS_DEFAULT_PROFILE=idseq-<env>
 
 ## Working with a component
 
-Each component is a self-contained OpenTofu root module; the S3 backend
+Each component is a self-contained Terraform root module; the S3 backend
 (bucket/key/region/profile) is declared in its `terraform.tf`.
 
 ```bash
 cd terraform/envs/<env>/<component>
-tofu init        # one-time per checkout / on backend or provider change
-tofu plan
-tofu apply
+terraform init        # one-time per checkout / on backend or provider change
+terraform plan
+terraform apply
 ```
 
 Bootstrapping an environment is the same flow, starting from the account
 stack then the components in dependency order, e.g.:
 ```bash
-cd terraform/accounts/idseq-<env> && tofu apply && cd -
-cd terraform/envs/<env>/iam-password-policy && tofu apply
+cd terraform/accounts/idseq-<env> && terraform apply && cd -
+cd terraform/envs/<env>/iam-password-policy && terraform apply
 # ... params-secrets, route53, czid-services-private-key, cloud-env,
 #     idseq-s3-tar-writer, elb-access-logs, ..., eks, k8s-core, happy
 ```
 Dependencies between components are expressed with
-`data "terraform_remote_state"`, so OpenTofu reads upstream outputs directly.
+`data "terraform_remote_state"`, so Terraform reads upstream outputs directly.
 
 ## Repo-wide helpers
 
-A thin `Makefile` wraps OpenTofu (no fogg):
+A thin `Makefile` wraps Terraform (no fogg):
 
 ```bash
-make fmt          # tofu fmt -recursive across the tree
+make fmt          # terraform fmt -recursive across the tree
 make fmt-check    # formatting check (also run in CI)
 make validate     # init -backend=false + validate every stack
 make plan  DIR=terraform/envs/dev/auth0
 make apply DIR=terraform/envs/dev/auth0
 ```
 
-CI (`.github/workflows/tofu_ci.yml`) runs `tofu fmt -check` + `tofu validate`
+CI (`.github/workflows/tofu_ci.yml`) runs `terraform fmt -check` + `terraform validate`
 on each changed stack. There is no auto-apply; applies are deliberate.
 
 ## SSH

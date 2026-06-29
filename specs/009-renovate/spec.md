@@ -2,7 +2,7 @@
 
 **Branch**: `improvement-#009-renovate`  ·  **Spec dir**: `specs/009-renovate/`
 
-**Created**: 2026-06-11 · **Status**: Draft · **Repo**: `cypherid-web-infra` (base: `improvement-#002-tofu-conversion`)
+**Created**: 2026-06-11 · **Status**: Draft · **Repo**: `cypherid-web-infra` (base: `improvement-#002-terraform-conversion`)
 
 **Input**: Extend the Renovate rollout to the web-infra deploy repo so its broad dependency surface is bot-maintained — and so the Docker digests pinned in `bug-#012` and the providers fixed in `bug-#014` stay current automatically. See `seqtoid-web` `specs/009-renovate/spec.md` for the full Renovate-vs-Dependabot rationale.
 
@@ -10,7 +10,7 @@
 
 - `extends`: `config:recommended`, `:dependencyDashboard`, `:maintainLockFilesDisabled`.
 - Weekly schedule (`before 9am on monday`, `America/Los_Angeles`); `prConcurrentLimit: 5`, `prHourlyLimit: 2`; `rebaseWhen: conflicted`; **`pinDigests: true`** (maintains the `bug-#012` `@sha256` pins on the grafana / idseq-s3-tar-writer bases).
-- **`customManagers`** (regex): tracks **`.opentofu-version`** against `opentofu/opentofu` releases.
+- **`customManagers`** (regex): tracks **`.terraform-version`** against `hashicorp/terraform` releases.
 - **Grouping** (`packageRules`) — important here because the repo has many env stacks:
   - **terraform providers** — provider/module bumps grouped into **one** PR instead of one per stack across the dozens of envs (the `terraform` manager reads `required_providers`: aws, auth0, helm, kubernetes, kubectl, okta, …).
   - **docker base images** — the two Dockerfiles (grafana, idseq-s3-tar-writer).

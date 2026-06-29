@@ -1,6 +1,6 @@
 name: terraform-ci
 
-# Native OpenTofu CI (replaces the fogg-driven workflow removed in
+# Native Terraform CI (replaces the fogg-driven workflow removed in
 # improvement-#002). find-changed groups the changed stacks into concurrent
 # BUCKETS, then validates each bucket:
 #
@@ -16,7 +16,7 @@ name: terraform-ci
 #     unaligned stacks), validated as a flat matrix.
 #
 # Buckets run CONCURRENTLY; the env tiers inside a bucket are the only thing that
-# chains. Stacks listed in .github/tofu-ci-skip.txt (they pull the inaccessible
+# chains. Stacks listed in .github/terraform-ci-skip.txt (they pull the inaccessible
 # chanzuckerberg/shared-infra module — CZID-90) are dropped from every bucket.
 
 on:
@@ -56,7 +56,7 @@ jobs:
             // inaccessible chanzuckerberg/shared-infra module — see CZID-90).
             let skip = new Set()
             try {
-              skip = new Set(fs.readFileSync(".github/tofu-ci-skip.txt", "utf8")
+              skip = new Set(fs.readFileSync(".github/terraform-ci-skip.txt", "utf8")
                 .split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#")))
             } catch (e) {}
             // Quarantined stacks: known pre-existing defects tracked separately
@@ -64,7 +64,7 @@ jobs:
             // entry ending in "/" matches a whole tree (prefix); otherwise exact.
             let quarantine = []
             try {
-              quarantine = fs.readFileSync(".github/tofu-ci-quarantine.txt", "utf8")
+              quarantine = fs.readFileSync(".github/terraform-ci-quarantine.txt", "utf8")
                 .split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#"))
             } catch (e) {}
             const isQuarantined = d => quarantine.some(q => q.endsWith("/") ? d.startsWith(q) : d === q)
@@ -111,9 +111,9 @@ jobs:
             const restList = [...rest].filter(d => !skip.has(d) && !isQuarantined(d)).sort()
 
             const skipped = dirs.filter(d => skip.has(d)).sort()
-            if (skipped.length) core.notice(`Skipping ${skipped.length} stack(s) excluded by .github/tofu-ci-skip.txt (chanzuckerberg/shared-infra unavailable — CZID-90): ${skipped.join(", ")}`)
+            if (skipped.length) core.notice(`Skipping ${skipped.length} stack(s) excluded by .github/terraform-ci-skip.txt (chanzuckerberg/shared-infra unavailable — CZID-90): ${skipped.join(", ")}`)
             const quarantined = dirs.filter(d => isQuarantined(d) && !skip.has(d)).sort()
-            if (quarantined.length) core.notice(`Quarantining ${quarantined.length} stack(s) with known pre-existing defects (.github/tofu-ci-quarantine.txt — CZID-91/92/93): ${quarantined.join(", ")}`)
+            if (quarantined.length) core.notice(`Quarantining ${quarantined.length} stack(s) with known pre-existing defects (.github/terraform-ci-quarantine.txt — CZID-91/92/93): ${quarantined.join(", ")}`)
 
             core.setOutput("buckets", JSON.stringify(buckets))
             core.setOutput("rest", JSON.stringify(restList))

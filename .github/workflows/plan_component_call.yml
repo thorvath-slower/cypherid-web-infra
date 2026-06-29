@@ -103,7 +103,7 @@ jobs:
           set +e
           terraform plan -input=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
           exitcode=$?
-          echo "OpenTofu exited with exit-code $exitcode"
+          echo "Terraform exited with exit-code $exitcode"
           if [[ $exitcode -eq 1 ]]; then
             exit $exitcode
           fi

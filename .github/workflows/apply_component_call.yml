@@ -134,7 +134,7 @@ jobs:
           set +e
           terraform apply -input=false -auto-approve -json tf.plan > applied.json
           exitcode=$?
-          echo "OpenTofu exited with exit-code $exitcode"
+          echo "Terraform exited with exit-code $exitcode"
           set -e
           if [[ $exitcode -ne 0 ]]; then
             jq . applied.json
