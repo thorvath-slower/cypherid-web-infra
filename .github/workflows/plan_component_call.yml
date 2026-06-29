@@ -76,14 +76,17 @@ jobs:
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
           aws-profile: idseq-${{ inputs.environment }}
-      - name: Set up OpenTofu
-        uses: opentofu/setup-opentofu@v2
+      - name: Read Terraform version (SSOT = .terraform-version)
+        id: tfver
+        run: echo "version=$(cat .terraform-version)" >> "$GITHUB_OUTPUT"
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          tofu_version_file: .opentofu-version
-      - name: Verify AWS auth + tofu
+          terraform_version: ${{ steps.tfver.outputs.version }}
+      - name: Verify AWS auth + terraform
         run: |
           aws sts get-caller-identity --profile "idseq-${{ inputs.environment }}" --no-cli-pager --no-cli-auto-prompt
-          tofu version
+          terraform version
       - name: Terraform Plan
         working-directory: "./terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/"
         env:
@@ -95,17 +98,17 @@ jobs:
         # AWS creds come from the OIDC role assumed above (written to the
         # idseq-<env> profile the .tf backend/provider blocks reference).
         run: |
-          tofu init -input=false
+          terraform init -input=false
           echo "Plan will be created in: ${{ github.workspace }}/tf.plan"
           set +e
-          tofu plan -input=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
+          terraform plan -input=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
           exitcode=$?
           echo "OpenTofu exited with exit-code $exitcode"
           if [[ $exitcode -eq 1 ]]; then
             exit $exitcode
           fi
           set -e
-          tofu show -json "${{ github.workspace }}/tf.plan" > plan.json
+          terraform show -json "${{ github.workspace }}/tf.plan" > plan.json
           jq '.resource_changes[] | select(.change.actions[0] != "no-op" and .change.actions[0] != "read")' plan.json | jq '{address, action: .change.actions[0]}' | jq -c --slurp . > "${{ github.workspace }}/resource_changes.json"
           jq -c . "${{ github.workspace }}/resource_changes.json"
       # TODO: Only uncomment for local execution via nektos act, when testing outputs and artifacts

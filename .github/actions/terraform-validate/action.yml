@@ -1,5 +1,5 @@
-name: tofu-validate
-description: fmt-check + init (no backend) + validate a single OpenTofu stack.
+name: terraform-validate
+description: fmt-check + init (no backend) + validate a single Terraform stack.
 
 inputs:
   stack:
@@ -9,9 +9,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: opentofu/setup-opentofu@v1
+    - name: Read Terraform version (SSOT = .terraform-version)
+      id: tfver
+      shell: bash
+      run: echo "version=$(cat .terraform-version)" >> "$GITHUB_OUTPUT"
+    - uses: hashicorp/setup-terraform@v3
       with:
-        tofu_version_file: .opentofu-version
+        terraform_version: ${{ steps.tfver.outputs.version }}
     - name: Fetch git module sources over HTTPS (public modules; CI has no SSH key)
       shell: bash
       run: |
@@ -19,10 +23,10 @@ runs:
         git config --global url."https://github.com/".insteadOf "git@github.com:"
     - name: fmt check
       shell: bash
-      run: tofu fmt -check -diff "${{ inputs.stack }}"
+      run: terraform fmt -check -diff "${{ inputs.stack }}"
     - name: init (no backend) + validate
       shell: bash
       working-directory: ${{ inputs.stack }}
       run: |
-        tofu init -backend=false -input=false
-        tofu validate
+        terraform init -backend=false -input=false
+        terraform validate
