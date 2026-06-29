@@ -91,7 +91,7 @@ resource "aws_ecs_cluster" "idseq-fargate-tasks" {
 resource "aws_s3_bucket" "aegea-ecs-execute" {
   bucket        = local.s3_bucket_aegea_ecs_execute
   acl           = "private"
-  force_destroy = true
+  force_destroy = contains(["dev", "sandbox"], var.env)
 
   lifecycle_rule {
     id      = "ExpireRule"
