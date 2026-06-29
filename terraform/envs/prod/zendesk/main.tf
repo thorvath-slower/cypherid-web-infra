@@ -102,7 +102,7 @@ resource "aws_cloudfront_distribution" "help_s3_distribution" {
   viewer_certificate {
     acm_certificate_arn            = module.help_cert.arn
     cloudfront_default_certificate = false
-    minimum_protocol_version       = "TLSv1.1_2016"
+    minimum_protocol_version       = "TLSv1.2_2021"
     ssl_support_method             = "sni-only"
   }
 }
