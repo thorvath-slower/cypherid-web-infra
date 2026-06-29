@@ -385,7 +385,7 @@ resource "aws_cloudfront_distribution" "redirect_distribution" {
     target_origin_id           = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
     trusted_signers            = []
     viewer_protocol_policy     = "allow-all"
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    response_headers_policy_id = module.security_headers.policy_id
 
     forwarded_values {
       headers                 = []
