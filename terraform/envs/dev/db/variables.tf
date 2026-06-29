@@ -12,3 +12,8 @@ variable "db_instance_class" {
   type    = string
   default = "db.r6g.large"
 }
+
+variable "manage_db_subnet_group" {
+  type    = bool
+  default = false
+}
