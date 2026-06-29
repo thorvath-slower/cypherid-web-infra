@@ -32,20 +32,37 @@ module "autocreated_ecr_writer_policy" {
 }
 
 data "aws_iam_policy_document" "ecr_scanner" {
+  # CZID-342 (IAM-2 least-privilege): the old single statement granted every action on resources = ["*"].
+  # Split into registry-level actions (no resource-level form in the AWS IAM reference — must remain "*")
+  # and repository-level actions (scoped to this account/region's repositories). This removes the wildcard
+  # from the high-value repo-level actions without changing what CI can actually do.
   statement {
-    sid = "ScanECR"
+    sid = "ScanECRRegistryConfig"
 
+    # Account-level registry / scanning-configuration actions; no resource-level form, so "*" is required.
+    # (BatchGet... kept here conservatively — a scanning-config read with low blast radius; do not narrow
+    # without plan validation.)
     actions = [
       "ecr:BatchGetRepositoryScanningConfiguration",
       "ecr:GetRegistryScanningConfiguration",
-      "ecr:DescribeImageScanFindings",
-      "ecr:StartImageScan",
-      "ecr:PutImageScanningConfiguration",
       "ecr:PutRegistryScanningConfiguration",
-      "ecr:PutImageTagMutability"
     ]
 
     resources = ["*"]
+  }
+
+  statement {
+    sid = "ScanECRRepositories"
+
+    # Repository-level actions: scoped to repositories in this account + region.
+    actions = [
+      "ecr:DescribeImageScanFindings",
+      "ecr:StartImageScan",
+      "ecr:PutImageScanningConfiguration",
+      "ecr:PutImageTagMutability",
+    ]
+
+    resources = ["arn:aws:ecr:us-west-2:${local.account_id}:repository/*"]
   }
 }
 
