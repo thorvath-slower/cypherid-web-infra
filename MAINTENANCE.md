@@ -22,8 +22,8 @@ nothing will remind you — so this list is how we avoid silently drifting.
 | A5 | **Remote-state data sources** (cross-stack dependencies) | `terraform/envs/<env>/<component>/terraform.tf` → `data "terraform_remote_state" "<name>" { config = { bucket, key, region, profile } }` | Per-stack literal pointing at another stack's state | Edit by hand; the `key`/`profile` must match the upstream stack |
 | A6 | **Hardcoded AWS identifiers** | account IDs (`tfstate-<id>` backend bucket in `…/terraform.tf`; the `aws_accounts` map in `…/terraform.tf`); S3 bucket-name defaults (`variable "s3_bucket_*"` in `…/terraform.tf`); domains; AMI owner IDs in `terraform/modules/machine-images/` | Real-world identifiers, no upstream to track | Edit by hand; keep in sync with the live AWS accounts |
 | A7 | **Provider list membership** (which providers exist, not their versions) | `terraform/_shared/versions.tf` → `required_providers { … }` block | Adding/removing a provider is a design choice | Edit by hand; versions of existing entries are Renovate-managed (B2) |
-| A8 | **CI skip & quarantine lists** | `.github/tofu-ci-skip.txt`, `.github/tofu-ci-quarantine.txt` | Hand-curated exclusions (inaccessible deps / known defects) | Edit by hand; remove entries as stacks are fixed |
-| A9 | **CI bucketing logic** | `.github/workflows/tofu_ci.yml` (the `find-changed` classification script), `.github/workflows/validate-stack.yml`, `.github/actions/tofu-validate/action.yml` | Bespoke workflow logic | Edit by hand (the `uses:` pins *inside* these files are Renovate-managed — B4) |
+| A8 | **CI skip & quarantine lists** | `.github/terraform-ci-skip.txt`, `.github/terraform-ci-quarantine.txt` | Hand-curated exclusions (inaccessible deps / known defects) | Edit by hand; remove entries as stacks are fixed |
+| A9 | **CI bucketing logic** | `.github/workflows/tofu_ci.yml` (the `find-changed` classification script), `.github/workflows/validate-stack.yml`, `.github/actions/terraform-validate/action.yml` | Bespoke workflow logic | Edit by hand (the `uses:` pins *inside* these files are Renovate-managed — B4) |
 
 > **No committed `.terraform.lock.hcl`** in this repo by design (`renovate.json` sets
 > `:maintainLockFilesDisabled`; provider reproducibility comes from the appliance
@@ -36,10 +36,10 @@ nothing will remind you — so this list is how we avoid silently drifting.
 
 | # | Item | Where (path → location in file) | Maintained by |
 |---|------|--------------------------------|---------------|
-| B1 | **OpenTofu version** (the single toolchain pin) | `.opentofu-version` (whole file); CI reads it via `tofu_version_file` | Renovate custom manager → `opentofu/opentofu` github-releases (`renovate.json` `customManagers`) |
+| B1 | **Terraform version** (the single toolchain pin) | `.terraform-version` (whole file); CI reads it via `terraform_version` | Renovate custom manager → `hashicorp/terraform` github-releases (`renovate.json` `customManagers`) |
 | B2 | **Provider version constraints** (the single SSOT for all stacks) | `terraform/_shared/versions.tf` → `version = "~> …"` on each `required_providers` entry | Renovate `terraform` manager, grouped into one **"terraform providers"** PR |
 | B3 | **Module-local provider constraints** that carry a version | e.g. `terraform/modules/instance-cloud-init-script*/versions.tf` → `cloudinit … version = ">= 2.3.2"` | Renovate `terraform` manager (same group). *Exception:* `template` is source-only/deprecated — nothing to bump (A3) |
-| B4 | **GitHub Actions `uses:` pins** | `.github/workflows/*.yml`, `.github/actions/tofu-validate/action.yml` → `uses: …@<ref>` | Renovate `github-actions` manager (grouped) |
+| B4 | **GitHub Actions `uses:` pins** | `.github/workflows/*.yml`, `.github/actions/terraform-validate/action.yml` → `uses: …@<ref>` | Renovate `github-actions` manager (grouped) |
 | B5 | **Docker base-image digests** | the 2 `Dockerfile*` → `FROM …@sha256:…` | Renovate `dockerfile` manager (grouped; maintains the digests) |
 | B6 | **Python deps** | the 2 `requirements*.txt` | Renovate `pip_requirements` manager (grouped) |
 | B7 | **External `?ref=` module pins** (public modules, e.g. cztack) | any `source = "github.com/…?ref=v…"` in `terraform/modules/*` or `terraform/envs/*` | Renovate `terraform` manager (same group as B2) |

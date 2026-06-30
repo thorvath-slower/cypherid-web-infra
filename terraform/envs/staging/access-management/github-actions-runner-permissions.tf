@@ -38,7 +38,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 # The role keeps the scoped czid_ci_cd policy plus the specific read/ECR/SSM/
 # CloudWatch managed policies below; assumed via GitHub OIDC, no static keys.
 # If a deploy needs an action not covered, add it to czid_ci_cd — never reattach
-# PowerUserAccess. Verify against a real CI run / tofu plan before merge (Bucket B).
+# PowerUserAccess. Verify against a real CI run / terraform plan before merge (Bucket B).
 
 resource "aws_iam_role_policy_attachment" "czid_ga_ci_cd" {
   role       = module.czid_web_private_gh_actions_executor.role.name
