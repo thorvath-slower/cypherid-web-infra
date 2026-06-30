@@ -359,7 +359,7 @@ resource "aws_route53_record" "www" {
 resource "aws_ecr_repository" "web-repository" {
   name                 = "idseq-web"
   image_tag_mutability = "MUTABLE"
-  force_delete         = true
+  force_delete         = contains(["dev", "sandbox"], var.env)
 
   image_scanning_configuration {
     scan_on_push = true
