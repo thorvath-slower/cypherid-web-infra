@@ -201,3 +201,79 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "aegea-ecs-execute
     bucket_key_enabled = true
   }
 }
+
+# --- S3 server access logging (CZID-343) ---
+data "aws_caller_identity" "current" {}
+
+resource "aws_s3_bucket" "access_logs" {
+  #checkov:skip=CKV_AWS_145:S3 access-log delivery is unsupported with the aws/s3 managed KMS key; AES256 is the supported at-rest option for log destinations
+  #checkov:skip=CKV_AWS_18:a log-destination bucket does not log to itself (would recurse)
+  #checkov:skip=CKV_AWS_144:cross-region replication is not warranted for short-lived access logs
+  #checkov:skip=CKV2_AWS_62:no event-notification consumer for access logs
+  bucket = "ecs-s3-access-logs-${var.env}-${data.aws_caller_identity.current.account_id}"
+  tags   = { terraform = true }
+}
+
+resource "aws_s3_bucket_public_access_block" "access_logs" {
+  bucket                  = aws_s3_bucket.access_logs.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  rule {
+    id     = "expire-access-logs"
+    status = "Enabled"
+    filter {}
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+    expiration {
+      days = 90
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "S3ServerAccessLogsPolicy"
+      Effect    = "Allow"
+      Principal = { Service = "logging.s3.amazonaws.com" }
+      Action    = "s3:PutObject"
+      Resource  = "${aws_s3_bucket.access_logs.arn}/*"
+      Condition = {
+        ArnLike      = { "aws:SourceArn" = [aws_s3_bucket.aegea-ecs-execute.arn] }
+        StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+      }
+    }]
+  })
+}
+
+resource "aws_s3_bucket_logging" "aegea-ecs-execute" {
+  bucket        = aws_s3_bucket.aegea-ecs-execute.id
+  target_bucket = aws_s3_bucket.access_logs.id
+  target_prefix = "aegea-ecs-execute/"
+}
