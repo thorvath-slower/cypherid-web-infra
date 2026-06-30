@@ -141,7 +141,7 @@ resource "aws_cloudfront_distribution" "czid_distribution" {
   viewer_certificate {
     acm_certificate_arn      = module.czid-assets-cert.arn
     ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.1_2016"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   restrictions {
