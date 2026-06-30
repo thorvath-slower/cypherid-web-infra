@@ -46,10 +46,11 @@ resource "aws_cloudfront_distribution" "distribution" {
   # By default, forward without caching requests to Rails web server. In future,
   # we may want to cache some of these, and forward others to an s3 bucket.
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = local.origin_domain
-    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = local.origin_domain
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = module.security_headers.policy_id
 
     default_ttl = 0
     max_ttl     = 0
@@ -65,11 +66,12 @@ resource "aws_cloudfront_distribution" "distribution" {
 
   # Forward and cache assets requests to Rails web server.
   ordered_cache_behavior {
-    path_pattern           = "/assets/*"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = local.origin_domain
-    viewer_protocol_policy = "redirect-to-https"
+    path_pattern               = "/assets/*"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = local.origin_domain
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = module.security_headers.policy_id
     # Time-to-live is set to 1 year. Rails puts a hash in the filename of
     # static assets, so changes to assets will result in new files, which
     # clients will then download from the origin.

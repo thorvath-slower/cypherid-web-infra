@@ -377,14 +377,15 @@ resource "aws_cloudfront_distribution" "redirect_distribution" {
       "GET",
       "HEAD",
     ]
-    compress               = false
-    default_ttl            = 86400
-    max_ttl                = 31536000
-    min_ttl                = 0
-    smooth_streaming       = false
-    target_origin_id       = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
-    trusted_signers        = []
-    viewer_protocol_policy = "allow-all"
+    compress                   = false
+    default_ttl                = 86400
+    max_ttl                    = 31536000
+    min_ttl                    = 0
+    smooth_streaming           = false
+    target_origin_id           = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
+    trusted_signers            = []
+    viewer_protocol_policy     = "allow-all"
+    response_headers_policy_id = module.security_headers.policy_id
 
     forwarded_values {
       headers                 = []
