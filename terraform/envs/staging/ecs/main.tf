@@ -137,3 +137,18 @@ module "web-params" {
     S3_AEGEA_ECS_EXECUTE_BUCKET = local.s3_bucket_aegea_ecs_execute
   }
 }
+
+resource "aws_s3_bucket_versioning" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "aegea-ecs-execute" {
+  bucket                  = aws_s3_bucket.aegea-ecs-execute.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
