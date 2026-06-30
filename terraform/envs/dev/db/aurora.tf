@@ -7,6 +7,11 @@
 # dev/staging are LIVE with data: a tofu plan MUST show no destructive changes before apply.
 locals {
   db_subnet_group_name = var.manage_db_subnet_group ? aws_db_subnet_group.db[0].name : "${var.project}-${var.env}"
+
+  # CZID-351 (DATA-2): the customer-managed RDS key ARN when managed (greenfield), else null so the
+  # cluster / PI / backup fall back to the AWS-managed key with NO change on live envs. Storage
+  # encryption key is immutable, hence the greenfield gate (var.manage_db_kms_cmk).
+  db_kms_key_arn = var.manage_db_kms_cmk ? aws_kms_key.rds[0].arn : null
 }
 
 resource "aws_rds_cluster" "db" {
@@ -18,6 +23,7 @@ resource "aws_rds_cluster" "db" {
   vpc_security_group_ids              = [aws_security_group.rds.id]
   db_subnet_group_name                = local.db_subnet_group_name
   storage_encrypted                   = true
+  kms_key_id                          = local.db_kms_key_arn # CZID-351: CMK on greenfield, AWS-managed (null) on live
   iam_database_authentication_enabled = true
   engine                              = "aurora-mysql"
   deletion_protection                 = !contains(["dev", "sandbox"], var.env)
@@ -25,22 +31,31 @@ resource "aws_rds_cluster" "db" {
   backup_retention_period             = 7
   skip_final_snapshot                 = true
 
+  # CZID-351 (DATA-2, CKV_AWS_324/325): ship cluster logs to CloudWatch + capture the audit log.
+  # NOT "general" — that logs every statement (PII); audit/error/slowquery only.
+  enabled_cloudwatch_logs_exports = ["audit", "error", "slowquery"]
+
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db_8.id
 
   final_snapshot_identifier = "${var.project}-${var.env}-final"
 }
 
 resource "aws_rds_cluster_instance" "db" {
-  count                      = 1
-  identifier                 = "${var.project}-${var.env}-${count.index}"
-  cluster_identifier         = aws_rds_cluster.db.id
-  instance_class             = var.db_instance_class
-  db_subnet_group_name       = local.db_subnet_group_name
-  db_parameter_group_name    = aws_db_parameter_group.db_8.name
-  monitoring_interval        = 0
-  auto_minor_version_upgrade = true
-  ca_cert_identifier         = "rds-ca-ecc384-g1"
-  engine                     = aws_rds_cluster.db.engine
+  count                   = 1
+  identifier              = "${var.project}-${var.env}-${count.index}"
+  cluster_identifier      = aws_rds_cluster.db.id
+  instance_class          = var.db_instance_class
+  db_subnet_group_name    = local.db_subnet_group_name
+  db_parameter_group_name = aws_db_parameter_group.db_8.name
+  # CZID-351 (DATA-2, CKV_AWS_118): enhanced monitoring at 60s via the monitoring role.
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_enhanced_monitoring.arn
+  # CZID-351 (DATA-2, CKV_AWS_353/354): Performance Insights, encrypted with the CMK where managed.
+  performance_insights_enabled    = true
+  performance_insights_kms_key_id = local.db_kms_key_arn
+  auto_minor_version_upgrade      = true
+  ca_cert_identifier              = "rds-ca-ecc384-g1"
+  engine                          = aws_rds_cluster.db.engine
 
   tags = {
     terraform = true
@@ -66,6 +81,21 @@ resource "aws_rds_cluster_parameter_group" "db_8" {
     apply_method = "pending-reboot"
     name         = "binlog_format"
     value        = "ROW"
+  }
+
+  # CZID-351 (DATA-2, CKV_AWS_325): enable the MariaDB Audit plugin so the cluster produces the
+  # audit log that enabled_cloudwatch_logs_exports ships. Scope events to connections + privilege/
+  # schema changes (CONNECT/QUERY_DCL/QUERY_DDL) — NOT full QUERY, to avoid logging data/PII.
+  parameter {
+    apply_method = "pending-reboot"
+    name         = "server_audit_logging"
+    value        = "1"
+  }
+
+  parameter {
+    apply_method = "pending-reboot"
+    name         = "server_audit_events"
+    value        = "CONNECT,QUERY_DCL,QUERY_DDL"
   }
 
   tags = {
