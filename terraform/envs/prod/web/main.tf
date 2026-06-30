@@ -491,3 +491,10 @@ resource "aws_ecr_lifecycle_policy" "idseq-web" {
     ]
   })
 }
+
+resource "aws_s3_bucket_versioning" "redirect_bucket" {
+  bucket = aws_s3_bucket.redirect_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
