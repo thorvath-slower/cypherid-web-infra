@@ -2,7 +2,7 @@ name: security
 
 # Calls the shared reusable security workflow — the SSOT in thorvath-slower/ci-workflows (CZID-310).
 # One definition for all repos; this repo keeps only its own .trivyignore baseline (CZID-264).
-# No `prepare`: web-infra is native OpenTofu (no codegen), so the scanners see complete config from checkout.
+# No `prepare`: web-infra is native Terraform (no codegen), so the scanners see complete config from checkout.
 on:
   push:
   pull_request:
