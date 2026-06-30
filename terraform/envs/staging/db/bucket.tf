@@ -6,7 +6,7 @@ resource "aws_s3_bucket" "samples" {
   bucket              = var.s3_bucket_samples
   acl                 = "private"
   acceleration_status = "Enabled"
-  force_destroy       = true
+  force_destroy       = contains(["dev", "sandbox"], var.env)
 
   versioning {
     enabled = false
@@ -150,7 +150,7 @@ resource "aws_s3_bucket" "samples_v1" {
   bucket              = var.s3_bucket_samples_v1
   acl                 = "private"
   acceleration_status = "Enabled"
-  force_destroy       = true
+  force_destroy       = contains(["dev", "sandbox"], var.env)
 
   versioning {
     enabled = true
@@ -220,4 +220,27 @@ resource "aws_s3_bucket" "samples_v1" {
     allowed_methods = ["GET"]
     allowed_origins = ["https://clades.nextstrain.org", "https://v2.clades.nextstrain.org"]
   }
+}
+
+resource "aws_s3_bucket_versioning" "samples" {
+  bucket = aws_s3_bucket.samples.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "samples" {
+  bucket                  = aws_s3_bucket.samples.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_public_access_block" "samples_v1" {
+  bucket                  = aws_s3_bucket.samples_v1.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }

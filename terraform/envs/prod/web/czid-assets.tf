@@ -28,6 +28,13 @@ resource "aws_cloudfront_distribution" "czid-assets-distribution" {
   enabled = true
   comment = "Caches Rails web server static assets in Amazon's edge servers"
 
+  # CZID-354: access logging to the shared log bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_logs.bucket_domain_name
+    prefix          = "czid-assets/"
+    include_cookies = false
+  }
+
   aliases = [local.czid_full_domain]
 
   # Rails web server
@@ -39,7 +46,7 @@ resource "aws_cloudfront_distribution" "czid-assets-distribution" {
       http_port              = "80"
       https_port             = "443"
       origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.1"]
+      origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
 
@@ -95,7 +102,7 @@ resource "aws_cloudfront_distribution" "czid-assets-distribution" {
   viewer_certificate {
     acm_certificate_arn      = module.czid-assets-cert.arn
     ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.1_2016"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   restrictions {

@@ -368,6 +368,13 @@ resource "aws_cloudfront_distribution" "redirect_distribution" {
   retain_on_delete    = false
   wait_for_deployment = true
 
+  # CZID-354: access logging to the shared log bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_logs.bucket_domain_name
+    prefix          = "redirect/"
+    include_cookies = false
+  }
+
   default_cache_behavior {
     allowed_methods = [
       "GET",
@@ -427,7 +434,7 @@ resource "aws_cloudfront_distribution" "redirect_distribution" {
   viewer_certificate {
     acm_certificate_arn            = module.prod_east.arn
     cloudfront_default_certificate = false
-    minimum_protocol_version       = "TLSv1.1_2016"
+    minimum_protocol_version       = "TLSv1.2_2021"
     ssl_support_method             = "sni-only"
   }
 }
@@ -491,4 +498,11 @@ resource "aws_ecr_lifecycle_policy" "idseq-web" {
       }
     ]
   })
+}
+
+resource "aws_s3_bucket_versioning" "redirect_bucket" {
+  bucket = aws_s3_bucket.redirect_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
 }

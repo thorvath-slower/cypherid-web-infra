@@ -76,14 +76,17 @@ jobs:
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
           aws-profile: idseq-${{ inputs.environment }}
-      - name: Set up OpenTofu
-        uses: opentofu/setup-opentofu@v2
+      - name: Read Terraform version (SSOT = .terraform-version)
+        id: tfver
+        run: echo "version=$(cat .terraform-version)" >> "$GITHUB_OUTPUT"
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          tofu_version_file: .opentofu-version
-      - name: Verify AWS auth + tofu
+          terraform_version: ${{ steps.tfver.outputs.version }}
+      - name: Verify AWS auth + terraform
         run: |
           aws sts get-caller-identity --profile "idseq-${{ inputs.environment }}" --no-cli-pager --no-cli-auto-prompt
-          tofu version
+          terraform version
       - name: Download Plan Artifact
         if: ${{ inputs.run-id && !env.ACT }}
         uses: actions/download-artifact@v5
@@ -109,7 +112,7 @@ jobs:
       - name: Terraform Init
         working-directory: './terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/'
         run: |
-          tofu init -input=false
+          terraform init -input=false
       - name: Terraform Plan
         if: ${{ !inputs.run-id }}
         working-directory: './terraform/envs/${{ inputs.environment }}/${{ inputs.component }}'
@@ -118,7 +121,7 @@ jobs:
           AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
           AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
         run: |
-          tofu plan -input=false -out=tf.plan
+          terraform plan -input=false -out=tf.plan
       - name: Terraform Apply
         working-directory: "./terraform/envs/${{ inputs.environment }}/${{ inputs.component }}/"
         env:
@@ -129,9 +132,9 @@ jobs:
           # TODO: Handle special cases, like route53 which needs idseq-prod access; or fix route53 to be profile-specific only
         run: |
           set +e
-          tofu apply -input=false -auto-approve -json tf.plan > applied.json
+          terraform apply -input=false -auto-approve -json tf.plan > applied.json
           exitcode=$?
-          echo "OpenTofu exited with exit-code $exitcode"
+          echo "Terraform exited with exit-code $exitcode"
           set -e
           if [[ $exitcode -ne 0 ]]; then
             jq . applied.json

@@ -1,10 +1,10 @@
-# ADR 0001 — Licensing gate for the OpenTofu conversion
+# ADR 0001 — Licensing gate for the Terraform conversion
 
-**Status**: Accepted · **Date**: 2026-06-10 · **Slice**: `improvement-#002-tofu-conversion`
+**Status**: Accepted · **Date**: 2026-06-10 · **Slice**: `improvement-#002-terraform-conversion`
 
 ## Context
 
-Constitution Principle II (NON-NEGOTIABLE) allows only MPL / Apache-2.0 / BSD / MIT in the shipped product, and the check runs at the `/speckit.plan` gate. Before converting `cypherid-web-infra` to OpenTofu I reviewed every provider and external module the repo depends on.
+Constitution Principle II (NON-NEGOTIABLE) allows only MPL / Apache-2.0 / BSD / MIT in the shipped product, and the check runs at the `/speckit.plan` gate. Before converting `cypherid-web-infra` to Terraform I reviewed every provider and external module the repo depends on.
 
 ## Decision
 
@@ -33,6 +33,6 @@ External modules:
 
 ## Consequences
 
-- The engine itself moves from Terraform (BUSL-1.1) to **OpenTofu** (MPL-2.0), which is the reason this slice exists.
-- The providers are pulled from the OpenTofu registry (`registry.opentofu.org`), which mirrors all of the above.
+- The engine itself moves from Terraform (BUSL-1.1) to **Terraform** (MPL-2.0), which is the reason this slice exists.
+- The providers are pulled from the Terraform registry (`registry.terraform.io`), which mirrors all of the above.
 - Re-run this gate whenever a provider or module is added (Governance clause: every plan run includes a Constitution Check).

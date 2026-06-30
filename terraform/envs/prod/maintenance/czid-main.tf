@@ -141,7 +141,7 @@ resource "aws_cloudfront_distribution" "czid_distribution" {
   viewer_certificate {
     acm_certificate_arn      = module.czid-assets-cert.arn
     ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.1_2016"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   restrictions {
@@ -168,5 +168,12 @@ resource "aws_route53_record" "czid-assets" {
     name                   = aws_cloudfront_distribution.czid_distribution.domain_name
     zone_id                = aws_cloudfront_distribution.czid_distribution.hosted_zone_id
     evaluate_target_health = true
+  }
+}
+
+resource "aws_s3_bucket_versioning" "maintenance_bucket" {
+  bucket = aws_s3_bucket.maintenance_bucket.id
+  versioning_configuration {
+    status = "Enabled"
   }
 }

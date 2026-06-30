@@ -6,7 +6,7 @@ name: validate-stack
 # are meant to mirror each other: if a stack fails to validate in dev, the same
 # definition would fail in staging and prod, so we skip them rather than burn
 # runners. An env whose path is empty (the stack doesn't exist in that env, or it
-# is excluded by .github/tofu-ci-skip.txt) is skipped WITHOUT blocking the envs
+# is excluded by .github/terraform-ci-skip.txt) is skipped WITHOUT blocking the envs
 # behind it, so partial mirrors (e.g. staging+prod-only stacks) still chain.
 #
 # Each call is one matrix leg of tofu_ci.yml's validate-stacks job, so buckets
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/tofu-validate
+      - uses: ./.github/actions/terraform-validate
         with:
           stack: ${{ inputs.dev }}
 
@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/tofu-validate
+      - uses: ./.github/actions/terraform-validate
         with:
           stack: ${{ inputs.staging }}
 
@@ -63,6 +63,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/tofu-validate
+      - uses: ./.github/actions/terraform-validate
         with:
           stack: ${{ inputs.prod }}

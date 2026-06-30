@@ -32,67 +32,6 @@ resource "kubernetes_deployment_v1" "fivetran_ssh" {
           "kubernetes.io/arch" = "amd64"
         }
 
-        # workflows db
-        container {
-          name  = "${local.name}-workflows"
-          image = "732052188396.dkr.ecr.us-west-2.amazonaws.com/czid-fivetran-ssh:latest"
-
-          port {
-            container_port = 80
-          }
-
-          # only difference between this container and the entities container is the high port
-          env {
-            name  = "SSH_HIGH_PORT"
-            value = "15433"
-          }
-
-          env {
-            name  = "RDS_PORT"
-            value = "5432"
-          }
-
-          env {
-            name  = "FIVETRAN_SSH_SERVER"
-            value = "34.48.124.245"
-          }
-
-          volume_mount {
-            name       = "fivetran-private-key"
-            mount_path = "/var/secrets"
-          }
-        }
-
-        # entities db
-        container {
-          name  = "${local.name}-entities"
-          image = "732052188396.dkr.ecr.us-west-2.amazonaws.com/czid-fivetran-ssh:latest"
-
-          port {
-            container_port = 80
-          }
-
-          env {
-            name  = "SSH_HIGH_PORT"
-            value = "15432"
-          }
-
-          env {
-            name  = "RDS_PORT"
-            value = "5432"
-          }
-
-          env {
-            name  = "FIVETRAN_SSH_SERVER"
-            value = "34.48.124.245"
-          }
-
-          volume_mount {
-            name       = "fivetran-private-key"
-            mount_path = "/var/secrets"
-          }
-        }
-
         # legacy db
         container {
           name  = "${local.name}-legacy"

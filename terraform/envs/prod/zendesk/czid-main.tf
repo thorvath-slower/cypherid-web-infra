@@ -102,7 +102,7 @@ resource "aws_cloudfront_distribution" "czid_help_s3_distribution" {
   viewer_certificate {
     acm_certificate_arn            = module.czid_help_cert.arn
     cloudfront_default_certificate = false
-    minimum_protocol_version       = "TLSv1.1_2016"
+    minimum_protocol_version       = "TLSv1.2_2021"
     ssl_support_method             = "sni-only"
   }
 }
@@ -113,4 +113,11 @@ resource "aws_route53_record" "czid_help_site" {
   type    = "CNAME"
   ttl     = "300"
   records = [aws_cloudfront_distribution.czid_help_s3_distribution.domain_name]
+}
+
+resource "aws_s3_bucket_versioning" "czid_help_redirect_bucket" {
+  bucket = aws_s3_bucket.czid_help_redirect_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
 }

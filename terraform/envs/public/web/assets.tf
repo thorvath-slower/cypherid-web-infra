@@ -112,3 +112,10 @@ resource "aws_route53_record" "ipv4" {
     evaluate_target_health = false
   }
 }
+
+resource "aws_s3_bucket_versioning" "redirect_bucket" {
+  bucket = aws_s3_bucket.redirect_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}

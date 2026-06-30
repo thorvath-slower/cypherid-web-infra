@@ -102,7 +102,7 @@ resource "aws_cloudfront_distribution" "help_s3_distribution" {
   viewer_certificate {
     acm_certificate_arn            = module.help_cert.arn
     cloudfront_default_certificate = false
-    minimum_protocol_version       = "TLSv1.1_2016"
+    minimum_protocol_version       = "TLSv1.2_2021"
     ssl_support_method             = "sni-only"
   }
 }
@@ -155,3 +155,10 @@ resource "aws_route53_record" "zendesk_verification" {
   records = ["33670b975db85bad"]
 }
 
+
+resource "aws_s3_bucket_versioning" "help_redirect_bucket" {
+  bucket = aws_s3_bucket.help_redirect_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}

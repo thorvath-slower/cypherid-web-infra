@@ -20,7 +20,7 @@ actually manages.
 ## What still needs to happen
 1. **Replace, don't just remove.** Define a customer-managed IAM policy granting the
    *minimum* actions/resources the deploy role needs (derive it from a real
-   `tofu plan`/`apply` of each component — e.g. the specific S3/EKS/IAM/RDS/ECR
+   `terraform plan`/`apply` of each component — e.g. the specific S3/EKS/IAM/RDS/ECR
    actions on the `cz-id`/`idseq-${env}-*` resources), and attach **that** instead of
    any managed `*FullAccess`/`PowerUserAccess`.
 2. **Split read vs write (CICD-1).** A read-only **plan** role (`Describe*/Get*/List*`
@@ -37,6 +37,6 @@ actually manages.
 - No `PowerUserAccess` (or any `*FullAccess`) attached to any CI/deploy role.
 - Plan and apply use distinct roles; PR plans can't assume the apply role.
 - OIDC trust policy denies `pull_request` subjects.
-- `tofu plan` for every component still succeeds under the scoped policy.
+- `terraform plan` for every component still succeeds under the scoped policy.
 
 See `TODO.md` for the one-line tracking entry.
