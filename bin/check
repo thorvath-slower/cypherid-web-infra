@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run cypherid-web-infra's CI checks locally — mirrors tofu_ci / validate-stack (make fmt-check + validate)
 # + security.yml (the shared reusable). A green `make check` here predicts a green CI (local == CI, CZID-311).
-# Tools that aren't installed skip-with-a-note. Full set: brew install opentofu trivy tflint gitleaks.
+# Tools that aren't installed skip-with-a-note. Full set: brew install terraform trivy tflint gitleaks.
 #
 # trivy runs VULN-ONLY here, matching CI: its full-tree terraform misconfig resolution hangs on this repo's
 # large multi-env module graph; IaC misconfig is covered by tflint + checkov instead.
@@ -12,11 +12,11 @@ have() { command -v "$1" >/dev/null 2>&1; }
 hdr()  { printf '\n\033[1m== %s ==\033[0m\n' "$1"; }
 IGN=(); [ -f .trivyignore ] && IGN=(--ignorefile .trivyignore)
 
-hdr "tofu fmt + validate (every stack)"
-if have tofu; then
+hdr "terraform fmt + validate (every stack)"
+if have terraform; then
   make fmt-check >/dev/null 2>&1 && echo "  ✓ fmt" || { echo "  ✗ fmt — run: make fmt"; fail=1; }
   if make validate >/dev/null 2>&1; then echo "  ✓ validate"; else echo "  ✗ validate failed — run: make validate"; fail=1; fi
-else echo "  ⚠ tofu not installed (brew install opentofu)"; skipped=1; fi
+else echo "  ⚠ terraform not installed (brew install terraform)"; skipped=1; fi
 
 hdr "security scanners (skipped if not installed — CI runs them)"
 if have gitleaks; then gitleaks git . --redact --no-banner --exit-code 1 && echo "  ✓ gitleaks" || { echo "  ✗ gitleaks: secret found"; fail=1; }
