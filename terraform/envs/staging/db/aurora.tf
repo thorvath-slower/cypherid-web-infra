@@ -4,7 +4,7 @@
 #   - var.manage_db_subnet_group : false on LIVE envs (dev/staging) -> reference the existing
 #                                  subnet group (plan no-op, no cluster replacement);
 #                                  true on greenfield envs (prod) -> create it fresh.
-# dev/staging are LIVE with data: a tofu plan MUST show no destructive changes before apply.
+# dev/staging are LIVE with data: a terraform plan MUST show no destructive changes before apply.
 locals {
   db_subnet_group_name = var.manage_db_subnet_group ? aws_db_subnet_group.db[0].name : "${var.project}-${var.env}"
 

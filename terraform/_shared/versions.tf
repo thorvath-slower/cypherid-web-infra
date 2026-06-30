@@ -28,7 +28,7 @@
 # "terraform providers" PR, once CZID-212 enables the app). The vendored modules
 # under terraform/modules/ that carry these niche providers are human-maintained
 # frozen snapshots — Renovate cannot update a local-path module source. See
-# docs/OPENTOFU.md "Vendored modules" for the re-vendor procedure.
+# docs/TERRAFORM.md "Vendored modules" for the re-vendor procedure.
 # =============================================================================
 terraform {
   required_version = ">= 1.10" # >= 1.10 for native S3 state locking (use_lockfile)

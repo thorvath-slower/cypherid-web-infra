@@ -9,7 +9,7 @@ name: validate-stack
 # is excluded by .github/terraform-ci-skip.txt) is skipped WITHOUT blocking the envs
 # behind it, so partial mirrors (e.g. staging+prod-only stacks) still chain.
 #
-# Each call is one matrix leg of tofu_ci.yml's validate-stacks job, so buckets
+# Each call is one matrix leg of terraform_ci.yml's validate-stacks job, so buckets
 # run concurrently with each other while each bucket chains internally.
 
 on:
