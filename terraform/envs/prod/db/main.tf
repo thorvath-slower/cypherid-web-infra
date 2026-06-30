@@ -5,6 +5,7 @@ resource "aws_security_group" "rds" {
   vpc_id = data.terraform_remote_state.cloud-env.outputs.vpc_id
 
   ingress {
+    description = "MySQL (3306) from within the VPC"
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"

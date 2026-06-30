@@ -15,11 +15,13 @@ locals {
 
 # The security group is used by the taxon-indexing-lambda in the idseq codebase
 resource "aws_security_group" "glue_sec_group" {
-  name   = "${var.project}_${var.env}_glue_sec_group"
-  vpc_id = data.terraform_remote_state.cloud-env.outputs.vpc_id
+  description = "Heatmap-optimization (Glue/OpenSearch) ingest security group"
+  name        = "${var.project}_${var.env}_glue_sec_group"
+  vpc_id      = data.terraform_remote_state.cloud-env.outputs.vpc_id
 }
 
 resource "aws_security_group_rule" "sec_group_allow_tcp" {
+  description              = "Intra-SG TCP (self-referencing) for Glue jobs"
   type                     = "ingress"
   from_port                = 0
   to_port                  = 65535
@@ -29,6 +31,7 @@ resource "aws_security_group_rule" "sec_group_allow_tcp" {
 }
 
 resource "aws_security_group_rule" "sec_group_outbound_tcp" {
+  description       = "Outbound TCP for package/data fetch"
   type              = "egress"
   from_port         = 0
   to_port           = 65535
@@ -38,6 +41,7 @@ resource "aws_security_group_rule" "sec_group_outbound_tcp" {
 }
 
 resource "aws_security_group_rule" "sec_group_outbound_czid" {
+  description              = "Intra-SG egress (self-referencing)"
   type                     = "egress"
   from_port                = 0
   to_port                  = 65535
