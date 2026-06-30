@@ -1,0 +1,20 @@
+# gitleaks config for cypherid-web-infra.
+# Extends the default ruleset and allowlists VERIFIED FALSE POSITIVES of the `hashicorp-tf-password`
+# rule in the Auth0 terraform (CZID-310, verified 2026-06-26). The flagged lines contain no credentials:
+#   - the OAuth grant-type identifiers "password" / "password-realm" in a (commented) grant_types array
+#   - the Auth0 `password_policy` enum (e.g. "good"/"excellent")
+# The allowlist matches on the LINE content of those specific patterns, so a real
+# `password = "<value>"` assignment is NOT covered and still hard-fails the gate.
+title = "cypherid-web-infra gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Verified false positives (CZID-310): Auth0 grant-type names + password_policy enum — not secrets."
+regexTarget = "line"
+regexes = [
+  '''password_policy\s*=''',
+  '''grant-type/password-realm''',
+  '''"password",\s*"refresh_token"''',
+]
