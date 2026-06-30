@@ -226,3 +226,13 @@ resource "aws_s3_bucket_public_access_block" "aegea-ecs-execute" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
