@@ -1,0 +1,22 @@
+# Trivy triaged-exceptions baseline for cypherid-web-infra (CZID-264).
+# Policy: ACCEPT the inherited HIGH/CRITICAL backlog, hard-fail on NEW only. Do NOT remediate here —
+# logged to backlog #294 for fix-forward.
+#
+# Note: trivy runs vuln-only here (see security.yml) — IaC misconfig is covered by tflint + checkov.
+
+# --- inherited python-dep CVEs in terraform/modules/idseq-s3-tar-writer/requirements.txt ---
+# FIXABLE by bumping that module's deps (PyYAML, urllib3, etc.); tracked in backlog #294.
+CVE-2019-20477
+CVE-2020-1747
+CVE-2020-7212
+CVE-2020-13757
+CVE-2020-14343
+CVE-2020-25658
+CVE-2021-33503
+CVE-2023-43804
+CVE-2023-52323
+CVE-2025-66418
+CVE-2025-66471
+CVE-2026-21441
+CVE-2026-30922
+CVE-2026-44431
