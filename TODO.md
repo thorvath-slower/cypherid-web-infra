@@ -23,7 +23,7 @@ half-baked items. Forward-looking companion to the program-level
 - [ ] [CICD-1] (P0) OIDC trust-policy scoping + split plan/apply roles — paired with IAM-1 above.
 - [ ] [CICD-5] (P3) Remove the `Print GitHub context` debug step (`plan_all.yml`).
 - [ ] [CICD-6] (P2) Replace hardcoded account/role ARNs (`941377154785`) with `vars.*`.
-- [x] [improvement-#002] Converted off fogg/Terraform-Cloud to OpenTofu; added `tofu_ci.yml`. *(done)*
+- [x] [improvement-#002] Converted off fogg/Terraform-Cloud to Terraform; added `tofu_ci.yml`. *(done)*
 - [x] [improvement-#009] Renovate config (terraform providers grouped, digests, actions). *(done)*
 
 ### Delivery pipeline follow-ups (from `improvement-#015`)
@@ -43,4 +43,4 @@ half-baked items. Forward-looking companion to the program-level
 - [ ] Broken components (prod/redis, prod/email, prod/maintenance, prod/zendesk, sandbox/db): original prod values not recoverable from the repos — recover or confirm-dead-and-remove (needs Tom). → `docs/KNOWN-ISSUES.md`.
 
 ## Done this session, awaiting merge/push (branches, nothing pushed)
-- `improvement-#002-tofu-conversion` (base) · `improvement-#009-renovate` · `improvement-#010-security-scanning` · `bug-#012-unproxied-dependencies` · `bug-#014-provider-resolution` · `feature-#002-blue-green-delivery`
+- `improvement-#002-terraform-conversion` (base) · `improvement-#009-renovate` · `improvement-#010-security-scanning` · `bug-#012-unproxied-dependencies` · `bug-#014-provider-resolution` · `feature-#002-blue-green-delivery`

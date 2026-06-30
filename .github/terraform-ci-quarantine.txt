@@ -1,6 +1,6 @@
-# Stacks QUARANTINED from tofu-ci because they have known, pre-existing defects
+# Stacks QUARANTINED from terraform-ci because they have known, pre-existing defects
 # that are tracked separately and are NOT in scope for the current PR. This is
-# distinct from .github/tofu-ci-skip.txt (which is specifically the inaccessible
+# distinct from .github/terraform-ci-skip.txt (which is specifically the inaccessible
 # chanzuckerberg/shared-infra dependency, CZID-90). Quarantined stacks are
 # dropped from every bucket and the run prints a notice listing them.
 #

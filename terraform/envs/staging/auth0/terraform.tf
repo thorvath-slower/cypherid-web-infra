@@ -86,7 +86,7 @@ provider "auth0" {
 }
 terraform {
   backend "s3" {
-    use_lockfile = true # bug-#006: native state locking (OpenTofu >= 1.10), portable (no DynamoDB)
+    use_lockfile = true # bug-#006: native state locking (Terraform >= 1.10), portable (no DynamoDB)
 
     bucket = "tfstate-030998640247"
 

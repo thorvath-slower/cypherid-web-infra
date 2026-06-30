@@ -1,4 +1,4 @@
-# Stacks excluded from tofu-ci validation. Tracked in Linear CZID-90.
+# Stacks excluded from terraform-ci validation. Tracked in Linear CZID-90.
 # Parser does exact-match on each non-# line — keep BARE paths (no inline comments).
 #
 # RESOLVED 2026-06-18 (CZID-90 — shared-infra vendored in-tree, repointed to local

@@ -19,7 +19,7 @@ template itself lives in the seqtoid-web chart.
 ## Prerequisite (IaC, not GitOps — a follow-up item)
 The controller needs an **IRSA IAM role** with the AWS Load Balancer Controller
 policy. That role (and the ACM certs + public subnet tags
-`kubernetes.io/role/elb`) are Terraform/OpenTofu work in the infra repos, not part
+`kubernetes.io/role/elb`) are Terraform/Terraform work in the infra repos, not part
 of this GitOps slice. Tracked as a follow-up; the placeholders mark where they plug in.
 
 ## Verification (local)

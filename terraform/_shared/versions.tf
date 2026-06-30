@@ -1,5 +1,5 @@
 # =============================================================================
-# CZ ID stack — canonical OpenTofu version + provider constraints.
+# CZ ID stack — canonical Terraform version + provider constraints.
 #
 # THE single source of truth. This file is symlinked into every root stack as
 # `versions.tf`. Bump a version here ONCE and every stack moves together — no
@@ -11,7 +11,7 @@
 # re-downloaded per stack. Reproducibility > a slightly longer first init.
 #
 # Licensing gate (Principle II): all providers below are MPL-2.0 except
-# bwoznicki/assert (MIT). No BUSL/SSPL. See specs/002-tofu-conversion/decisions.
+# bwoznicki/assert (MIT). No BUSL/SSPL. See specs/002-terraform-conversion/decisions.
 #
 # Deliberately NOT listed here: niche, module-local providers — currently
 # hashicorp/template and hashicorp/cloudinit, declared only in the vendored
@@ -19,7 +19,7 @@
 # into this shared list:
 #   - template has no darwin_arm64 build (CZID-130). This file is symlinked into
 #     EVERY stack, so listing template here would force every stack to resolve it
-#     and break local `tofu init` on Apple Silicon repo-wide — instead of only the
+#     and break local `terraform init` on Apple Silicon repo-wide — instead of only the
 #     two stacks (prod/ecs, prod/web) that actually use it. Module-local
 #     declaration confines that breakage to its real consumers.
 #   - template is also deprecated/archived (only 2.2.0 exists) — nothing to bump.

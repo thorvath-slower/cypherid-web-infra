@@ -12,10 +12,10 @@ Overhaul the CZ ID stack into a **portable, sellable, privacy-first platform** t
 No AWS-proprietary service or single-cloud assumption may be a hard dependency of the shipped product. Anything that can't run in the self-hosted k3s appliance — air-gapped — does not belong in the portable path. Managed cloud services are an *option*, never a requirement.
 
 ### II. Open & Redistributable Licensing (NON-NEGOTIABLE)
-Only licenses that permit embedding and redistribution in a sold product (MPL, Apache-2.0, BSD, MIT) ship in the product. No BUSL/SSPL-encumbered components (hence OpenTofu over Terraform, OpenBao over Vault). Licensing is checked at the `/speckit.plan` gate.
+Only licenses that permit embedding and redistribution in a sold product (MPL, Apache-2.0, BSD, MIT) ship in the product. No BUSL/SSPL-encumbered components (hence Terraform over Terraform, OpenBao over Vault). Licensing is checked at the `/speckit.plan` gate.
 
 ### III. One Source of Truth → Profiles
-A single Helm chart + value profiles + OpenTofu modules produces every edition and deployment model (cloud/appliance; MSP/binary/multi-tenant) by configuration. **No codebase forks.** New capability must be expressible as a profile/toggle, not a branch of the product.
+A single Helm chart + value profiles + Terraform modules produces every edition and deployment model (cloud/appliance; MSP/binary/multi-tenant) by configuration. **No codebase forks.** New capability must be expressible as a profile/toggle, not a branch of the product.
 
 ### IV. Instrument Once, Observe Everywhere
 All telemetry is **OpenTelemetry**; the OpenTelemetry Collector is the only thing that changes to redirect it. Observability (metrics, logs, traces, SLOs) ships in every profile — full in cloud, lite in the appliance — and can be pointed at a customer's own backend without code changes.
@@ -34,7 +34,7 @@ The overhaul preserves application behavior. The only deliberate behavioral chan
 
 ## Technology Constraints
 
-Locked stack (decisions, not options): **Kubernetes + Helm · OpenTofu · OpenBao · Argo CD + Argo Rollouts · PostgreSQL** (CloudNativePG in the appliance) **· Auth0 behind a generalized OIDC boundary** (customer-OIDC option; bundled-Keycloak edition) **· GitHub + GitHub Actions** (CI) **· Artifactory + Packer · OpenTelemetry + Prometheus/Loki/Tempo/Grafana**. Two editions (cloud EKS / k3s appliance) from one chart.
+Locked stack (decisions, not options): **Kubernetes + Helm · Terraform · OpenBao · Argo CD + Argo Rollouts · PostgreSQL** (CloudNativePG in the appliance) **· Auth0 behind a generalized OIDC boundary** (customer-OIDC option; bundled-Keycloak edition) **· GitHub + GitHub Actions** (CI) **· Artifactory + Packer · OpenTelemetry + Prometheus/Loki/Tempo/Grafana**. Two editions (cloud EKS / k3s appliance) from one chart.
 
 ## Development Workflow
 

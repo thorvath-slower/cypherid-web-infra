@@ -29,7 +29,7 @@ provider "aws" {
 provider "assert" {}
 terraform {
   backend "s3" {
-    use_lockfile = true # bug-#006: native state locking (OpenTofu >= 1.10), portable (no DynamoDB)
+    use_lockfile = true # bug-#006: native state locking (Terraform >= 1.10), portable (no DynamoDB)
 
     bucket         = "idseq-dev-s3-tf-state-dev-dev-idseq-infra-nonprod-state"
     dynamodb_table = "idseq-dev-s3-tf-state-dev-dev-idseq-infra-nonprod-state-lock"
