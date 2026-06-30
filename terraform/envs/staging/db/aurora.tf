@@ -9,6 +9,9 @@ resource "aws_rds_cluster" "db" {
   storage_encrypted                   = true
   iam_database_authentication_enabled = true
   engine                              = "aurora-mysql"
+  deletion_protection                 = !contains(["dev", "sandbox"], var.env)
+  copy_tags_to_snapshot               = true
+  backup_retention_period             = 7
   # skip_final_snapshot                 = true
 
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db_8.id
@@ -17,16 +20,16 @@ resource "aws_rds_cluster" "db" {
 }
 
 resource "aws_rds_cluster_instance" "db" {
-  count                   = 1
-  identifier              = "${var.project}-${var.env}-${count.index}"
-  cluster_identifier      = aws_rds_cluster.db.id
-  instance_class          = "db.r6i.xlarge"
-  db_subnet_group_name    = "${var.project}-${var.env}"
-  db_parameter_group_name = aws_db_parameter_group.db_8.name
-  monitoring_interval     = 0
-  ca_cert_identifier      = "rds-ca-ecc384-g1"
-  engine                  = aws_rds_cluster.db.engine
-  # publicly_accessible     = true # Enables a public DNS name and IP
+  count                      = 1
+  identifier                 = "${var.project}-${var.env}-${count.index}"
+  cluster_identifier         = aws_rds_cluster.db.id
+  instance_class             = "db.r6i.xlarge"
+  db_subnet_group_name       = "${var.project}-${var.env}"
+  db_parameter_group_name    = aws_db_parameter_group.db_8.name
+  monitoring_interval        = 0
+  auto_minor_version_upgrade = true
+  ca_cert_identifier         = "rds-ca-ecc384-g1"
+  engine                     = aws_rds_cluster.db.engine
 
   tags = {
     terraform = true
@@ -65,7 +68,7 @@ resource "aws_db_parameter_group" "db_8" {
 
   parameter {
     name  = "general_log"
-    value = "1"
+    value = "0"
   }
 
   parameter {
@@ -75,7 +78,7 @@ resource "aws_db_parameter_group" "db_8" {
 
   parameter {
     name  = "long_query_time"
-    value = "0"
+    value = "2"
   }
 
   parameter {
