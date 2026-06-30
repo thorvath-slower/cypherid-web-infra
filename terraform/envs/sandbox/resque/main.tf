@@ -1,5 +1,5 @@
 module "resque" {
-  source        = "github.com/chanzuckerberg/cztack//aws-ecs-job?ref=v0.41.0"
+  source        = "github.com/thorvath-slower/cztack//aws-ecs-job?ref=ad3cae93e104cf399f5c24ffd4f1096143202907" # cztack v0.41.0
   desired_count = 2
   env           = var.env
   service       = "resque"
@@ -12,7 +12,7 @@ module "resque" {
 }
 
 module "resque-scheduler" {
-  source        = "github.com/chanzuckerberg/cztack//aws-ecs-job?ref=v0.41.0"
+  source        = "github.com/thorvath-slower/cztack//aws-ecs-job?ref=ad3cae93e104cf399f5c24ffd4f1096143202907" # cztack v0.41.0
   desired_count = 1
   env           = var.env
   service       = "resque-scheduler"
