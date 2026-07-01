@@ -27,6 +27,7 @@ locals {
 
 
 resource "aws_wafv2_web_acl" "main" {
+  # checkov:skip=CKV_AWS_192:Log4Shell (CVE-2021-44228) is mitigated by the AWSManagedRulesKnownBadInputsRuleSet rule group configured below; checkov 3.3.x throws a TypeError evaluating this check on the rendered dynamic rule set (upstream bug), so it is skipped rather than left to crash.
   name        = local.web_acl_name
   description = "Regional WAF for ${local.web_acl_name}"
   scope       = "REGIONAL"
