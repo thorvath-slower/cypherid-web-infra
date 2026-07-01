@@ -3,6 +3,11 @@ resource "aws_s3_bucket" "samples" {
   acl                 = "private"
   acceleration_status = "Enabled"
 
+  # DATA-1 (#31): prod carries real sample data — never let terraform destroy/replace this bucket.
+  lifecycle {
+    prevent_destroy = true
+  }
+
   versioning {
     enabled = true
   }
@@ -157,6 +162,11 @@ resource "aws_s3_bucket" "samples_v1" {
   bucket              = var.s3_bucket_samples_v1
   acl                 = "private"
   acceleration_status = "Enabled"
+
+  # DATA-1 (#31): prod carries real sample data — never let terraform destroy/replace this bucket.
+  lifecycle {
+    prevent_destroy = true
+  }
 
   versioning {
     enabled = true
