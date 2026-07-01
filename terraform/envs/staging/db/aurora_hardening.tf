@@ -6,11 +6,39 @@
 # --- Customer-managed KMS key for RDS storage + Performance Insights (CKV_AWS_327/354) ----------
 # Created ONLY where var.manage_db_kms_cmk = true (greenfield, e.g. prod). On live envs it is absent
 # and local.db_kms_key_arn is null → the cluster keeps the AWS-managed key (no replacement).
+#
+# CZID-419 (CKV2_AWS_64): declare an explicit key policy. Grants the account root full admin — the
+# AWS-recommended baseline that prevents key lockout and lets IAM policies + the grants RDS/Backup
+# create govern actual use. This is equivalent to the implicit default policy, but declared so it is
+# auditable (checkov requires an explicit policy).
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "rds_kms" {
+  # This is a KMS *key* policy, not an IAM identity policy. The single root-admin statement is AWS's
+  # mandatory anti-lockout pattern (kms:* on the key). The following IAM-identity-policy checks are
+  # false positives here: a key policy's resource is implicitly the key itself, and root admin must
+  # be unconstrained or the key becomes unmanageable.
+  # checkov:skip=CKV_AWS_109:root-admin on a KMS key policy is required to keep the key manageable
+  # checkov:skip=CKV_AWS_111:root-admin on a KMS key policy is intentionally unconstrained (anti-lockout)
+  # checkov:skip=CKV_AWS_356:a KMS key policy scopes to its own key; "*" is the only valid resource here
+  statement {
+    sid       = "EnableRootAccountAdmin"
+    effect    = "Allow"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+}
+
 resource "aws_kms_key" "rds" {
   count                   = var.manage_db_kms_cmk ? 1 : 0
   description             = "seqtoid RDS data tier (${var.env})"
   enable_key_rotation     = true
   deletion_window_in_days = 30
+  policy                  = data.aws_iam_policy_document.rds_kms.json
 
   tags = {
     terraform = true
