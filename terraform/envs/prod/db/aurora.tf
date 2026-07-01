@@ -1,3 +1,10 @@
+# DATA-2 / #419: the customer-managed RDS key ARN when managed (greenfield), else null so the
+# cluster / PI / backup fall back to the AWS-managed key with NO change on this live env. Mirrors
+# dev/staging; declared here because aurora_hardening.tf references local.db_kms_key_arn.
+locals {
+  db_kms_key_arn = var.manage_db_kms_cmk ? aws_kms_key.rds[0].arn : null
+}
+
 resource "aws_rds_cluster" "db" {
   cluster_identifier                  = "${var.project}-${var.env}"
   database_name                       = "${var.project}_${var.env}"
