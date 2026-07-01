@@ -12,9 +12,33 @@ module "czid_web_private_gh_actions_executor" {
     name = "czid-${var.env}-gh-actions-executor"
   }
   authorized_github_repos = {
-    chanzuckerberg : ["czid-web-private", "idseq"]
+    # chanzuckerberg : ["czid-web-private", "idseq"]
+    "IT-Academic-Research-Services" : [
+      "cypherid-web-infra",
+      "cypherid-workflow-infra",
+      "seqtoid-graphql-federation-server",
+      "seqtoid-web",
+      "seqtoid-workflows"
+    ]
   }
 }
+
+data "tls_certificate" "github" {
+  url = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
+}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  thumbprint_list = [data.tls_certificate.github.certificates[0].sha1_fingerprint]
+  client_id_list  = ["sts.amazonaws.com"]
+}
+
+# bug-#007: removed the AWS-managed PowerUserAccess attachment (near-superuser
+# on the CI/CD deploy role) per Constitution Principle VII (least privilege).
+# The role keeps the scoped czid_ci_cd policy plus the specific read/ECR/SSM/
+# CloudWatch managed policies below; assumed via GitHub OIDC, no static keys.
+# If a deploy needs an action not covered, add it to czid_ci_cd — never reattach
+# PowerUserAccess. Verify against a real CI run / terraform plan before merge (Bucket B).
 
 resource "aws_iam_role_policy_attachment" "czid_ga_ci_cd" {
   role       = module.czid_web_private_gh_actions_executor.role.name
@@ -49,6 +73,11 @@ resource "aws_iam_role_policy_attachment" "czid_ci_cd_cloudwatch" {
 resource "aws_iam_role_policy_attachment" "czid_ci_cd_ecr" {
   role       = module.czid_web_private_gh_actions_executor.role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}
+
+resource "aws_iam_role_policy_attachment" "czid_ci_cd_tagging" {
+  role       = module.czid_web_private_gh_actions_executor.role.name
+  policy_arn = "arn:aws:iam::aws:policy/ResourceGroupsTaggingAPITagUntagSupportedResources"
 }
 
 resource "aws_iam_policy" "czid_ci_cd" {
@@ -117,7 +146,8 @@ data "aws_iam_policy_document" "ci_cd_policy_document" {
     actions = ["secretsmanager:*"]
 
     resources = [
-    "arn:aws:secretsmanager:*:${local.account_id}:secret:idseq/*"]
+      "arn:aws:secretsmanager:*:${local.account_id}:secret:idseq/*"
+    ]
   }
   statement {
     actions = [
