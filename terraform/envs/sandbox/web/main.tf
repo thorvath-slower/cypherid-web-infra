@@ -278,7 +278,7 @@ module "web-service-params" {
     ALIGNMENT_CONFIG_DEFAULT_NAME = var.alignment_index_date
     # ES_ADDRESS                    = "https://${data.terraform_remote_state.heatmap-optimization.outputs.elastic_search_endpoint}"
     CLOUDFRONT_ENDPOINT      = "assets.${var.env}.seqtoid.org"
-    CZID_CLOUDFRONT_ENDPOINT = local.czid_assets_fqdn
+    CZID_CLOUDFRONT_ENDPOINT = "assets.${var.env}.seqtoid.org"
     S3_DATABASE_BUCKET       = var.s3_bucket_public_references
     CLI_UPLOAD_ROLE_ARN      = aws_iam_role.idseq-upload.arn
   }
