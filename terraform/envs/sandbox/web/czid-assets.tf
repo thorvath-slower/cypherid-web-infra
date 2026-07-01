@@ -1,3 +1,11 @@
+# PARKED (pre-existing WIP): this czid-branded assets domain (CloudFront + ACM + Route53)
+# was never finished. czid-main.tf already parks the matching web-service/cert/record, but
+# this file was left active while referencing the parked local.czid_domain and the
+# (undeclared) data.aws_route53_zone.czid_zone. Vendoring cztack locally made module
+# resolution work, which surfaced this pre-existing config-build break under tflint.
+# Parked here to match czid-main.tf; no infra is activated (sandbox is not deployed). The
+# one live consumer (web-service-params CZID_CLOUDFRONT_ENDPOINT) now uses the literal fqdn.
+/*
 locals {
   # czid_subdomain     = "assets"
   # czid_domain        = "${var.env}.seqtoid.org"
@@ -124,3 +132,4 @@ resource "aws_route53_record" "czid-assets" {
     evaluate_target_health = true
   }
 }
+*/

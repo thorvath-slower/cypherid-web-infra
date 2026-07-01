@@ -2080,6 +2080,99 @@
             ]
         },
         {
+            "file": "/terraform/modules/aws-acm-certificate-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.happy.module.cert.aws_acm_certificate.cert",
+                    "check_ids": [
+                        "CKV2_AWS_71"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-aurora-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.happy.module.dbs.module.aurora.aws_rds_cluster.db",
+                    "check_ids": [
+                        "CKV2_AWS_8",
+                        "CKV_AWS_162",
+                        "CKV_AWS_313",
+                        "CKV_AWS_327"
+                    ]
+                },
+                {
+                    "resource": "module.happy.module.dbs.module.aurora.aws_rds_cluster_instance.db[0]",
+                    "check_ids": [
+                        "CKV_AWS_118",
+                        "CKV_AWS_226",
+                        "CKV_AWS_353"
+                    ]
+                },
+                {
+                    "resource": "module.happy.module.dbs.module.aurora.aws_security_group.rds",
+                    "check_ids": [
+                        "CKV_AWS_23"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-cloudwatch-log-group-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.ecs-cluster.module.logs.aws_cloudwatch_log_group.group",
+                    "check_ids": [
+                        "CKV_AWS_158"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-cloudwatch-log-group-v0.41.0/main.tf",
+            "findings": [
+                {
+                    "resource": "aws_cloudwatch_log_group.group",
+                    "check_ids": [
+                        "CKV_AWS_158"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-cloudwatch-log-group-v0.43.1/main.tf",
+            "findings": [
+                {
+                    "resource": "module.ecs-cluster.module.logs.aws_cloudwatch_log_group.group",
+                    "check_ids": [
+                        "CKV_AWS_158"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-ecr-repo-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.happy.module.ecrs.aws_ecr_repository.repo",
+                    "check_ids": [
+                        "CKV_AWS_136",
+                        "CKV_AWS_163",
+                        "CKV_AWS_51"
+                    ]
+                },
+                {
+                    "resource": "module.idseq-s3-tar-writer.module.aws-ecr-repo.aws_ecr_repository.repo",
+                    "check_ids": [
+                        "CKV_AWS_136",
+                        "CKV_AWS_163",
+                        "CKV_AWS_51"
+                    ]
+                }
+            ]
+        },
+        {
             "file": "/terraform/modules/aws-elasticsearch-v0.199.1/main.tf",
             "findings": [
                 {
@@ -2137,6 +2230,173 @@
                     "resource": "module.aws-env.vpc",
                     "check_ids": [
                         "CKV_TF_1"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-iam-password-policy-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.aws-iam-password-policy.aws_iam_account_password_policy.strict",
+                    "check_ids": [
+                        "CKV_AWS_9"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-iam-policy-cwlogs-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.ecs-cluster.module.attach-logs.aws_iam_policy_document.logs-policy",
+                    "check_ids": [
+                        "CKV_AWS_111",
+                        "CKV_AWS_356"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-iam-policy-cwlogs-v0.43.1/main.tf",
+            "findings": [
+                {
+                    "resource": "module.ecs-cluster.module.attach-logs.aws_iam_policy_document.logs-policy",
+                    "check_ids": [
+                        "CKV_AWS_111",
+                        "CKV_AWS_356"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-params-secrets-setup-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.aws-params-secrets-setup.aws_kms_key.parameter_store",
+                    "check_ids": [
+                        "CKV2_AWS_64"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-redis-replication-group-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.elasticache_secure.aws_elasticache_replication_group.default",
+                    "check_ids": [
+                        "CKV2_AWS_50",
+                        "CKV_AWS_191"
+                    ]
+                },
+                {
+                    "resource": "module.elasticache_secure.sg",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-redis-replication-group-v0.91.1/main.tf",
+            "findings": [
+                {
+                    "resource": "module.elasticache_secure.aws_elasticache_replication_group.default",
+                    "check_ids": [
+                        "CKV2_AWS_50",
+                        "CKV_AWS_191"
+                    ]
+                },
+                {
+                    "resource": "module.elasticache_secure.sg",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-s3-private-bucket-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.aws-elb-access-logs-bucket.module.aws-bucket.aws_kms_key.bucket_kms_key[0]",
+                    "check_ids": [
+                        "CKV2_AWS_64",
+                        "CKV_AWS_7"
+                    ]
+                },
+                {
+                    "resource": "module.aws-elb-access-logs-bucket.module.aws-bucket.aws_s3_bucket.bucket",
+                    "check_ids": [
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144",
+                        "CKV_AWS_145"
+                    ]
+                },
+                {
+                    "resource": "module.aws-s3-batch-taxon-indexing-private-bucket.aws_kms_key.bucket_kms_key[0]",
+                    "check_ids": [
+                        "CKV2_AWS_64",
+                        "CKV_AWS_7"
+                    ]
+                },
+                {
+                    "resource": "module.aws-s3-batch-taxon-indexing-private-bucket.aws_s3_bucket.bucket",
+                    "check_ids": [
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144",
+                        "CKV_AWS_145"
+                    ]
+                },
+                {
+                    "resource": "module.happy.module.s3_buckets.aws_kms_key.bucket_kms_key[0]",
+                    "check_ids": [
+                        "CKV2_AWS_64",
+                        "CKV_AWS_7"
+                    ]
+                },
+                {
+                    "resource": "module.happy.module.s3_buckets.aws_s3_bucket.bucket",
+                    "check_ids": [
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144",
+                        "CKV_AWS_145"
+                    ]
+                },
+                {
+                    "resource": "module.web-service-waf.module.logs_bucket.aws_kms_key.bucket_kms_key[0]",
+                    "check_ids": [
+                        "CKV2_AWS_64",
+                        "CKV_AWS_7"
+                    ]
+                },
+                {
+                    "resource": "module.web-service-waf.module.logs_bucket.aws_s3_bucket.bucket",
+                    "check_ids": [
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144",
+                        "CKV_AWS_145"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-s3-private-bucket-v0.73.0/main.tf",
+            "findings": [
+                {
+                    "resource": "aws_kms_key.bucket_kms_key[0]",
+                    "check_ids": [
+                        "CKV2_AWS_64",
+                        "CKV_AWS_7"
+                    ]
+                },
+                {
+                    "resource": "aws_s3_bucket.bucket",
+                    "check_ids": [
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144",
+                        "CKV_AWS_145"
                     ]
                 }
             ]
