@@ -201,3 +201,19 @@ resource "aws_s3_bucket_logging" "aegea-ecs-execute" {
   target_bucket = aws_s3_bucket.access_logs.id
   target_prefix = "aegea-ecs-execute/"
 }
+
+# OpenTelemetry (#426): publish the collector's OTLP endpoint into the idseq-<env>-web
+# chamber namespace that every service loads. prod/sandbox have no other web-params
+# writer yet (dev/staging also carry S3_AEGEA_ECS_EXECUTE_BUCKET — separate drift, #390);
+# this adds only the otel key.
+module "web-params" {
+  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
+  project = var.project
+  env     = var.env
+  service = "web"
+  owner   = var.owner
+
+  parameters = {
+    OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector.${var.env}.otel.internal:4318"
+  }
+}
