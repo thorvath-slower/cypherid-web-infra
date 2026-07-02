@@ -20,46 +20,6 @@ provider "aws" {
 
 
 provider "aws" {
-  alias   = "czi-si-us-east-1"
-  region  = "us-east-1"
-  profile = "idseq-prod"
-
-  # this is the new way of injecting AWS tags to all AWS resources
-  # var.tags should be considered deprecated
-  default_tags {
-    tags = {
-      project   = coalesce(var.tags.project, "unknown")
-      env       = coalesce(var.tags.env, "unknown")
-      service   = coalesce(var.tags.service, "unknown")
-      owner     = coalesce(var.tags.owner, "unknown")
-      managedBy = "terraform"
-    }
-  }
-  allowed_account_ids = ["283694049553"]
-}
-
-
-provider "aws" {
-  alias   = "czi-si"
-  region  = "us-west-2"
-  profile = "idseq-prod"
-
-  # this is the new way of injecting AWS tags to all AWS resources
-  # var.tags should be considered deprecated
-  default_tags {
-    tags = {
-      project   = coalesce(var.tags.project, "unknown")
-      env       = coalesce(var.tags.env, "unknown")
-      service   = coalesce(var.tags.service, "unknown")
-      owner     = coalesce(var.tags.owner, "unknown")
-      managedBy = "terraform"
-    }
-  }
-  allowed_account_ids = ["283694049553"]
-}
-
-
-provider "aws" {
   alias   = "us-east-1"
   region  = "us-east-1"
   profile = "idseq-staging"
