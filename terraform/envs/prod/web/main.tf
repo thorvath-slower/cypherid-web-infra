@@ -258,7 +258,7 @@ module "web-service-params" {
     ALIGNMENT_CONFIG_DEFAULT_NAME = var.alignment_index_date
     ES_ADDRESS                    = "https://${data.terraform_remote_state.heatmap-optimization.outputs.elastic_search_endpoint}"
     CLOUDFRONT_ENDPOINT           = local.full_domain
-    CZID_CLOUDFRONT_ENDPOINT      = local.czid_full_domain
+    CZID_CLOUDFRONT_ENDPOINT      = local.full_domain
     S3_DATABASE_BUCKET            = var.s3_bucket_public_references
     CLI_UPLOAD_ROLE_ARN           = aws_iam_role.idseq-upload.arn
   }
@@ -277,26 +277,6 @@ module "prod" {
   }
 
   tags = var.tags
-}
-
-module "prod_east" {
-  source = "../../../modules/aws-acm-certificate-v0.41.0" # cztack v0.41.0
-
-  cert_domain_name    = "idseq.net"
-  aws_route53_zone_id = local.zone_id
-
-  cert_subject_alternative_names = {
-    "www.idseq.net"            = local.zone_id
-    "www.${var.env}.idseq.net" = local.zone_id
-    "${var.env}.idseq.net"     = local.zone_id
-  }
-
-  tags = var.tags
-
-  # cloudfront requires us-east-1 acm certs
-  providers = {
-    aws = aws.us-east-1
-  }
 }
 
 module "web-service" {
@@ -338,128 +318,19 @@ resource "aws_route53_record" "www" {
   }
 }
 
-resource "aws_route53_record" "root" {
-  zone_id = local.zone_id
-  name    = "idseq.net"
-  type    = "A"
 
-  alias {
-    name                   = aws_cloudfront_distribution.redirect_distribution.domain_name
-    zone_id                = aws_cloudfront_distribution.redirect_distribution.hosted_zone_id
-    evaluate_target_health = false
-  }
-}
+resource "aws_ecr_repository" "web-repository" {
+  name                 = "idseq-web"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = contains(["dev", "sandbox"], var.env)
 
-resource "aws_s3_bucket" "redirect_bucket" {
-  bucket = "idseq.net"
-  acl    = "public-read"
-
-  website {
-    redirect_all_requests_to = "http://czid.org"
-  }
-}
-
-resource "aws_cloudfront_distribution" "redirect_distribution" {
-  aliases             = ["idseq.net", "prod.idseq.net", "www.prod.idseq.net"]
-  enabled             = true
-  http_version        = "http2"
-  is_ipv6_enabled     = true
-  price_class         = "PriceClass_All"
-  retain_on_delete    = false
-  wait_for_deployment = true
-
-  default_cache_behavior {
-    allowed_methods = [
-      "GET",
-      "HEAD",
-    ]
-    cached_methods = [
-      "GET",
-      "HEAD",
-    ]
-    compress                   = false
-    default_ttl                = 86400
-    max_ttl                    = 31536000
-    min_ttl                    = 0
-    smooth_streaming           = false
-    target_origin_id           = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
-    trusted_signers            = []
-    viewer_protocol_policy     = "allow-all"
-    response_headers_policy_id = module.security_headers.policy_id
-
-    forwarded_values {
-      headers                 = []
-      query_string            = false
-      query_string_cache_keys = []
-
-      cookies {
-        forward           = "none"
-        whitelisted_names = []
-      }
-    }
-  }
-
-  origin {
-    domain_name = aws_s3_bucket.redirect_bucket.website_endpoint
-    origin_id   = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
-
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_keepalive_timeout = 5
-      origin_protocol_policy   = "http-only"
-      origin_read_timeout      = 30
-      origin_ssl_protocols = [
-        "TLSv1",
-        "TLSv1.1",
-        "TLSv1.2",
-      ]
-    }
-  }
-
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-
-  viewer_certificate {
-    acm_certificate_arn            = module.prod_east.arn
-    cloudfront_default_certificate = false
-    minimum_protocol_version       = "TLSv1.2_2021"
-    ssl_support_method             = "sni-only"
-  }
-}
-
-resource "aws_route53_record" "redirect-prod" {
-  zone_id         = local.zone_id
-  name            = "prod.idseq.net."
-  type            = "A"
-  allow_overwrite = true
-  depends_on      = [module.web-service]
-
-  alias {
-    name                   = aws_cloudfront_distribution.redirect_distribution.domain_name
-    zone_id                = aws_cloudfront_distribution.redirect_distribution.hosted_zone_id
-    evaluate_target_health = true
-  }
-}
-
-resource "aws_route53_record" "redirect-www-prod" {
-  zone_id = local.zone_id
-  name    = "www.prod.idseq.net."
-  type    = "A"
-
-  alias {
-    name                   = aws_cloudfront_distribution.redirect_distribution.domain_name
-    zone_id                = aws_cloudfront_distribution.redirect_distribution.hosted_zone_id
-    evaluate_target_health = true
+  image_scanning_configuration {
+    scan_on_push = true
   }
 }
 
 resource "aws_ecr_lifecycle_policy" "idseq-web" {
-  repository = "idseq-web"
+  repository = aws_ecr_repository.web-repository.name
 
   policy = jsonencode({
     rules = [
@@ -493,9 +364,3 @@ resource "aws_ecr_lifecycle_policy" "idseq-web" {
   })
 }
 
-resource "aws_s3_bucket_versioning" "redirect_bucket" {
-  bucket = aws_s3_bucket.redirect_bucket.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
