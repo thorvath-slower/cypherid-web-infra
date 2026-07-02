@@ -23,6 +23,14 @@ on:
         required: true
       AUTH0_DOMAIN:
         required: true
+      # Only used by the `if: env.ACT` local-run step (nektos act); real CI uses OIDC.
+      # Declared here (optional) so the references resolve for the workflow linter.
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      AWS_SESSION_TOKEN:
+        required: false
     outputs:
       result-artifact-id:
         description: The Artifact ID of the Result JSON
