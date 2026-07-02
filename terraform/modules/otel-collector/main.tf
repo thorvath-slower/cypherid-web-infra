@@ -5,6 +5,7 @@
 # in the collector config alone. See #426 / OPENTEL-DESIGN.
 
 data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
 
 locals {
   name              = "${var.project}-${var.env}-otel-collector"
@@ -60,10 +61,55 @@ locals {
   })
 }
 
-# --- log group for the collector's own container logs ---------------------------------
+# --- one CMK encrypting both the collector log group (CKV_AWS_158) and the SSM config
+#     param (CKV2_AWS_34/CKV_AWS_337). The log group may carry app OTLP logs, so on this
+#     HIPAA-adjacent platform telemetry at rest is customer-managed-key encrypted. --------
+data "aws_iam_policy_document" "otel_kms" {
+  # A KMS key policy's resource is implicitly the key it is attached to — there is no ARN
+  # to scope to, and the root `kms:*` statement is the standard AWS lockout-prevention
+  # grant that delegates key administration to account IAM. These wildcard checks are
+  # false positives for a *key* policy (they target identity/resource policies).
+  #checkov:skip=CKV_AWS_111:key policy resource is implicitly the key itself; cannot scope
+  #checkov:skip=CKV_AWS_356:key policy resource is implicitly the key itself; cannot scope
+  #checkov:skip=CKV_AWS_109:root kms:* is the required lockout-prevention grant for a CMK
+  statement {
+    sid       = "RootAdmin"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+  statement {
+    sid       = "CloudWatchLogs"
+    actions   = ["kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
+    resources = ["*"]
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${data.aws_region.current.name}.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnLike"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:${local.log_group_name}"]
+    }
+  }
+}
+
+resource "aws_kms_key" "otel" {
+  description             = "${local.name} encryption (log group + collector config)"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+  policy                  = data.aws_iam_policy_document.otel_kms.json
+  tags                    = var.tags
+}
+
+# --- log group for the collector's own container logs (+ exported OTLP logs) -----------
 resource "aws_cloudwatch_log_group" "collector" {
   name              = local.log_group_name
   retention_in_days = var.log_retention_days
+  kms_key_id        = aws_kms_key.otel.arn
   tags              = var.tags
 }
 
@@ -71,7 +117,8 @@ resource "aws_cloudwatch_log_group" "collector" {
 resource "aws_ssm_parameter" "config" {
   name        = "/${var.project}-${var.env}-otel/collector-config"
   description = "ADOT collector config for ${var.env} (rendered by terraform)."
-  type        = "String"
+  type        = "SecureString"
+  key_id      = aws_kms_key.otel.arn
   value       = local.collector_config
   tags        = var.tags
 }
@@ -103,6 +150,11 @@ data "aws_iam_policy_document" "execution_extra" {
     sid       = "ReadCollectorConfig"
     actions   = ["ssm:GetParameters", "ssm:GetParameter"]
     resources = [aws_ssm_parameter.config.arn]
+  }
+  statement {
+    sid       = "DecryptCollectorConfig"
+    actions   = ["kms:Decrypt"]
+    resources = [aws_kms_key.otel.arn]
   }
 }
 
