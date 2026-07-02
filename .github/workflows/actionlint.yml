@@ -19,9 +19,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: actionlint
         # Enforces workflow structure (bad uses:/needs:/outputs, input/secret
-        # typing). Image pinned by digest. shellcheck deferred (-shellcheck=);
-        # the run:-script quoting backlog is tracked separately, ratchet on later.
+        # typing) AND shellcheck on run: scripts. Image pinned by digest.
+        # shellcheck enabled — the run:-script quoting backlog (SC2086/SC2046)
+        # has been swept clean (#434), so the gate now ratchets shellcheck on.
+        # SC2129 (style-only "consider grouping redirects") is ignored: the
+        # plan_all/apply_all summary steps build GITHUB_STEP_SUMMARY markdown by
+        # design, interleaving many `>> "$GITHUB_STEP_SUMMARY"` writes with
+        # stdout-mirroring echoes + conditionals; grouping them would obscure
+        # that. All non-style shellcheck rules stay enforced.
         run: |
           docker run --rm -v "$PWD":/repo -w /repo \
             rhysd/actionlint@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9 \
-            -color -shellcheck=
+            -color -ignore 'SC2129:'

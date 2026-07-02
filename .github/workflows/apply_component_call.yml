@@ -168,7 +168,7 @@ jobs:
             --arg environment "${{ inputs.environment }}" \
             --arg component "${{ inputs.component }}" \
             --argjson change_count "$change_count" \
-            --argjson resources_changed $(<"${{ github.workspace }}/resources_changed.json") \
+            --argjson resources_changed "$(<"${{ github.workspace }}/resources_changed.json")" \
             '$ARGS.named' > "${{ github.workspace }}/result.json"
           jq . "${{ github.workspace }}/result.json"
       - name: Upload Result JSON as Artifact
