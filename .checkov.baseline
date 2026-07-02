@@ -2402,18 +2402,6 @@
             ]
         },
         {
-            "file": "/terraform/modules/czid-services-private-key/main.tf",
-            "findings": [
-                {
-                    "resource": "module.czid-services-private-key.aws_secretsmanager_secret.services_private_key_pem",
-                    "check_ids": [
-                        "CKV2_AWS_57",
-                        "CKV_AWS_149"
-                    ]
-                }
-            ]
-        },
-        {
             "file": "/terraform/modules/ecs-cluster-v2.2.1/main.tf",
             "findings": [
                 {
