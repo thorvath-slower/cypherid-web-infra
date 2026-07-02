@@ -93,10 +93,10 @@ jobs:
           echo "| ------------ | ----------- | ---------- | ------------------ | -------------------- |" >> "$GITHUB_STEP_SUMMARY"
           if [[ "$component_count" -gt 0 ]]; then
             echo "| :green_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run-id }} |"
-            echo "| :green_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run_id }} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| :green_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run-id }} |" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "| :yellow_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run-id }} |"
-            echo "| :yellow_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run_id }} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| :yellow_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run-id }} |" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
