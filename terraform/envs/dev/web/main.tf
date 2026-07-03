@@ -104,6 +104,7 @@ data "aws_iam_policy_document" "idseq-web" {
   statement {
     actions = [
       "s3:GetObject",
+      "s3:GetObjectTagging",
     ]
 
     resources = [
