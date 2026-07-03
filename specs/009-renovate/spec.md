@@ -15,7 +15,7 @@
   - **terraform providers** — provider/module bumps grouped into **one** PR instead of one per stack across the dozens of envs (the `terraform` manager reads `required_providers`: aws, auth0, helm, kubernetes, kubectl, okta, …).
   - **docker base images** — the two Dockerfiles (grafana, idseq-s3-tar-writer).
   - **pip deps** — `idseq-s3-tar-writer/requirements.txt`.
-  - **github actions** — `tofu_ci.yml` + `argocd-ci.yml` actions.
+  - **github actions** — `terraform_ci.yml` + `argocd-ci.yml` actions.
 - `vulnerabilityAlerts.enabled: true`.
 
 ## Validation

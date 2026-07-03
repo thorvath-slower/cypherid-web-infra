@@ -23,7 +23,7 @@ half-baked items. Forward-looking companion to the program-level
 - [ ] [CICD-1] (P0) OIDC trust-policy scoping + split plan/apply roles — paired with IAM-1 above.
 - [ ] [CICD-5] (P3) Remove the `Print GitHub context` debug step (`plan_all.yml`).
 - [ ] [CICD-6] (P2) Replace hardcoded account/role ARNs (`941377154785`) with `vars.*`.
-- [x] [improvement-#002] Converted off fogg/Terraform-Cloud to Terraform; added `tofu_ci.yml`. *(done)*
+- [x] [improvement-#002] Converted off fogg/Terraform-Cloud to Terraform; added `terraform_ci.yml`. *(done)*
 - [x] [improvement-#009] Renovate config (terraform providers grouped, digests, actions). *(done)*
 
 ### Delivery pipeline follow-ups (from `improvement-#015`)
