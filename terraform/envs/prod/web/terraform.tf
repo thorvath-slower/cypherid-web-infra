@@ -268,3 +268,13 @@ variable "aws_accounts" {
 
   }
 }
+
+# VERIFY (adversarial review, 2026-07-03): #59 flipped image_tag_mutability to IMMUTABLE
+# unconditionally, which breaks the `latest`-tag dual-push deploy (ImageTagAlreadyExistsException on
+# every deploy after the first — a hazard that was explicitly documented as held). Gate it: default
+# MUTABLE (restores the working deploy); flip to true per-env only after the deploy is moved to
+# immutable sha/SemVer tags with `latest` dropped.
+variable "ecr_immutable_tags" {
+  type    = bool
+  default = false
+}

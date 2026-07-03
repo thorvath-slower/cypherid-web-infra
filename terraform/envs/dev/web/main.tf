@@ -178,7 +178,7 @@ data "aws_iam_policy_document" "idseq-web" {
     ]
 
     resources = [
-      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:*",
+      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.env}/*",
     ]
   }
 }
@@ -358,10 +358,11 @@ resource "aws_route53_record" "www" {
 }
 
 resource "aws_ecr_repository" "web-repository" {
+  #checkov:skip=CKV_AWS_51:image tag immutability is intentionally gated behind var.ecr_immutable_tags (default MUTABLE) — flipping it unconditionally broke the latest-tag dual-push deploy (see #59/PR#110); re-enable once the deploy uses immutable sha/SemVer tags.
   name = "idseq-web"
   # CZID-59: IMMUTABLE tags (CKV_AWS_51). This is an in-place update on an existing
   # repo (PutImageTagMutability), NOT a replacement.
-  image_tag_mutability = "IMMUTABLE"
+  image_tag_mutability = var.ecr_immutable_tags ? "IMMUTABLE" : "MUTABLE"
   force_delete         = contains(["dev", "sandbox"], var.env)
 
   image_scanning_configuration {
