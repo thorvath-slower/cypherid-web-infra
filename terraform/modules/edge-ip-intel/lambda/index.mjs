@@ -68,6 +68,18 @@ export async function decideRequest(event, deps) {
     return decide(req, { decision: "deny", reason: "ambiguous_verdict", ip, viewerCountry, verdict });
   }
 
+  // 2b. Provider-resolved geo (CZID-290 defense-in-depth). The IP-intel provider resolves the
+  // connection's TRUE-origin country, which can differ from the CloudFront edge GeoIP (`viewerCountry`)
+  // when a request is relayed to spoof its origin. If the provider affirmatively places the origin in a
+  // blocked jurisdiction, DENY — even when the edge saw a clean country AND no anonymizer flag tripped.
+  // This closes the gap where a spoofed origin CloudFront-maps to a non-blocked country and rides through
+  // with riskScore < threshold. Only enforced when the provider actually resolved a country (well-formed
+  // verdicts may leave it ""); an empty country never allows on its own — the anonymizer/risk checks below
+  // still run.
+  if (verdict.country && isBlockedCountry(verdict.country)) {
+    return decide(req, { decision: "deny", reason: "provider_geo", ip, viewerCountry, verdict });
+  }
+
   const bad =
     verdict.blocked || verdict.vpn || verdict.proxy || verdict.tor ||
     verdict.hosting || verdict.residentialProxy || verdict.riskScore >= RISK_THRESHOLD;
