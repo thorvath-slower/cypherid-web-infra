@@ -37,10 +37,34 @@ test("normalize: VPN verdict → flagged (handler DENIES)", () => {
   assert.equal(v.vpn, true);
 });
 
-test("normalize: missing risk coerces to a finite 0 (still well-formed)", () => {
-  const v = normalize({ client: { types: [] } });
-  assert.ok(isWellFormedVerdict(v), "riskScore must be a finite number, not NaN/undefined");
-  assert.equal(v.riskScore, 0);
+// FAIL-CLOSED normalize() — a body we cannot affirmatively parse must THROW (→ handler DENIES), never
+// coerce missing fields into a clean, allow-reachable verdict (CZID-330). These are the adversarial
+// deny-path cases that the original "coerce to 0" behavior got wrong.
+test("normalize: missing risk score → THROWS (fail-closed, never a clean 0)", () => {
+  assert.throws(
+    () => normalize({ client: { types: [] } }),
+    /risk/,
+    "a missing/unrecognized risk signal must deny, not read as a clean riskScore 0",
+  );
+});
+
+test("normalize: empty body → THROWS (fail-closed)", () => {
+  assert.throws(() => normalize({}), /schema|types/, "a 200 with an empty body must deny, not allow");
+});
+
+test("normalize: error body → THROWS (fail-closed)", () => {
+  assert.throws(() => normalize({ error: "invalid ip" }), /schema|types/);
+});
+
+test("normalize: unrecognized schema (wrong field names) → THROWS (fail-closed)", () => {
+  // If the live Spur schema differs from the guessed field names, a real VPN user must NOT be allowed
+  // through as "clean" — the mismatch must deny until the schema is confirmed in the CZID-326 PoC.
+  assert.throws(() => normalize({ data: { anonymizer: { vpn: true }, score: 99 } }), /schema|types/);
+});
+
+test("normalize: non-object / null → THROWS (fail-closed)", () => {
+  assert.throws(() => normalize(null), /object|schema|types/);
+  assert.throws(() => normalize("garbage"), /object|schema|types/);
 });
 
 // --- TtlLru --------------------------------------------------------------------------------------------

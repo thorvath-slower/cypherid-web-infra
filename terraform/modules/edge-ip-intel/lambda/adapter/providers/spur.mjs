@@ -94,18 +94,34 @@ export async function classify(ip /*, ctx */) {
 
 // Map the Spur response onto the common contract. Field names are illustrative — confirm against the
 // live Spur schema during the CZID-326 PoC. Exported for the offline test suite.
+//
+// FAIL-CLOSED schema recognition (CZID-330): normalize() must NEVER manufacture a clean verdict from a
+// body it does not understand. An empty body, an error body, or a schema whose field names differ from
+// the live Spur schema would otherwise coerce every missing field to false/0 — a well-formed CLEAN
+// verdict that the handler's isWellFormedVerdict() guard passes → ALLOW. That is the exact allow-leak the
+// zero-tolerance mandate forbids (a real VPN user sails through if the guessed field names are wrong).
+// So: we return a verdict ONLY when we affirmatively parsed the provider's anonymizer signal (a `types`
+// array from a known location) AND a finite risk score. Anything else THROWS → the handler DENIES. Do NOT
+// reintroduce `|| !!j?.x` / `?? 0` fallbacks — they are the leak.
 export function normalize(j) {
-  const t = j?.client?.types || j?.types || [];
-  const has = (x) => Array.isArray(t) && t.includes(x);
+  if (!j || typeof j !== "object") throw new Error("spur: non-object response");
+  const t = j.client?.types ?? j.types;
+  if (!Array.isArray(t)) throw new Error("spur: unrecognized response schema (no types array)");
+  const rawRisk = j.risk ?? j.risk_score ?? j.client?.risk;
+  const riskScore = Number(rawRisk);
+  if (rawRisk === undefined || rawRisk === null || rawRisk === "" || !Number.isFinite(riskScore)) {
+    throw new Error("spur: missing/unparseable risk score");
+  }
+  const has = (x) => t.includes(x);
   return {
     blocked: false, // country-block decided by isBlockedCountry() / WAF; provider country below
-    vpn: has("VPN") || !!j?.vpn,
-    proxy: has("PROXY") || !!j?.proxy,
-    tor: has("TOR") || !!j?.tor,
+    vpn: has("VPN"),
+    proxy: has("PROXY"),
+    tor: has("TOR"),
     hosting: has("HOSTING") || has("DATACENTER"),
-    residentialProxy: has("RESIDENTIAL_PROXY") || !!j?.residential_proxy,
-    riskScore: Number(j?.risk ?? j?.risk_score ?? 0),
-    country: j?.location?.country || j?.country || "",
+    residentialProxy: has("RESIDENTIAL_PROXY"),
+    riskScore,
+    country: j.location?.country || j.country || "",
     source: "spur",
   };
 }
