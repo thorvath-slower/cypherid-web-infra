@@ -76,10 +76,14 @@ jobs:
     # and schema-validate the output, incl. the Argo Rollout/AnalysisTemplate CRDs.
     # Mirrors the Argo CD multi-source Application: chart from the app repo, values here.
     #
-    # Requires CHART_READ_TOKEN (read access to the private seqtoid-web fork; same
-    # class of secret as the GitOps token, #74/#444) and, until the chart lands on the
-    # app repo's default branch, CHART_REF pointed at the chart branch. Defaults target
-    # the fork's main.
+    # GATED ON `vars.CHART_CI_ENABLED == 'true'`: this job reads a DIFFERENT private repo
+    # (the seqtoid-web fork), which GITHUB_TOKEN cannot do, so it needs CHART_READ_TOKEN
+    # (read on the fork; same class of secret as the GitOps token, #74/#444). Until that
+    # secret is provisioned and the var is flipped on, the job is skipped (CI stays green)
+    # rather than failing on an impossible cross-repo checkout. Enable: set repo variable
+    # CHART_CI_ENABLED=true + secret CHART_READ_TOKEN. CHART_REF defaults to `integration`
+    # (where the chart lives); override via var to pin a tag/sha.
+    if: ${{ vars.CHART_CI_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout infra (env values)
@@ -89,7 +93,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: ${{ vars.CHART_REPO || 'thorvath-slower/seqtoid-web' }}
-          ref: ${{ vars.CHART_REF || 'main' }}
+          ref: ${{ vars.CHART_REF || 'integration' }}
           token: ${{ secrets.CHART_READ_TOKEN || secrets.GITHUB_TOKEN }}
           path: _chart-src
 
