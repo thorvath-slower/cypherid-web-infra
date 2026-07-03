@@ -184,21 +184,16 @@
                 {
                     "resource": "aws_s3_bucket.samples",
                     "check_ids": [
-                        "CKV2_AWS_6",
                         "CKV2_AWS_62",
                         "CKV_AWS_144",
-                        "CKV_AWS_145",
-                        "CKV_AWS_18",
-                        "CKV_AWS_21"
+                        "CKV_AWS_18"
                     ]
                 },
                 {
                     "resource": "aws_s3_bucket.samples_v1",
                     "check_ids": [
-                        "CKV2_AWS_6",
                         "CKV2_AWS_62",
                         "CKV_AWS_144",
-                        "CKV_AWS_145",
                         "CKV_AWS_18"
                     ]
                 }
@@ -610,20 +605,16 @@
                 {
                     "resource": "aws_s3_bucket.samples",
                     "check_ids": [
-                        "CKV2_AWS_6",
                         "CKV2_AWS_62",
                         "CKV_AWS_144",
-                        "CKV_AWS_145",
                         "CKV_AWS_18"
                     ]
                 },
                 {
                     "resource": "aws_s3_bucket.samples_v1",
                     "check_ids": [
-                        "CKV2_AWS_6",
                         "CKV2_AWS_62",
                         "CKV_AWS_144",
-                        "CKV_AWS_145",
                         "CKV_AWS_18"
                     ]
                 }
@@ -1265,21 +1256,16 @@
                 {
                     "resource": "aws_s3_bucket.samples",
                     "check_ids": [
-                        "CKV2_AWS_6",
                         "CKV2_AWS_62",
                         "CKV_AWS_144",
-                        "CKV_AWS_145",
-                        "CKV_AWS_18",
-                        "CKV_AWS_21"
+                        "CKV_AWS_18"
                     ]
                 },
                 {
                     "resource": "aws_s3_bucket.samples_v1",
                     "check_ids": [
-                        "CKV2_AWS_6",
                         "CKV2_AWS_62",
                         "CKV_AWS_144",
-                        "CKV_AWS_145",
                         "CKV_AWS_18"
                     ]
                 }
@@ -1612,21 +1598,16 @@
                 {
                     "resource": "aws_s3_bucket.samples",
                     "check_ids": [
-                        "CKV2_AWS_6",
                         "CKV2_AWS_62",
                         "CKV_AWS_144",
-                        "CKV_AWS_145",
-                        "CKV_AWS_18",
-                        "CKV_AWS_21"
+                        "CKV_AWS_18"
                     ]
                 },
                 {
                     "resource": "aws_s3_bucket.samples_v1",
                     "check_ids": [
-                        "CKV2_AWS_6",
                         "CKV2_AWS_62",
                         "CKV_AWS_144",
-                        "CKV_AWS_145",
                         "CKV_AWS_18"
                     ]
                 }
