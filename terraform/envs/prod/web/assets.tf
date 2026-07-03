@@ -32,6 +32,12 @@ resource "aws_cloudfront_distribution" "distribution" {
   enabled = true
   comment = "Caches Rails web server static assets in Amazon's edge servers"
 
+  # CZID-61 (#61): CloudFront standard access logging to a private S3 bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_access_logs.bucket_domain_name
+    include_cookies = false
+    prefix          = "assets/"
+  }
   # CZID-356 (#356): CLOUDFRONT-scoped WAF (CKV_AWS_68 / CKV2_AWS_47). ARN, per the WAFv2 contract.
   web_acl_id = module.cloudfront_waf.web_acl_id
 

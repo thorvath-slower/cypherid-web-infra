@@ -2326,6 +2326,27 @@
                         "CKV_AWS_144",
                         "CKV_AWS_145"
                     ]
+                },
+                {
+                    "resource": "module.cloudfront_access_logs.module.logs_bucket.aws_kms_key.bucket_kms_key[0]",
+                    "check_ids": [
+                        "CKV2_AWS_64",
+                        "CKV_AWS_7"
+                    ]
+                },
+                {
+                    "resource": "module.cloudfront_access_logs.module.logs_bucket.aws_s3_bucket.bucket",
+                    "check_ids": [
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144",
+                        "CKV_AWS_145"
+                    ]
+                },
+                {
+                    "resource": "module.cloudfront_access_logs.module.logs_bucket.aws_s3_bucket_ownership_controls.bucket[0]",
+                    "check_ids": [
+                        "CKV2_AWS_65"
+                    ]
                 }
             ]
         },
