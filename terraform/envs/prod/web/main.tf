@@ -238,7 +238,7 @@ resource "aws_iam_role_policy" "idseq-upload" {
 }
 
 module "parameters-policy" {
-  source = "../../../modules/aws-params-reader-policy-v0.41.0" # cztack v0.41.0
+  source = "../../../modules/aws-params-reader-policy-v0.104.2" # cztack v0.104.2
 
   project   = var.project
   env       = var.env
@@ -248,7 +248,7 @@ module "parameters-policy" {
 }
 
 module "web-service-params" {
-  source  = "../../../modules/aws-ssm-params-writer-v0.41.0" # cztack v0.41.0
+  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
   project = var.project
   env     = var.env
   service = var.component
@@ -271,7 +271,7 @@ module "web-service-params" {
 }
 
 module "prod" {
-  source = "../../../modules/aws-acm-certificate-v0.41.0" # cztack v0.41.0
+  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
 
   cert_domain_name    = local.env_fqdn
   aws_route53_zone_id = local.zone_id
