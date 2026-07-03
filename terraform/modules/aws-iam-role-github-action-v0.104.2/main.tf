@@ -40,6 +40,26 @@ data "aws_iam_policy_document" "assume_role" {
           statement.value,
         )
       }
+      # C1 (CZID-26 / CI-CD audit): exclude pull_request-triggered runs — a PR,
+      # especially from a fork, must never be able to assume the deploy role.
+      # Branch / tag / environment subjects still match the StringLike above; only
+      # the `:pull_request` subject is denied (StringNotLike is ANDed with the allow).
+      condition {
+        test     = "StringNotLike"
+        variable = "${local.idp}:sub"
+        values = formatlist(
+          "repo:%s/%s:pull_request",
+          statement.key,
+          statement.value,
+        )
+      }
+      # Defense-in-depth: require the AWS STS audience (also pinned on the OIDC
+      # provider's client_id_list).
+      condition {
+        test     = "StringEquals"
+        variable = "${local.idp}:aud"
+        values   = ["sts.amazonaws.com"]
+      }
     }
   }
 }
