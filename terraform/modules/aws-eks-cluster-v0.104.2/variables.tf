@@ -332,8 +332,18 @@ variable "endpoint_public_access" {
   default     = true
 }
 
+# CZID #55: never default to 0.0.0.0/0. The default is a non-routable RFC 5737
+# documentation placeholder so a consumer that forgets to pass a real allow-list
+# fails safe (locks itself out) rather than exposing the API server to the world.
+# In-VPC access is unaffected: cluster_endpoint_private_access is hardcoded true.
+# The full private flip (endpoint_public_access = false + SSM bastion) is #322.
 variable "endpoint_public_access_cidrs" {
   type        = list(string)
-  description = "CIDRs allowed to reach the public API endpoint (only applies when endpoint_public_access = true)."
-  default     = ["0.0.0.0/0"]
+  description = "Allow-list of CIDRs permitted to reach the public API endpoint (only applies when endpoint_public_access = true). MUST be a real office/VPN egress allow-list; never 0.0.0.0/0."
+  default     = ["192.0.2.0/24"] # RFC 5737 TEST-NET-1 placeholder — replace with the real allow-list.
+
+  validation {
+    condition     = !contains(var.endpoint_public_access_cidrs, "0.0.0.0/0")
+    error_message = "endpoint_public_access_cidrs must not contain 0.0.0.0/0 (CZID #55). Provide a scoped office/VPN allow-list, or use #322 to make the endpoint fully private."
+  }
 }

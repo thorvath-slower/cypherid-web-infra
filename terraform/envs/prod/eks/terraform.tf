@@ -117,6 +117,19 @@ variable "eks_cluster_name" {
   type    = string
   default = "czid-prod-eks"
 }
+# CZID #55: allow-list of CIDRs permitted to reach the EKS public API endpoint.
+# PLACEHOLDER default (RFC 5737 TEST-NET-1) — NOT a real allow-list and NEVER
+# 0.0.0.0/0. Ops/counsel MUST supply the real office/VPN egress CIDRs before this
+# is applied. Interim restriction only; the full private flip is #322.
+variable "eks_public_access_cidrs" {
+  type    = list(string)
+  default = ["192.0.2.0/24"]
+
+  validation {
+    condition     = !contains(var.eks_public_access_cidrs, "0.0.0.0/0")
+    error_message = "eks_public_access_cidrs must not contain 0.0.0.0/0 (CZID #55)."
+  }
+}
 # tflint-ignore: terraform_unused_declarations
 variable "s3_bucket_aegea_ecs_execute" {
   type    = string
