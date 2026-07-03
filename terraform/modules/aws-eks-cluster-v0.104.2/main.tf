@@ -324,9 +324,6 @@ resource "time_sleep" "fargate_ready" {
 
 resource "aws_iam_role" "ebs_csi" {
   name = "${local.name}-ebs-csi"
-  managed_policy_arns = [
-    "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-  ]
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -348,11 +345,15 @@ resource "aws_iam_role" "ebs_csi" {
   })
 }
 
+# managed_policy_arns on aws_iam_role is deprecated (AWS provider); attach the
+# managed policy via a dedicated aws_iam_role_policy_attachment instead (CZID-312 / #268).
+resource "aws_iam_role_policy_attachment" "ebs_csi" {
+  role       = aws_iam_role.ebs_csi.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
 resource "aws_iam_role" "vpc_cni" {
   name = "${local.name}-vpc-cni"
-  managed_policy_arns = [
-    "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
-  ]
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -371,6 +372,11 @@ resource "aws_iam_role" "vpc_cni" {
       }
     ]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "vpc_cni" {
+  role       = aws_iam_role.vpc_cni.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
 resource "aws_iam_role" "s3_csi" {
