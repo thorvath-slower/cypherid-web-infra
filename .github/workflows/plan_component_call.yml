@@ -19,6 +19,14 @@ on:
         required: true
       AUTH0_DOMAIN:
         required: true
+      # Only used by the `if: env.ACT` local-run step (nektos act); real CI uses OIDC.
+      # Declared here (optional) so the references resolve for the workflow linter.
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      AWS_SESSION_TOKEN:
+        required: false
     outputs:
       plan-artifact-id:
         description: The Artifact ID of the generated Terraform Plan
@@ -140,7 +148,7 @@ jobs:
             --arg artifact_name "plan-${{ inputs.component }}" \
             --arg artifact_id "${{ steps.upload-plan.outputs.artifact-id }}" \
             --argjson change_count "$change_count" \
-            --argjson resource_changes $(<"${{ github.workspace }}/resource_changes.json") \
+            --argjson resource_changes "$(<"${{ github.workspace }}/resource_changes.json")" \
             '$ARGS.named' > "${{ github.workspace }}/result.json"
           jq . "${{ github.workspace }}/result.json"
       - name: Upload Result JSON as Artifact

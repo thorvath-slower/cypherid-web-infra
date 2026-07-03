@@ -23,6 +23,14 @@ on:
         required: true
       AUTH0_DOMAIN:
         required: true
+      # Only used by the `if: env.ACT` local-run step (nektos act); real CI uses OIDC.
+      # Declared here (optional) so the references resolve for the workflow linter.
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      AWS_SESSION_TOKEN:
+        required: false
     outputs:
       result-artifact-id:
         description: The Artifact ID of the Result JSON
@@ -160,7 +168,7 @@ jobs:
             --arg environment "${{ inputs.environment }}" \
             --arg component "${{ inputs.component }}" \
             --argjson change_count "$change_count" \
-            --argjson resources_changed $(<"${{ github.workspace }}/resources_changed.json") \
+            --argjson resources_changed "$(<"${{ github.workspace }}/resources_changed.json")" \
             '$ARGS.named' > "${{ github.workspace }}/result.json"
           jq . "${{ github.workspace }}/result.json"
       - name: Upload Result JSON as Artifact
