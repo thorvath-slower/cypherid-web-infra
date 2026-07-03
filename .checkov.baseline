@@ -452,11 +452,11 @@
                     "resource": "aws_cloudfront_distribution.distribution",
                     "check_ids": [
                         "CKV2_AWS_32",
-                        "CKV2_AWS_47",
+                        "CKV_AWS_174",
                         "CKV_AWS_305",
                         "CKV_AWS_310",
                         "CKV_AWS_374",
-                        "CKV_AWS_68"
+                        "CKV_AWS_86"
                     ]
                 }
             ]
@@ -856,10 +856,10 @@
                     "resource": "aws_cloudfront_distribution.distribution",
                     "check_ids": [
                         "CKV2_AWS_32",
-                        "CKV2_AWS_47",
+                        "CKV_AWS_174",
                         "CKV_AWS_310",
                         "CKV_AWS_374",
-                        "CKV_AWS_68"
+                        "CKV_AWS_86"
                     ]
                 },
                 {
@@ -970,11 +970,11 @@
                     "resource": "aws_cloudfront_distribution.distribution",
                     "check_ids": [
                         "CKV2_AWS_32",
-                        "CKV2_AWS_47",
+                        "CKV_AWS_174",
                         "CKV_AWS_305",
                         "CKV_AWS_310",
                         "CKV_AWS_374",
-                        "CKV_AWS_68"
+                        "CKV_AWS_86"
                     ]
                 }
             ]
@@ -1413,10 +1413,10 @@
                     "resource": "aws_cloudfront_distribution.distribution",
                     "check_ids": [
                         "CKV2_AWS_32",
-                        "CKV2_AWS_47",
+                        "CKV_AWS_174",
                         "CKV_AWS_310",
                         "CKV_AWS_374",
-                        "CKV_AWS_68"
+                        "CKV_AWS_86"
                     ]
                 },
                 {
@@ -1803,10 +1803,10 @@
                     "resource": "aws_cloudfront_distribution.distribution",
                     "check_ids": [
                         "CKV2_AWS_32",
-                        "CKV2_AWS_47",
+                        "CKV_AWS_174",
                         "CKV_AWS_310",
                         "CKV_AWS_374",
-                        "CKV_AWS_68"
+                        "CKV_AWS_86"
                     ]
                 },
                 {
@@ -1912,11 +1912,11 @@
                     "resource": "aws_cloudfront_distribution.distribution",
                     "check_ids": [
                         "CKV2_AWS_32",
-                        "CKV2_AWS_47",
+                        "CKV_AWS_174",
                         "CKV_AWS_305",
                         "CKV_AWS_310",
                         "CKV_AWS_374",
-                        "CKV_AWS_68"
+                        "CKV_AWS_86"
                     ]
                 }
             ]
@@ -2911,6 +2911,17 @@
                     "resource": "module.export_control_monitoring.aws_sns_topic.alerts",
                     "check_ids": [
                         "CKV_AWS_26"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/cloudfront-web-acl/main.tf",
+            "findings": [
+                {
+                    "resource": "module.cloudfront_waf.aws_wafv2_web_acl.cloudfront",
+                    "check_ids": [
+                        "CKV2_AWS_31"
                     ]
                 }
             ]
