@@ -1,7 +1,8 @@
 locals {
   s3_bucket_aegea_ecs_execute = "aegea-ecs-execute-${var.env}-${var.aws_accounts.idseq-dev}"
-  # off_hour_utc = 3
-  # on_hour_utc  = 13
+  # Off-hours window (UTC) for scheduled scale-to-zero — see ecs_scale_to_zero.tf (CZID-292 / #248).
+  off_hour_utc = 3  # ~19:00 US-Pacific: scale cluster to 0
+  on_hour_utc  = 13 # ~05:00 US-Pacific: scale cluster back to baseline
 }
 
 module "ecs-cluster" {
