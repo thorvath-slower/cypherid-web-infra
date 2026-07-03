@@ -205,6 +205,17 @@ data "terraform_remote_state" "route53" {
 
   }
 }
+
+data "terraform_remote_state" "web" {
+  backend = "s3"
+  config = {
+    bucket  = "tfstate-283694049553"
+    key     = "terraform/idseq/envs/prod/components/web.tfstate"
+    region  = "us-west-2"
+    profile = "idseq-prod"
+  }
+}
+
 # tflint-ignore: terraform_unused_declarations
 variable "aws_accounts" {
   type = map(string)
