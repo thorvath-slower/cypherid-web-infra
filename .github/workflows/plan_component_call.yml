@@ -13,12 +13,16 @@ on:
         type: string
         required: true
     secrets:
+      # Consumed only by the auth0 component's terraform step (below). Declared
+      # optional so a plan of any other component isn't blocked when these aren't
+      # set — an empty env var is harmless to non-auth0 plans. Provide real values
+      # (repo/env secret) when planning the auth0 component itself.
       AUTH0_CLIENT_ID:
-        required: true
+        required: false
       AUTH0_CLIENT_SECRET:
-        required: true
+        required: false
       AUTH0_DOMAIN:
-        required: true
+        required: false
       # Only used by the `if: env.ACT` local-run step (nektos act); real CI uses OIDC.
       # Declared here (optional) so the references resolve for the workflow linter.
       AWS_ACCESS_KEY_ID:
@@ -65,7 +69,7 @@ jobs:
         if: ${{ !env.ACT }}
         uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/czid-${{ inputs.environment }}-gh-actions-executor
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/czid-${{ inputs.environment }}-gh-actions-plan
           #output-credentials: true
           output-env-credentials: true
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
@@ -75,7 +79,7 @@ jobs:
         if: ${{ env.ACT }}
         uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
-          role-to-assume: czid-${{ inputs.environment }}-gh-actions-executor
+          role-to-assume: czid-${{ inputs.environment }}-gh-actions-plan
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
@@ -109,7 +113,11 @@ jobs:
           terraform init -input=false
           echo "Plan will be created in: ${{ github.workspace }}/tf.plan"
           set +e
-          terraform plan -input=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
+          # -lock=false: the plan role (czid-<env>-gh-actions-plan) is strictly
+          # read-only by design and cannot write the S3 .tflock object. A plan
+          # never mutates state, so skipping the lock is safe and keeps the role
+          # incapable of any write (least-privilege). The apply role keeps locking.
+          terraform plan -input=false -lock=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
           exitcode=$?
           echo "Terraform exited with exit-code $exitcode"
           if [[ $exitcode -eq 1 ]]; then
