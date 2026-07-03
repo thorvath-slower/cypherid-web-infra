@@ -1,0 +1,11 @@
+module "idseq-s3-tar-writer" {
+  source              = "../../../modules/idseq-s3-tar-writer"
+  aws_account         = local.aws_account
+  aws_profile         = local.aws_profile
+  force_image_rebuild = local.force_image_rebuild
+  region              = local.region
+  tags                = local.tags
+
+
+
+}

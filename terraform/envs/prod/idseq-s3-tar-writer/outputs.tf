@@ -1,0 +1,21 @@
+output "repository_arn" {
+  value     = module.idseq-s3-tar-writer.repository_arn
+  sensitive = false
+}
+
+output "repository_name" {
+  value     = module.idseq-s3-tar-writer.repository_name
+  sensitive = false
+}
+
+output "repository_url" {
+  value     = module.idseq-s3-tar-writer.repository_url
+  sensitive = false
+}
+
+output "trigged_by" {
+  value     = module.idseq-s3-tar-writer.trigged_by
+  sensitive = false
+}
+
+
