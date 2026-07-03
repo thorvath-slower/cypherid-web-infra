@@ -13,12 +13,16 @@ on:
         type: string
         required: true
     secrets:
+      # Consumed only by the auth0 component's terraform step (below). Declared
+      # optional so a plan of any other component isn't blocked when these aren't
+      # set — an empty env var is harmless to non-auth0 plans. Provide real values
+      # (repo/env secret) when planning the auth0 component itself.
       AUTH0_CLIENT_ID:
-        required: true
+        required: false
       AUTH0_CLIENT_SECRET:
-        required: true
+        required: false
       AUTH0_DOMAIN:
-        required: true
+        required: false
       # Only used by the `if: env.ACT` local-run step (nektos act); real CI uses OIDC.
       # Declared here (optional) so the references resolve for the workflow linter.
       AWS_ACCESS_KEY_ID:
