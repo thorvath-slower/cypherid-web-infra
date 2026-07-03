@@ -31,11 +31,16 @@ data "aws_iam_policy_document" "assume_role" {
       }
 
       actions = ["sts:AssumeRoleWithWebIdentity", "sts:TagSession"]
+      # subject_ref_pattern defaults to "*" (any branch/tag/environment), which
+      # preserves the historical behavior for every existing consumer. Callers
+      # that must restrict which git refs may assume the role (e.g. an apply role
+      # limited to `refs/heads/main`) set it to a narrower glob such as
+      # "refs/heads/main". The `:pull_request` StringNotLike below still applies.
       condition {
         test     = "StringLike"
         variable = "${local.idp}:sub"
         values = formatlist(
-          "repo:%s/%s:*",
+          "repo:%s/%s:${var.subject_ref_pattern}",
           statement.key,
           statement.value,
         )
