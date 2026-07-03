@@ -65,3 +65,44 @@ calls to score each request for VPN / proxy / Tor / hosting / **residential-prox
 - **Counsel + procurement:** the selection, the DPA / data-residency review, the legal-grade certification.
 - **Engineering:** runs the PoC via the existing adapter + `DRY_RUN`, reports the measured numbers, and wires the
   chosen provider (one adapter module).
+
+## CZID-284 — Layer-2 integration status (what is now WIRED)
+
+The `edge-ip-intel` module is no longer just a scaffold; the Lambda@Edge is now integrated end-to-end,
+fail-closed, behind a gate. Authored only — **nothing is applied** (bucket-b, AWS-gated).
+
+**Wired (CZID-284):**
+- **Viewer-request association.** `modules/edge-ip-intel/main.tf` associates the edge Lambda on the
+  CloudFront `default_cache_behavior` as a `viewer-request` `lambda_function_association`, using the
+  **version-qualified** ARN (`qualified_arn`, never `$LATEST`).
+- **Per-env instantiation, gated.** `terraform/envs/dev/web/edge-ip-intel.tf` instantiates the module,
+  disabled by default (`var.edge_ip_intel_enabled = false`, module `var.enabled = false`) → the stack
+  plans/applies with no edge Lambda until an explicit enable. Reference wire-in for staging/prod/sandbox
+  to mirror.
+- **Credential path (no edge env vars).** The module creates the us-east-1 Secrets Manager secret
+  **container** (`create_secret = true`, placeholder value only). The execution role (assumable by
+  `lambda.amazonaws.com` + `edgelambda.amazonaws.com`) gets a least-privilege
+  `secretsmanager:GetSecretValue` scoped to the one secret ARN, plus CloudWatch Logs. The secret ARN +
+  provider name are **baked into the artifact** at build time (`lambda/config.mjs` via `build.sh`); the
+  key is fetched at cold start via a stdlib SigV4 call (`lambda/secrets.mjs`), cached warm, fail-closed.
+- **Real provider call + caching.** `lambda/adapter/providers/spur.mjs` uses Node built-in `https` (no
+  `@aws-sdk/*`; 1 MB viewer-request limit), an 800 ms hard timeout, and a short-TTL LRU verdict cache by
+  IP (`lambda/cache.mjs`). Any error/timeout/non-2xx/malformed → throw → 403.
+- **Tests.** `lambda/test/*.test.mjs` — 20 offline `node --test` cases (fail-closed matrix +
+  normalize + LRU + unconfigured-secret fail-closed).
+
+**Still counsel/ops-gated (NOT decided here — placeholders held):**
+1. **FINAL provider selection + DPA / data-residency / legal certification + real API key** — counsel +
+   procurement (§ above). Spur stays the *reference* adapter behind `PROVIDER_NAME`; the secret VALUE is a
+   placeholder set out-of-band. Nothing here commits a vendor.
+2. **`enabled` / `edge_ip_intel_enabled` flip** — ops/counsel go-live switch; sequenced canary-first
+   (`DRY_RUN` log-only → enforce), dev → staging → prod, gated on the CZID-333 evasion harness + counsel
+   sign-off (CZID-335). Kept `false`.
+3. **`DRY_RUN`** (baked Lambda constant) — go-live enforcement flip is ops/counsel's; ships `false`
+   (enforcing) but is applied only under the gate above.
+4. **DNS cutover** to the edge CloudFront domain — a separate, deliberate step *after* validation; the
+   wire-in does NOT repoint DNS, so a mistaken enable cannot black-hole the end-user data path.
+5. **Secret KMS/CMK + rotation policy** — the placeholder secret uses the AWS-managed key; a CMK + rotation
+   choice is an ops/counsel call at go-live (checkov CKV_AWS_149 skipped with that rationale).
+6. **User-facing 403 denial wording** — legal weight; counsel drafts/approves (neutral placeholder in
+   `index.mjs`).

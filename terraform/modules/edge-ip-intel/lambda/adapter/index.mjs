@@ -9,8 +9,11 @@
 //   source: string          // provider name, for the CZID-331 audit record
 // }
 
-// Selected at build time (baked) or via SSM at cold start — viewer-request Lambda@Edge has no env vars.
-const PROVIDER = "spur"; // geocomply | spur | ipqs — set by the build per CZID-326.
+// Selected at build time (baked into config.mjs by build.sh) — viewer-request Lambda@Edge has no env
+// vars. The committed placeholder resolves to "spur" so offline tests + local runs load the reference
+// adapter; build.sh substitutes the counsel/procurement-chosen provider (CZID-326) at build time.
+import { PROVIDER_NAME, isConfigured } from "../config.mjs";
+const PROVIDER = isConfigured(PROVIDER_NAME) ? PROVIDER_NAME : "spur";
 
 let _provider; // cached for the warm container lifetime
 async function loadProvider() {
