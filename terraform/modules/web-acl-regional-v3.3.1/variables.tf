@@ -76,6 +76,24 @@ variable "count_only" {
   default     = false
 }
 
+# CZID-324 (#281): corporate allowlist. ARN of an aws_wafv2_ip_set of known-good corporate egress CIDRs.
+# When set, an ALLOW rule at priority 0 short-circuits the geo-block + AnonymousIpList for these IPs
+# (false-positive tuning). Empty (default) = no allow rule, nothing exempted (fully fail-closed).
+# The IP set is owned by the env stack (so its CIDRs are versioned in that env's config), not this module.
+variable "corporate_allowlist_ip_set_arn" {
+  type        = string
+  description = "ARN of an aws_wafv2_ip_set of known-good corporate egress IPs to ALLOW ahead of the geo/anonymizer blocks (CZID-324). Empty = no allowlist rule."
+  default     = ""
+}
+
+# CZID-324 (#281): AnonymousIpList sub-rules to run in COUNT while tuning false positives (e.g.
+# "HostingProviderIPList" catching legitimate cloud/CI egress). Empty = block all sub-rules.
+variable "anonymous_ip_count_rules" {
+  type        = list(string)
+  description = "AnonymousIpList sub-rules to run in COUNT (tuning). Empty = block all (AnonymousIPList, HostingProviderIPList, TorExitNodeList)."
+  default     = []
+}
+
 variable "max_body_size" {
   type        = number
   description = "The max number of bytes allowed in request body. Default is 1048576 (1 MB)."
