@@ -358,6 +358,7 @@ resource "aws_route53_record" "www" {
 }
 
 resource "aws_ecr_repository" "web-repository" {
+  #checkov:skip=CKV_AWS_51:image tag immutability is intentionally gated behind var.ecr_immutable_tags (default MUTABLE) — flipping it unconditionally broke the latest-tag dual-push deploy (see #59/PR#110); re-enable once the deploy uses immutable sha/SemVer tags.
   name = "idseq-web"
   # CZID-59: IMMUTABLE tags (CKV_AWS_51). This is an in-place update on an existing
   # repo (PutImageTagMutability), NOT a replacement.
