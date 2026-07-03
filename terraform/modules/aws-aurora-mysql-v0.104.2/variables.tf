@@ -120,30 +120,36 @@ variable "db_parameters" {
   description = "Instance params you can set. [Doc](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Reference.html#AuroraMySQL.Reference.Parameters.Instance)"
 
   default = [
+    # general_log logs EVERY statement to disk (PII + perf). Keep OFF by default.
+    # Dynamic parameter -> apply_method "immediate" (no reboot required).
     {
       name         = "general_log"
-      value        = 1
-      apply_method = "pending-reboot"
+      value        = 0
+      apply_method = "immediate"
     },
+    # slow_query_log captures only queries slower than long_query_time. Dynamic.
     {
       name         = "slow_query_log"
       value        = "1"
-      apply_method = "pending-reboot"
+      apply_method = "immediate"
     },
+    # long_query_time = 0 would log EVERY query as "slow". Raise to 1s. Dynamic.
     {
       name         = "long_query_time"
-      value        = "0"
-      apply_method = "pending-reboot"
+      value        = "1"
+      apply_method = "immediate"
     },
+    # log_output is static; requires a reboot to change.
     {
       name         = "log_output"
       value        = "file"
       apply_method = "pending-reboot"
     },
+    # log_queries_not_using_indexes is dynamic.
     {
       name         = "log_queries_not_using_indexes"
       value        = "1"
-      apply_method = "pending-reboot"
+      apply_method = "immediate"
     },
   ]
 }
