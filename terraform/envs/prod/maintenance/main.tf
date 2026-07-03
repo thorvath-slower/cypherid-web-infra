@@ -1,13 +1,10 @@
-data "aws_route53_zone" "idseq_net" {
-  name         = "idseq.net"
-  private_zone = false
-}
-
 locals {
-  subdomain   = "maintenance"
-  domain      = "idseq.net"
-  full_domain = "${local.subdomain}.${local.domain}"
-  zone_id     = data.aws_route53_zone.idseq_net.zone_id
+  # #429: normalize prod maintenance off idseq.net to the seqtoid.org model. The zone +
+  # fqdn come from the route53 remote state (env_seqtoid_org_*) that prod/route53 already
+  # publishes and prod/web + staging/maintenance already consume -- replacing the hardcoded
+  # idseq.net zone lookup. Subdomain is var.component ("maintenance"), matching staging.
+  full_domain = "${var.component}.${data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn}"
+  zone_id     = data.terraform_remote_state.route53.outputs.env_seqtoid_org_zone_id
 
   aliases = {
     "www.${local.full_domain}" = local.zone_id
