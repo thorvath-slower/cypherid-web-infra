@@ -104,6 +104,12 @@ jobs:
           - component: fivetran-ssh-nextgen
           - component: route53 # TODO: Enable this!
           - component: s3-tf-state
+          # Vestigial stacks — dead, no live consumers (audit 2026-07-03, #473/#439).
+          # maintenance: main.tf is 100% comments (zero resources). czid-services-private-key:
+          # a TLS keypair for the decommissioned federation/NextGen services; no stack reads
+          # its outputs. Excluded from the plan/apply loop; destroy + dir removal tracked in #439.
+          - component: maintenance
+          - component: czid-services-private-key
     uses: ./.github/workflows/plan_component_call.yml
     with:
       environment: ${{ needs.should-plan.outputs.environment }}
