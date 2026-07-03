@@ -37,3 +37,15 @@ variable "additional_assume_role_policies_json" {
   description = "The JSON string of any other additional assume role policies to add to the Github Actions role"
   default     = ""
 }
+
+variable "subject_ref_pattern" {
+  type        = string
+  description = <<DESCRIPTION
+  The glob appended to the OIDC subject (token.actions.githubusercontent.com:sub)
+  StringLike condition, i.e. `repo:<org>/<repo>:<subject_ref_pattern>`.
+  Defaults to "*" (any branch/tag/environment ref), which preserves the original
+  behavior for existing consumers. Set to a narrower pattern such as
+  "refs/heads/main" to restrict which git refs may assume the role.
+  DESCRIPTION
+  default     = "*"
+}
