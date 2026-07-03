@@ -472,13 +472,6 @@
             "file": "/terraform/envs/dev/web/main.tf",
             "findings": [
                 {
-                    "resource": "aws_ecr_repository.web-repository",
-                    "check_ids": [
-                        "CKV_AWS_136",
-                        "CKV_AWS_51"
-                    ]
-                },
-                {
                     "resource": "aws_iam_policy_document.idseq-web",
                     "check_ids": [
                         "CKV_AWS_109",
@@ -1098,13 +1091,6 @@
                     "check_ids": [
                         "CKV_TF_1"
                     ]
-                },
-                {
-                    "resource": "aws_ecr_repository.web-repository",
-                    "check_ids": [
-                        "CKV_AWS_136",
-                        "CKV_AWS_51"
-                    ]
                 }
             ]
         },
@@ -1524,13 +1510,6 @@
         {
             "file": "/terraform/envs/sandbox/web/main.tf",
             "findings": [
-                {
-                    "resource": "aws_ecr_repository.web-repository",
-                    "check_ids": [
-                        "CKV_AWS_136",
-                        "CKV_AWS_51"
-                    ]
-                },
                 {
                     "resource": "aws_iam_policy_document.idseq-web",
                     "check_ids": [
@@ -1976,13 +1955,6 @@
         {
             "file": "/terraform/envs/staging/web/main.tf",
             "findings": [
-                {
-                    "resource": "aws_ecr_repository.web-repository",
-                    "check_ids": [
-                        "CKV_AWS_136",
-                        "CKV_AWS_51"
-                    ]
-                },
                 {
                     "resource": "aws_iam_policy_document.idseq-web",
                     "check_ids": [

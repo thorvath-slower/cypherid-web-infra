@@ -357,12 +357,27 @@ resource "aws_route53_record" "www" {
 }
 
 resource "aws_ecr_repository" "web-repository" {
-  name                 = "idseq-web"
-  image_tag_mutability = "MUTABLE"
+  name = "idseq-web"
+  # CZID-59: IMMUTABLE tags (CKV_AWS_51). This is an in-place update on an existing
+  # repo (PutImageTagMutability), NOT a replacement.
+  image_tag_mutability = "IMMUTABLE"
   force_delete         = contains(["dev", "sandbox"], var.env)
 
   image_scanning_configuration {
     scan_on_push = true
+  }
+
+  # CZID-59: customer-managed KMS encryption of image layers (CKV_AWS_136), gated on
+  # var.manage_ecr_kms_cmk. encryption_configuration is IMMUTABLE — enabling it on an
+  # existing repo forces DESTROY+RECREATE, so it is emitted ONLY on greenfield envs
+  # (see ecr_hardening.tf). When the var is false the block is absent and the repo
+  # keeps the AWS-owned key with no change.
+  dynamic "encryption_configuration" {
+    for_each = var.manage_ecr_kms_cmk ? [1] : []
+    content {
+      encryption_type = "KMS"
+      kms_key         = local.ecr_kms_key_arn
+    }
   }
 }
 

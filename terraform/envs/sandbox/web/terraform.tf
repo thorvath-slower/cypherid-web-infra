@@ -137,6 +137,13 @@ variable "tags" {
     managedBy = "terraform"
   }
 }
+# CZID-59: greenfield gate for ECR customer-managed KMS encryption. false on LIVE
+# envs so the immutable encryption_configuration is NOT added to an existing repo
+# (which would force DESTROY+RECREATE); true only on a fresh/greenfield account.
+variable "manage_ecr_kms_cmk" {
+  type    = bool
+  default = false
+}
 # tflint-ignore: terraform_unused_declarations
 variable "alignment_index_date" {
   type    = string
