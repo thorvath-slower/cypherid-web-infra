@@ -1560,6 +1560,24 @@
             ]
         },
         {
+            "file": "/terraform/envs/dev/batch/main.tf",
+            "findings": [
+                {
+                    "resource": "aws_iam_policy_document.idseq-batch",
+                    "check_ids": [
+                        "CKV_AWS_111",
+                        "CKV_AWS_356"
+                    ]
+                },
+                {
+                    "resource": "idseq-batch",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                }
+            ]
+        },
+        {
             "file": "/terraform/envs/staging/db/aurora.tf",
             "findings": [
                 {
