@@ -2918,6 +2918,40 @@
                     ]
                 }
             ]
+        },
+        {
+            "file": "/terraform/modules/export-control-audit-log/main.tf",
+            "findings": [
+                {
+                    "resource": "module.export_control_audit_log.aws_kinesis_firehose_delivery_stream.edge_logs[0]",
+                    "check_ids": [
+                        "CKV_AWS_240",
+                        "CKV_AWS_241"
+                    ]
+                },
+                {
+                    "resource": "module.export_control_audit_log.aws_s3_bucket.audit",
+                    "check_ids": [
+                        "CKV2_AWS_61",
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144",
+                        "CKV_AWS_145",
+                        "CKV_AWS_18",
+                        "CKV_AWS_19"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/export-control-monitoring/main.tf",
+            "findings": [
+                {
+                    "resource": "module.export_control_monitoring.aws_sns_topic.alerts",
+                    "check_ids": [
+                        "CKV_AWS_26"
+                    ]
+                }
+            ]
         }
     ]
 }
