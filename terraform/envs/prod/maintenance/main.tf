@@ -65,6 +65,13 @@ resource "aws_cloudfront_distribution" "distribution" {
   default_root_object = "index.html"
   comment             = "Serves maintenance page from S3 bucket"
 
+  # CZID-61 (#61): CloudFront standard access logging to a private S3 bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_access_logs.bucket_domain_name
+    include_cookies = false
+    prefix          = "maintenance/"
+  }
+
   aliases = [local.full_domain]
 
   origin {

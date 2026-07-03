@@ -62,6 +62,13 @@ resource "aws_cloudfront_distribution" "distribution" {
   default_root_object = "index.html"
   comment             = "Serves ${var.env} maintenance page from S3 bucket"
 
+  # CZID-61 (#61): CloudFront standard access logging to a private S3 bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_access_logs.bucket_domain_name
+    include_cookies = false
+    prefix          = "maintenance/"
+  }
+
   aliases = [local.full_domain]
 
   origin {
@@ -134,9 +141,10 @@ resource "aws_cloudfront_distribution" "distribution" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = module.assets-cert.arn
-    ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.1_2016"
+    acm_certificate_arn = module.assets-cert.arn
+    ssl_support_method  = "sni-only"
+    # CZID-61 (#61): enforce TLS >= 1.2 at the viewer edge (CKV_AWS_174). Was TLSv1.1_2016.
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   restrictions {
