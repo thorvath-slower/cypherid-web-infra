@@ -42,7 +42,12 @@ provider "aws" {
 provider "assert" {}
 
 provider "auth0" {
-  domain = "seqtoid-${var.env}.us.auth0.com"
+  # Tenant domain is env-driven via the AUTH0_DOMAIN secret (injected by the
+  # plan/apply workflow), NOT hardcoded. The real tenant is Auth0's
+  # auto-generated name, not "seqtoid-<env>"; and keeping it in the secret lets
+  # each env — and the future seqtoid tenant migration (#437) — point at its own
+  # tenant without a code change. The auth0 provider reads AUTH0_DOMAIN from the
+  # environment when `domain` is unset.
 }
 terraform {
   backend "s3" {
