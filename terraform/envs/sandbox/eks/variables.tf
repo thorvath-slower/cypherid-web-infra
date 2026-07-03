@@ -40,9 +40,15 @@ locals {
       }
     }
   }
-  authorized_github_repos = {
-    chanzuckerberg = ["czid-graphql-federation-server"]
-  }
+  # Retired dead entry (#468/#439): "czid-graphql-federation-server" under the
+  # upstream "chanzuckerberg" org is CZI migration residue — a dead repo in an org
+  # we don't deploy from (ours is thorvath-slower). The real GitHub OIDC
+  # deploy-role trust is owned by the access-management stack (D1/CZID-81/26),
+  # which federates thorvath-slower. This cluster grant was never wired to a live
+  # repo, so it is emptied rather than repointed — an empty map is a valid
+  # map(list(string)) and produces zero trust statements. If the cluster later
+  # needs to grant repo access, add the specific thorvath-slower repo(s) here.
+  authorized_github_repos = {}
   addons = {
     enable_guardduty = false
   }

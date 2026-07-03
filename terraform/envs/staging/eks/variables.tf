@@ -41,12 +41,15 @@ locals {
       }
     }
   }
-  # TODO: Not sure if it is required to prevent Unauthorized in Github Actions
-  authorized_github_repos = {
-    "IT-Academic-Research-Services" : [
-      "seqtoid-graphql-federation-server",
-    ]
-  }
+  # Retired dead entry (#468/#439): "seqtoid-graphql-federation-server" is a dead
+  # repo and "IT-Academic-Research-Services" is the wrong org (ours is
+  # thorvath-slower). The real GitHub OIDC deploy-role trust is owned by the
+  # access-management stack (D1/CZID-81/26), which federates thorvath-slower and
+  # deliberately does NOT add IT-ARS. This cluster grant was never wired to a live
+  # repo, so it is emptied rather than repointed — an empty map is a valid
+  # map(list(string)) and produces zero trust statements. If the cluster later
+  # needs to grant repo access, add the specific thorvath-slower repo(s) here.
+  authorized_github_repos = {}
   addons = {
     enable_guardduty = false # TODO: true
   }
