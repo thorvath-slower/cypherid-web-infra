@@ -1,17 +1,38 @@
 
+locals {
+  # CZID-322 (#280): SINGLE SOURCE for the export-control blocked-jurisdiction list — the SAME file the
+  # Layer-2 edge Lambda bundles. Change the enforced set THERE (counsel-owned), never here.
+  blocked_country_codes = jsondecode(file("${path.module}/../../../export-control/blocked-jurisdictions.json")).blocked_country_codes
+}
+
+# CZID-324 (#281): corporate allowlist IP set — known-good corporate egress CIDRs that are ALLOWed
+# ahead of the geo-block + AnonymousIpList (false-positive tuning). Env-owned so the CIDRs are
+# versioned in this env's config. Defaults to empty ([]) = fully fail-closed, nothing exempted.
+resource "aws_wafv2_ip_set" "corporate_allowlist" {
+  name               = "${var.tags.project}-${var.tags.env}-corporate-allowlist"
+  description        = "Known-good corporate egress IPs allowlisted ahead of the export-control geo/anonymizer blocks (CZID-324)."
+  scope              = "REGIONAL"
+  ip_address_version = "IPV4"
+  addresses          = var.corporate_allowlist_cidrs
+  tags               = var.tags
+}
+
 module "georestriction-rule" {
   # tflint-ignore: terraform_module_pinned_source
   source = "../../../modules/waf-georestriction-main"
 
-  scope = "REGIONAL"
-  tags  = var.tags # TODO: var.tags is deprecated
+  scope                 = "REGIONAL"
+  blocked_country_codes = local.blocked_country_codes
+  enable_visibility     = true     # CZID-323 (#280): CloudWatch + sampled requests for the IR runbook
+  tags                  = var.tags # TODO: var.tags is deprecated
 }
 
 module "web-service-waf" {
-  source                = "../../../modules/web-acl-regional-v3.3.1"
-  tags                  = var.tags # TODO: var.tags is deprecated
-  rule_groups           = [{ arn : module.georestriction-rule.arn, name : module.georestriction-rule.name }]
-  enable_panther_ingest = false
+  source                         = "../../../modules/web-acl-regional-v3.3.1"
+  tags                           = var.tags # TODO: var.tags is deprecated
+  rule_groups                    = [{ arn : module.georestriction-rule.arn, name : module.georestriction-rule.name }]
+  corporate_allowlist_ip_set_arn = aws_wafv2_ip_set.corporate_allowlist.arn
+  enable_panther_ingest          = false
   czi_baseline_count_rules = {
     CommonRuleSet = [
       "NoUserAgent_HEADER",
