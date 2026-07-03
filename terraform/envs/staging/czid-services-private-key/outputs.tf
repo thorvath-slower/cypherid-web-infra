@@ -1,16 +1,13 @@
-output "private_key_pem" {
-  value     = module.czid-services-private-key.private_key_pem
-  sensitive = true
-}
+# SEC-1 (CZID-42): the private/public key PEM outputs are removed — no key material leaves the
+# module or lands in state. The key is provisioned out of band; only non-sensitive Secrets Manager
+# metadata is exported. Nothing cross-stack consumed the old key outputs (grep 2026-07-03).
 
-output "public_key_openssh" {
-  value     = module.czid-services-private-key.public_key_openssh
+output "secret_arn" {
+  value     = module.czid-services-private-key.secret_arn
   sensitive = false
 }
 
-output "public_key_pem" {
-  value     = module.czid-services-private-key.public_key_pem
+output "secret_name" {
+  value     = module.czid-services-private-key.secret_name
   sensitive = false
 }
-
-
