@@ -48,7 +48,7 @@ jobs:
         run: |
           git config --global url."https://github.com/".insteadOf ssh://git@github.com/
       - name: Install AWS CLI
-        uses: unfor19/install-aws-cli-action@v1
+        uses: unfor19/install-aws-cli-action@f5b46b7f32cf5e7ebd652656c5036bf83dd1e60c # v1
         with:
           version: 2
           verbose: false
@@ -80,7 +80,7 @@ jobs:
         id: tfver
         run: echo "version=$(cat .terraform-version)" >> "$GITHUB_OUTPUT"
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: ${{ steps.tfver.outputs.version }}
       - name: Verify AWS auth + terraform
