@@ -1098,6 +1098,13 @@
                     "check_ids": [
                         "CKV_TF_1"
                     ]
+                },
+                {
+                    "resource": "aws_ecr_repository.web-repository",
+                    "check_ids": [
+                        "CKV_AWS_136",
+                        "CKV_AWS_51"
+                    ]
                 }
             ]
         },
@@ -2771,6 +2778,132 @@
                     "resource": "module.web-service-waf.logs_bucket",
                     "check_ids": [
                         "CKV_TF_1"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-eks-cluster-v0.104.2/addons_data.tf",
+            "findings": [
+                {
+                    "resource": "module.eks-cluster.eks_data_addons",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-eks-cluster-v0.104.2/blueprints.tf",
+            "findings": [
+                {
+                    "resource": "module.eks-cluster.aws_iam_policy_document.fluentbit_policy",
+                    "check_ids": [
+                        "CKV_AWS_111",
+                        "CKV_AWS_356"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.eks_addons",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.karpenter_controller",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.other_addons",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-eks-cluster-v0.104.2/guardduty.tf",
+            "findings": [
+                {
+                    "resource": "module.eks-cluster.aws_security_group.guardduty[0]",
+                    "check_ids": [
+                        "CKV2_AWS_5",
+                        "CKV_AWS_23",
+                        "CKV_AWS_382"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-eks-cluster-v0.104.2/main.tf",
+            "findings": [
+                {
+                    "resource": "module.eks-cluster.aws_iam_policy.node_ecr_pullthrough_cache",
+                    "check_ids": [
+                        "CKV_AWS_290",
+                        "CKV_AWS_355"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.aws_kms_key.secrets",
+                    "check_ids": [
+                        "CKV2_AWS_64",
+                        "CKV_AWS_7"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.cluster",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.kubernetes_cluster_role_v1.eks-readonly",
+                    "check_ids": [
+                        "CKV_K8S_49"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-eks-cluster-v0.104.2/security_group.tf",
+            "findings": [
+                {
+                    "resource": "module.eks-cluster.aws_security_group.cluster",
+                    "check_ids": [
+                        "CKV2_AWS_5"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.aws_security_group.node",
+                    "check_ids": [
+                        "CKV2_AWS_5"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.aws_security_group_rule.allow_all_cluster_egress",
+                    "check_ids": [
+                        "CKV_AWS_382"
+                    ]
+                },
+                {
+                    "resource": "module.eks-cluster.aws_security_group_rule.allow_all_node_egress",
+                    "check_ids": [
+                        "CKV_AWS_382"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/terraform/modules/aws-firehose-s3-archiver-v0.104.2/firehose.tf",
+            "findings": [
+                {
+                    "resource": "module.eks-cluster.module.audit_log_ingest.aws_kinesis_firehose_delivery_stream.s3_archiver",
+                    "check_ids": [
+                        "CKV_AWS_240",
+                        "CKV_AWS_241"
                     ]
                 }
             ]
