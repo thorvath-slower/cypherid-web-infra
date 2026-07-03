@@ -34,3 +34,15 @@ output "web_acl_log_bucket" {
   }
   description = "Your team can find the WebACL Logs at this bucket. The files will be formatted according to [this guide](https://docs.aws.amazon.com/waf/latest/developerguide/logging-s3.html#:~:text=your%20account%20ID.-,Naming%20requirements%20and%20syntax,-Your%20bucket%20names)."
 }
+
+# CZID-324/325 (#281/#282): expose each export-control rule's CloudWatch metric_name so the
+# monitoring/alerting module (CZID-332) and the IR runbook consume them from HERE (the single source)
+# instead of re-typing the literals — they cannot drift from the web ACL that emits them.
+output "rule_metric_names" {
+  value = {
+    anonymous_ip  = local.anonymous_ip_rulename
+    ip_reputation = local.ip_reputation_rulename
+    rate_limit    = local.many_requests_rulename
+  }
+  description = "CloudWatch metric_name of each export-control Layer-1 rule (anonymizer, IP-reputation, rate-limit), for monitoring/alerting to alarm on."
+}
