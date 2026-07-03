@@ -65,6 +65,9 @@ resource "aws_cloudfront_distribution" "distribution" {
   default_root_object = "index.html"
   comment             = "Serves maintenance page from S3 bucket"
 
+  # CZID-356 (#356): CLOUDFRONT-scoped WAF (CKV_AWS_68 / CKV2_AWS_47). ARN, per the WAFv2 contract.
+  web_acl_id = module.cloudfront_waf.web_acl_id
+
   aliases = [local.full_domain]
 
   origin {

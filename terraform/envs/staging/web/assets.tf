@@ -26,6 +26,9 @@ resource "aws_cloudfront_distribution" "distribution" {
   enabled = true
   comment = "Caches Rails web server static assets in Amazon's edge servers"
 
+  # CZID-356 (#356): CLOUDFRONT-scoped WAF (CKV_AWS_68 / CKV2_AWS_47). ARN, per the WAFv2 contract.
+  web_acl_id = module.cloudfront_waf.web_acl_id
+
   aliases = [local.assets_fqdn]
 
   # Rails web server
