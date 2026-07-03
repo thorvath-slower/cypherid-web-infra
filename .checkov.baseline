@@ -1824,6 +1824,39 @@
             ]
         },
         {
+            "file": "/terraform/envs/dev/maintenance/main.tf",
+            "findings": [
+                {
+                    "resource": "assets-cert",
+                    "check_ids": [
+                        "CKV_TF_1"
+                    ]
+                },
+                {
+                    "resource": "aws_cloudfront_distribution.distribution",
+                    "check_ids": [
+                        "CKV2_AWS_32",
+                        "CKV_AWS_174",
+                        "CKV_AWS_310",
+                        "CKV_AWS_374",
+                        "CKV_AWS_86"
+                    ]
+                },
+                {
+                    "resource": "aws_s3_bucket.maintenance_bucket",
+                    "check_ids": [
+                        "CKV2_AWS_6",
+                        "CKV2_AWS_61",
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144",
+                        "CKV_AWS_145",
+                        "CKV_AWS_18",
+                        "CKV_AWS_21"
+                    ]
+                }
+            ]
+        },
+        {
             "file": "/terraform/envs/staging/params-secrets/main.tf",
             "findings": [
                 {
