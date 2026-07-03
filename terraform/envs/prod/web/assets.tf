@@ -1,6 +1,10 @@
 locals {
+  # #429: normalize prod assets to the seqtoid.org model. `domain` is now the
+  # parameterized env fqdn from route53 remote state (local.env_fqdn, defined in
+  # main.tf) instead of the hardcoded "${var.env}.idseq.net". Local names are kept
+  # unchanged; only their values move off idseq.net.
   subdomain     = "assets"
-  domain        = "${var.env}.idseq.net"
+  domain        = local.env_fqdn
   full_domain   = "${local.subdomain}.${local.domain}"
   origin_domain = local.domain
 

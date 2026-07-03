@@ -1,5 +1,11 @@
 locals {
-  zone_id = data.terraform_remote_state.idseq-prod.outputs.idseq_net_zone_id
+  # #429: normalize prod to the dev/staging seqtoid.org model. The zone + fqdn come
+  # from the route53 remote state (env_seqtoid_org_*), which prod/route53 already
+  # exports — the same source dev and staging consume. Drops the hardcoded idseq.net
+  # domain and the idseq-prod idseq_net_zone_id lookup.
+  zone_id      = data.terraform_remote_state.route53.outputs.env_seqtoid_org_zone_id
+  env_fqdn     = data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn
+  www_env_fqdn = "www.${local.env_fqdn}"
 }
 
 data "aws_iam_policy_document" "idseq-web-assume-role" {
@@ -267,13 +273,11 @@ module "web-service-params" {
 module "prod" {
   source = "../../../modules/aws-acm-certificate-v0.41.0" # cztack v0.41.0
 
-  cert_domain_name    = "idseq.net"
+  cert_domain_name    = local.env_fqdn
   aws_route53_zone_id = local.zone_id
 
   cert_subject_alternative_names = {
-    "www.idseq.net"            = local.zone_id
-    "www.${var.env}.idseq.net" = local.zone_id
-    "${var.env}.idseq.net"     = local.zone_id
+    (local.www_env_fqdn) = local.zone_id
   }
 
   tags = var.tags
@@ -308,7 +312,7 @@ module "web-service" {
 
 resource "aws_route53_record" "www" {
   zone_id = local.zone_id
-  name    = "www.idseq.net"
+  name    = local.www_env_fqdn
   type    = "A"
 
   alias {

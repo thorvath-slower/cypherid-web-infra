@@ -225,15 +225,9 @@ data "terraform_remote_state" "route53" {
 
   }
 }
-data "terraform_remote_state" "idseq-prod" {
-  backend = "s3"
-  config = {
-    bucket  = "tfstate-283694049553"
-    key     = "terraform/idseq/accounts/idseq-prod.tfstate"
-    region  = "us-west-2"
-    profile = "idseq-prod"
-  }
-}
+# #429: the idseq-prod account remote state was only read for idseq_net_zone_id
+# (the hardcoded idseq.net zone). Prod now sources its zone from the route53 remote
+# state (env_seqtoid_org_*), like dev/staging, so this data source is no longer used.
 data "terraform_remote_state" "db" {
   backend = "s3"
   config = {
