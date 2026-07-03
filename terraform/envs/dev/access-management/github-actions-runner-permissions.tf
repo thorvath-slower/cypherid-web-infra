@@ -151,6 +151,31 @@ resource "aws_iam_role_policy_attachment" "plan_tfstate_read" {
   policy_arn = aws_iam_policy.plan_tfstate_read.arn
 }
 
+# ECR-Public authorization token. The eks component's module reads
+# `data.aws_ecrpublic_authorization_token` at plan time (to resolve public
+# base images), which calls `ecr-public:GetAuthorizationToken` -> requires
+# `sts:GetServiceBearerToken`. AWS-managed ReadOnlyAccess does NOT include this
+# action, so the read-only plan role was denied. This action is inherently
+# read-only: it only vends a short-lived bearer token and grants no standing
+# access, and it cannot be resource-scoped (resource must be "*").
+resource "aws_iam_policy" "plan_ecr_public_token" {
+  name   = "czid-${var.env}-gh-actions-plan-ecr-public-token"
+  policy = data.aws_iam_policy_document.plan_ecr_public_token.json
+}
+
+data "aws_iam_policy_document" "plan_ecr_public_token" {
+  statement {
+    sid       = "EcrPublicAuthTokenForPlan"
+    actions   = ["sts:GetServiceBearerToken"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "plan_ecr_public_token" {
+  role       = module.czid_gh_actions_plan.role.name
+  policy_arn = aws_iam_policy.plan_ecr_public_token.arn
+}
+
 # ===========================================================================
 # APPLY role (write) — the real deploy role
 # ===========================================================================
