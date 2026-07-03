@@ -33,7 +33,7 @@ check-plan.output
 
 venv
 
-# CZID-198 (STATE-2): the OpenTofu dependency lock file MUST be committed (reproducible builds —
+# CZID-198 (STATE-2): the Terraform dependency lock file MUST be committed (reproducible builds —
 # CI installs from the lock, never re-resolves). Do NOT ignore it. Generate per stack with:
-#   tofu init && tofu providers lock -platform=linux_amd64 -platform=darwin_arm64
+#   terraform init && terraform providers lock -platform=linux_amd64 -platform=darwin_arm64
 # (.terraform.lock.hcl intentionally NOT ignored.)

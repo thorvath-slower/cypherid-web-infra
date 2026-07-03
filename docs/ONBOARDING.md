@@ -64,12 +64,6 @@ cypherid-web-infra/
 └── README.md               # quick start
 ```
 
-> **Doc drift note:** the top-level `README.md` and `docs/TERRAFORM.md` still
-> refer in places to `docs/OPENTOFU.md` and a `tofu_ci.yml` workflow. Those are
-> pre-rename names from the OpenTofu→Terraform revert. The real files today are
-> `docs/TERRAFORM.md` and `.github/workflows/terraform_ci.yml`. When in doubt,
-> the files on disk win.
-
 ---
 
 ## 3. Environments & stacks
