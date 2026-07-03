@@ -113,7 +113,11 @@ jobs:
           terraform init -input=false
           echo "Plan will be created in: ${{ github.workspace }}/tf.plan"
           set +e
-          terraform plan -input=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
+          # -lock=false: the plan role (czid-<env>-gh-actions-plan) is strictly
+          # read-only by design and cannot write the S3 .tflock object. A plan
+          # never mutates state, so skipping the lock is safe and keeps the role
+          # incapable of any write (least-privilege). The apply role keeps locking.
+          terraform plan -input=false -lock=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
           exitcode=$?
           echo "Terraform exited with exit-code $exitcode"
           if [[ $exitcode -eq 1 ]]; then
