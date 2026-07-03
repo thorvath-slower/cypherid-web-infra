@@ -66,6 +66,20 @@ test("DENY for a blocked jurisdiction (geo short-circuit, no provider call)", as
   assert.equal(called, false, "geo block must short-circuit before the provider");
 });
 
+test("DENY when the provider resolves a blocked origin country, even with a clean edge country (CZID-290 spoof)", async () => {
+  // Clean CloudFront geo (US), no anonymizer flags, low risk — but the provider's TRUE-origin country is IR.
+  // The provider's superior geo signal must deny even though the edge saw "US".
+  const spoofed = async () => ({ ...cleanVerdict, country: "IR" });
+  const r = await decideRequest(event({ country: "US", address: "203.0.113.7:443" }), { classify: spoofed });
+  assert.ok(isDeny(r), "provider-resolved blocked country must 403 even when the edge country is clean");
+});
+
+test("ALLOW is unaffected when the provider country is empty (no false-deny)", async () => {
+  const noCountry = async () => ({ ...cleanVerdict, country: "" });
+  const r = await decideRequest(event({ country: "US", address: "203.0.113.7:443" }), { classify: noCountry });
+  assert.ok(isForward(r), "an empty provider country must not deny on its own");
+});
+
 test("DENY on provider error/timeout (fail-closed)", async () => {
   const r = await decideRequest(event({ country: "US", address: "203.0.113.7:443" }), { classify: throwClassify });
   assert.ok(isDeny(r), "provider throw must 403");
