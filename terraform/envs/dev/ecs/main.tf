@@ -176,15 +176,14 @@ resource "aws_s3_bucket" "aegea-ecs-execute" {
   }
 }
 
-data "aws_vpc" "default" {
-  default = true
-}
-
 resource "aws_security_group" "aegea-ecs" {
   name        = "aegea.ecs"
   description = "undocumented but required Security Group needed by ECS to execute Download tasks"
-  # vpc_id      = data.terraform_remote_state.cloud-env.outputs.vpc_id
-  vpc_id = data.aws_vpc.default.id
+  # Bind to the Terraform-managed cloud-env VPC (matches staging/prod). This previously
+  # pointed at data.aws_vpc.default (the account default VPC), which (a) placed the
+  # bulk-download Fargate SG in the wrong VPC — bulk downloads couldn't reach cloud-env
+  # services — and (b) forced an account default VPC to exist for `apply` to plan at all.
+  vpc_id = data.terraform_remote_state.cloud-env.outputs.vpc_id
   tags = {
     Name = "aegea.ecs"
   }
