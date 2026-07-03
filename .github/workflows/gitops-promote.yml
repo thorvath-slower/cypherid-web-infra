@@ -42,8 +42,9 @@ jobs:
           DST: ${{ github.event.inputs.target }}
         run: |
           set -euo pipefail
-          case "${SRC}->${DST}" in
-            dev->staging|staging->prod) echo "promotion ${SRC} -> ${DST} allowed" ;;
+          # ':' separator (not '->'): shellcheck can't parse '>' inside a case pattern.
+          case "${SRC}:${DST}" in
+            dev:staging|staging:prod) echo "promotion ${SRC} -> ${DST} allowed" ;;
             *) echo "::error::illegal promotion ${SRC} -> ${DST} (only dev->staging, staging->prod)"; exit 1 ;;
           esac
 
