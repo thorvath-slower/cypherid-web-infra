@@ -24,3 +24,10 @@
 terraform/modules/ecs-cluster-v2.2.1
 terraform/modules/ecs-cluster-v2.4.0
 terraform/modules/ecs-service-with-alb-v0.421.0
+#
+# Same for the vendored aws-eks-cluster (v0.104.2-seqtoid.1, #403/#322): it uses
+# kubernetes/helm/kubectl providers configured only by the calling stack, so a
+# standalone `terraform validate` fails with "Provider configuration not present".
+# Validated transitively via {dev,staging,sandbox,prod}/eks. (aws-firehose-s3-archiver,
+# its aws-only transitive dep, validates standalone fine and is NOT skipped.)
+terraform/modules/aws-eks-cluster-v0.104.2
