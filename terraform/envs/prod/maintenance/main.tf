@@ -24,14 +24,24 @@ resource "aws_s3_bucket" "bucket" {
   }
 }
 
+# CZID-359 (#359): OAC (Origin Access Control) replaces the legacy OAI. The bucket policy now grants
+# the CloudFront service principal, scoped by AWS:SourceArn to THIS distribution only, so the origin
+# bucket is locked to this distribution rather than to an OAI identity.
 data "aws_iam_policy_document" "s3_iam_policy" {
   statement {
+    sid       = "AllowCloudFrontServicePrincipalReadOnly"
     actions   = ["s3:GetObject"]
     resources = ["${aws_s3_bucket.bucket.arn}/*"]
 
     principals {
-      type        = "AWS"
-      identifiers = [aws_cloudfront_origin_access_identity.origin_access_identity.iam_arn]
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.distribution.arn]
     }
   }
 }
@@ -55,8 +65,14 @@ module "assets-cert" {
   }
 }
 
-resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
-  comment = "OAI for maintenance cloudfront distribution"
+# CZID-359 (#359): Origin Access Control (OAC) — the modern replacement for OAI. SigV4-signed origin
+# requests to S3; the bucket policy above is locked to this distribution via AWS:SourceArn.
+resource "aws_cloudfront_origin_access_control" "s3_origin_access_control" {
+  name                              = "${var.project}-${var.env}-${var.component}-oac"
+  description                       = "OAC for the ${var.env} maintenance page S3 origin"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
 }
 
 resource "aws_cloudfront_distribution" "distribution" {
@@ -71,9 +87,8 @@ resource "aws_cloudfront_distribution" "distribution" {
     domain_name = aws_s3_bucket.bucket.bucket_regional_domain_name
     origin_id   = aws_s3_bucket.bucket.bucket_regional_domain_name
 
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.origin_access_identity.cloudfront_access_identity_path
-    }
+    # CZID-359 (#359): OAC replaces the s3_origin_config/OAI block (CKV2_AWS_46).
+    origin_access_control_id = aws_cloudfront_origin_access_control.s3_origin_access_control.id
   }
 
   custom_error_response {
