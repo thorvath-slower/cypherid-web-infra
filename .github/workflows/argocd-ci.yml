@@ -117,7 +117,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: ${{ vars.CHART_REPO || 'thorvath-slower/seqtoid-web' }}
-          ref: ${{ vars.CHART_REF || 'integration' }}
+          # `main` is the trunk post-promotion (integration→main); Argo also renders the
+          # chart from seqtoid-web@main, so CI must validate against the same ref.
+          ref: ${{ vars.CHART_REF || 'main' }}
           token: ${{ secrets.CHART_READ_TOKEN || secrets.GITHUB_TOKEN }}
           path: _chart-src
 
