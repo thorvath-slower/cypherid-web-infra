@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# =============================================================================
+# tf-linux — run Terraform in a linux/amd64 container from an Apple-Silicon Mac.
+#
+# Some stacks (dev/web, prod/web, prod/ecs, workflow-infra) pull in providers with
+# NO darwin_arm64 build (hashicorp/template v2.2.0, okta) — so `terraform init`
+# can't run natively on an M1/M2/M3. This wrapper runs the pinned Terraform inside
+# a linux/amd64 container (Rosetta-emulated), where those providers resolve, using
+# your HOST AWS SSO credentials (~/.aws mounted read-only). No local toolchain, no
+# arch problems, same state + same providers as CI.
+#
+# SAFE BY DESIGN: `plan` writes a plan file; `apply` (no args) applies exactly that
+# reviewed plan — never a fresh, unreviewed one.
+#
+# Prereqs: Docker Desktop running; a fresh SSO token on the host:
+#     aws sso login --profile idseq-dev
+#
+# Usage:
+#     bin/tf-linux <stack-dir> init
+#     bin/tf-linux <stack-dir> plan          # -> writes tfplan.bin; REVIEW the summary
+#     bin/tf-linux <stack-dir> apply         # applies the reviewed tfplan.bin
+#     bin/tf-linux <stack-dir> <any tf args> # escape hatch (e.g. `output`, `state list`)
+#
+#   AWS_PROFILE / AWS_REGION override the defaults (idseq-dev / us-west-2).
+# =============================================================================
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+TFVER="$(tr -d '[:space:]' < "$ROOT/.terraform-version" 2>/dev/null || echo 1.15.7)"
+PROFILE="${AWS_PROFILE:-idseq-dev}"
+REGION="${AWS_REGION:-us-west-2}"
+
+[ $# -ge 2 ] || { sed -n '20,33p' "$0"; exit 1; }
+STACK="$1"; shift
+[ -d "$ROOT/$STACK" ] || { echo "ERROR: stack dir not found: $STACK"; exit 1; }
+
+command -v docker >/dev/null 2>&1 || { echo "ERROR: Docker is required (start Docker Desktop)."; exit 1; }
+
+# Warn early if the SSO token is missing/expired (the container can't open a browser).
+if ! aws sts get-caller-identity --profile "$PROFILE" >/dev/null 2>&1; then
+  echo "ERROR: AWS SSO token for profile '$PROFILE' is missing or expired."
+  echo "       Run:  aws sso login --profile $PROFILE   (then re-run this)."
+  exit 1
+fi
+
+_run() {  # subcommand + args
+  docker run --rm -it \
+    --platform linux/amd64 \
+    -v "$ROOT":/work -w "/work/$STACK" \
+    -v "$HOME/.aws":/root/.aws:ro \
+    -e AWS_PROFILE="$PROFILE" -e AWS_REGION="$REGION" \
+    "hashicorp/terraform:${TFVER}" "$@"
+}
+
+case "${1:-}" in
+  plan)
+    shift
+    echo ">> plan (writing tfplan.bin for review) — stack: $STACK  profile: $PROFILE"
+    _run plan -out=tfplan.bin -input=false "$@"
+    echo
+    echo ">> REVIEW the summary above. It MUST read like 'X to add, 0 to change, 0 to destroy'"
+    echo ">> for an additive change. Anything to change/destroy on an existing resource → STOP."
+    echo ">> When satisfied:   bin/tf-linux $STACK apply"
+    ;;
+  apply)
+    shift
+    if [ $# -eq 0 ]; then
+      [ -f "$ROOT/$STACK/tfplan.bin" ] || { echo "ERROR: no tfplan.bin — run 'plan' first."; exit 1; }
+      echo ">> apply — applying the reviewed tfplan.bin (stack: $STACK)"
+      _run apply -input=false tfplan.bin
+      rm -f "$ROOT/$STACK/tfplan.bin"
+    else
+      _run apply "$@"
+    fi
+    ;;
+  *)
+    _run "$@"
+    ;;
+esac
