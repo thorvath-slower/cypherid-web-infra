@@ -1,6 +1,7 @@
 locals {
-  off_hour_utc = 3
-  on_hour_utc  = 13
+  # Off-hours window (UTC) for scheduled scale-to-zero — see ecs_scale_to_zero.tf (CZID-292 / #248).
+  off_hour_utc = 3  # scale cluster to 0
+  on_hour_utc  = 13 # scale cluster back to baseline
 }
 
 module "ecs-cluster" {
@@ -16,8 +17,11 @@ module "ecs-cluster" {
   max_servers                        = 2
   cluster_asg_rolling_interval_hours = 0
 
-  off_hour_utc = local.off_hour_utc
-  on_hour_utc  = local.on_hour_utc
+  # NOTE: off_hour_utc/on_hour_utc were previously passed here but the
+  # ecs-cluster-v2.4.0 module does not declare them (they were silently
+  # broken — `terraform init` errored with "Unsupported argument"). Off-hours
+  # scale-to-zero is now implemented with real aws_autoscaling_schedule
+  # resources in ecs_scale_to_zero.tf, reusing the local.*_hour_utc window.
 
   instance_type = "c6a.xlarge"
   vpc_id        = data.terraform_remote_state.cloud-env.outputs.vpc_id

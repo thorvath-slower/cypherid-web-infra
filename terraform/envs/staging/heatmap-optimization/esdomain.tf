@@ -36,10 +36,10 @@ module "elasticsearch" {
 
   domain_name = "czid-${var.env}-heatmap-es"
 
-  instance_type         = "m6g.large.elasticsearch"
-  instance_count        = 4
-  ebs_volume_type       = "gp3"
-  ebs_volume_size       = 32
+  instance_type         = var.es_instance_type
+  instance_count        = var.es_instance_count
+  ebs_volume_type       = var.es_ebs_volume_type
+  ebs_volume_size       = var.es_ebs_volume_size
   elasticsearch_version = "OpenSearch_2.7"
   log_publishing_options = {
     cloudwatch_log_group = aws_cloudwatch_log_group.elasticsearch-log-publishing-policy.arn

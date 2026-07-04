@@ -39,46 +39,6 @@ provider "aws" {
 }
 
 
-provider "aws" {
-  alias   = "czi-si-us-east-1"
-  region  = "us-east-1"
-  profile = "idseq-prod"
-
-  # this is the new way of injecting AWS tags to all AWS resources
-  # var.tags should be considered deprecated
-  default_tags {
-    tags = {
-      project   = coalesce(var.tags.project, "unknown")
-      env       = coalesce(var.tags.env, "unknown")
-      service   = coalesce(var.tags.service, "unknown")
-      owner     = coalesce(var.tags.owner, "unknown")
-      managedBy = "terraform"
-    }
-  }
-  allowed_account_ids = ["283694049553"]
-}
-
-
-provider "aws" {
-  alias   = "czi-si"
-  region  = "us-west-2"
-  profile = "idseq-prod"
-
-  # this is the new way of injecting AWS tags to all AWS resources
-  # var.tags should be considered deprecated
-  default_tags {
-    tags = {
-      project   = coalesce(var.tags.project, "unknown")
-      env       = coalesce(var.tags.env, "unknown")
-      service   = coalesce(var.tags.service, "unknown")
-      owner     = coalesce(var.tags.owner, "unknown")
-      managedBy = "terraform"
-    }
-  }
-  allowed_account_ids = ["283694049553"]
-}
-
-
 provider "assert" {}
 terraform {
   backend "s3" {
@@ -140,6 +100,13 @@ variable "tags" {
     owner     = "biohub-tech@chanzuckerberg.com"
     managedBy = "terraform"
   }
+}
+# CZID-59: greenfield gate for ECR customer-managed KMS encryption. false on LIVE
+# envs so the immutable encryption_configuration is NOT added to an existing repo
+# (which would force DESTROY+RECREATE); true only on a fresh/greenfield account.
+variable "manage_ecr_kms_cmk" {
+  type    = bool
+  default = false
 }
 # tflint-ignore: terraform_unused_declarations
 variable "alignment_index_date" {
@@ -265,15 +232,9 @@ data "terraform_remote_state" "route53" {
 
   }
 }
-data "terraform_remote_state" "idseq-prod" {
-  backend = "s3"
-  config = {
-    bucket  = "tfstate-283694049553"
-    key     = "terraform/idseq/accounts/idseq-prod.tfstate"
-    region  = "us-west-2"
-    profile = "idseq-prod"
-  }
-}
+# #429: the idseq-prod account remote state was only read for idseq_net_zone_id
+# (the hardcoded idseq.net zone). Prod now sources its zone from the route53 remote
+# state (env_seqtoid_org_*), like dev/staging, so this data source is no longer used.
 data "terraform_remote_state" "db" {
   backend = "s3"
   config = {
@@ -306,4 +267,14 @@ variable "aws_accounts" {
     idseq-support = "941377154785"
 
   }
+}
+
+# VERIFY (adversarial review, 2026-07-03): #59 flipped image_tag_mutability to IMMUTABLE
+# unconditionally, which breaks the `latest`-tag dual-push deploy (ImageTagAlreadyExistsException on
+# every deploy after the first — a hazard that was explicitly documented as held). Gate it: default
+# MUTABLE (restores the working deploy); flip to true per-env only after the deploy is moved to
+# immutable sha/SemVer tags with `latest` dropped.
+variable "ecr_immutable_tags" {
+  type    = bool
+  default = false
 }

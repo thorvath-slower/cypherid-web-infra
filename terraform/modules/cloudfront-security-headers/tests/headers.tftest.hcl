@@ -1,7 +1,7 @@
-# CZID-161 — IaC module unit test (OpenTofu native `tofu test`), fully offline via mock_provider.
+# CZID-161 — IaC module unit test (Terraform native `terraform test`), fully offline via mock_provider.
 # Establishes the module-test pattern for the infra repos (the test layer the strategy calls for):
 # a module ships with a plan-time test asserting its security-relevant defaults + override behavior.
-# Run: `tofu test` from the module dir (no AWS creds needed — the aws provider is mocked).
+# Run: `terraform test` from the module dir (no AWS creds needed — the aws provider is mocked).
 
 mock_provider "aws" {}
 

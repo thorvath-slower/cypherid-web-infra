@@ -39,46 +39,6 @@ provider "aws" {
 }
 
 
-provider "aws" {
-  alias   = "czi-si-us-east-1"
-  region  = "us-east-1"
-  profile = "idseq-prod"
-
-  # this is the new way of injecting AWS tags to all AWS resources
-  # var.tags should be considered deprecated
-  default_tags {
-    tags = {
-      project   = coalesce(var.tags.project, "unknown")
-      env       = coalesce(var.tags.env, "unknown")
-      service   = coalesce(var.tags.service, "unknown")
-      owner     = coalesce(var.tags.owner, "unknown")
-      managedBy = "terraform"
-    }
-  }
-  allowed_account_ids = ["283694049553"]
-}
-
-
-provider "aws" {
-  alias   = "czi-si"
-  region  = "us-west-2"
-  profile = "idseq-prod"
-
-  # this is the new way of injecting AWS tags to all AWS resources
-  # var.tags should be considered deprecated
-  default_tags {
-    tags = {
-      project   = coalesce(var.tags.project, "unknown")
-      env       = coalesce(var.tags.env, "unknown")
-      service   = coalesce(var.tags.service, "unknown")
-      owner     = coalesce(var.tags.owner, "unknown")
-      managedBy = "terraform"
-    }
-  }
-  allowed_account_ids = ["283694049553"]
-}
-
-
 provider "assert" {}
 terraform {
   backend "s3" {
@@ -157,6 +117,19 @@ variable "eks_cluster_name" {
   type    = string
   default = "czid-prod-eks"
 }
+# CZID #55: allow-list of CIDRs permitted to reach the EKS public API endpoint.
+# PLACEHOLDER default (RFC 5737 TEST-NET-1) — NOT a real allow-list and NEVER
+# 0.0.0.0/0. Ops/counsel MUST supply the real office/VPN egress CIDRs before this
+# is applied. Interim restriction only; the full private flip is #322.
+variable "eks_public_access_cidrs" {
+  type    = list(string)
+  default = ["192.0.2.0/24"]
+
+  validation {
+    condition     = !contains(var.eks_public_access_cidrs, "0.0.0.0/0")
+    error_message = "eks_public_access_cidrs must not contain 0.0.0.0/0 (CZID #55)."
+  }
+}
 # tflint-ignore: terraform_unused_declarations
 variable "s3_bucket_aegea_ecs_execute" {
   type    = string
@@ -215,4 +188,15 @@ variable "aws_accounts" {
     idseq-support = "941377154785"
 
   }
+}
+# CZID #322: private-endpoint flip toggle. Default false = current state (public
+# API endpoint ON, restricted to the #55 CIDR allow-list). Set true to make the
+# control plane PRIVATE (public endpoint OFF) and stand up the SSM bastion as the
+# access path — the two move together (see eks/main.tf) so there is no lockout.
+# The end-user app data path is unaffected; only the cluster control plane goes
+# private. The live flip is a gated apply (needs AWS + the bastion in place).
+variable "eks_endpoint_private" {
+  type        = bool
+  default     = false
+  description = "When true, disable the EKS public API endpoint (private control plane) and create the SSM bastion. Default false preserves the current CIDR-restricted public endpoint (#55)."
 }

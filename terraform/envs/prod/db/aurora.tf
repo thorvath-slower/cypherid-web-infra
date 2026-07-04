@@ -1,3 +1,10 @@
+# DATA-2 / #419: the customer-managed RDS key ARN when managed (greenfield), else null so the
+# cluster / PI / backup fall back to the AWS-managed key with NO change on this live env. Mirrors
+# dev/staging; declared here because aurora_hardening.tf references local.db_kms_key_arn.
+locals {
+  db_kms_key_arn = var.manage_db_kms_cmk ? aws_kms_key.rds[0].arn : null
+}
+
 resource "aws_rds_cluster" "db" {
   cluster_identifier                  = "${var.project}-${var.env}"
   database_name                       = "${var.project}_${var.env}"
@@ -46,7 +53,7 @@ resource "aws_rds_cluster_instance" "db" {
 
 resource "aws_rds_cluster_parameter_group" "db" {
   name        = "${var.project}-${var.env}-rds-cluster-pg"
-  family      = "aurora-mysql5.7"
+  family      = "aurora-mysql8.0"
   description = "RDS default cluster parameter group"
 
   parameter {
@@ -62,25 +69,7 @@ resource "aws_rds_cluster_parameter_group" "db" {
   parameter {
     apply_method = "pending-reboot"
     name         = "binlog_format"
-    value        = "row"
-  }
-
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "max_allowed_packet"
-    value        = 1073741824
-  }
-
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "performance_schema"
-    value        = 1
-  }
-
-  parameter {
-    apply_method = "immediate"
-    name         = "group_concat_max_len"
-    value        = "1048576"
+    value        = "ROW"
   }
 
   tags = {
@@ -92,7 +81,7 @@ resource "aws_rds_cluster_parameter_group" "db" {
 
 resource "aws_db_parameter_group" "db" {
   name   = "${var.project}-${var.env}-rds-pg"
-  family = "aurora-mysql5.7"
+  family = "aurora-mysql8.0"
 
   parameter {
     name  = "general_log"
@@ -111,23 +100,12 @@ resource "aws_db_parameter_group" "db" {
 
   parameter {
     name  = "log_output"
-    value = "file"
+    value = "FILE"
   }
 
   parameter {
     name  = "log_queries_not_using_indexes"
     value = "1"
-  }
-
-  parameter {
-    name  = "group_concat_max_len"
-    value = "1073741824"
-  }
-
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "performance_schema"
-    value        = "1"
   }
 
   tags = {

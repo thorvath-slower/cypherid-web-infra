@@ -137,6 +137,13 @@ variable "tags" {
     managedBy = "terraform"
   }
 }
+# CZID-59: greenfield gate for ECR customer-managed KMS encryption. false on LIVE
+# envs so the immutable encryption_configuration is NOT added to an existing repo
+# (which would force DESTROY+RECREATE); true only on a fresh/greenfield account.
+variable "manage_ecr_kms_cmk" {
+  type    = bool
+  default = false
+}
 # tflint-ignore: terraform_unused_declarations
 variable "alignment_index_date" {
   type    = string
@@ -257,4 +264,14 @@ variable "aws_accounts" {
     idseq-support = "941377154785"
 
   }
+}
+
+# VERIFY (adversarial review, 2026-07-03): #59 flipped image_tag_mutability to IMMUTABLE
+# unconditionally, which breaks the `latest`-tag dual-push deploy (ImageTagAlreadyExistsException on
+# every deploy after the first — a hazard that was explicitly documented as held). Gate it: default
+# MUTABLE (restores the working deploy); flip to true per-env only after the deploy is moved to
+# immutable sha/SemVer tags with `latest` dropped.
+variable "ecr_immutable_tags" {
+  type    = bool
+  default = false
 }

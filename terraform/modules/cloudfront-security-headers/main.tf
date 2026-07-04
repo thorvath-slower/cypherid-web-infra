@@ -4,6 +4,12 @@
 # defaults (HSTS includeSubdomains but NO preload — preload is a hard-to-undo browser-list submission;
 # the sites are already HTTPS via redirect-to-https). Override knobs are exposed for env differences.
 resource "aws_cloudfront_response_headers_policy" "this" {
+  # checkov:skip=CKV_AWS_259:HSTS IS enforced here (max-age 1yr + includeSubdomains + override). Only
+  # `preload` is deliberately off — matching the actual HSTS origin (Rails `config.force_ssl`, which
+  # defaults preload=false in both our app and the IT-ARS upstream) and every other env. Emitting
+  # `preload` in this one CloudFront layer while the app keeps preload=false would be incoherent and
+  # still not a submittable preload posture. Real HSTS preload is a deliberate cross-layer commitment
+  # (its own ticket), not a one-file change. See #419.
   name    = "${var.name_prefix}-${var.env}-security-headers"
   comment = "Security response headers for ${var.name_prefix} ${var.env} CloudFront (CZID-355)"
 

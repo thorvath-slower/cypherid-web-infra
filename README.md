@@ -23,9 +23,9 @@ component level: `cd` into a component and run Terraform there.
 > are **frozen snapshots** — updating one is a manual re-vendor, not a version bump.
 > Provider versions (in `_shared/versions.tf`) *are* Renovate-managed. `template` /
 > `cloudinit` are declared module-locally on purpose (never in `_shared`). See
-> [`docs/OPENTOFU.md` → Vendored modules](docs/OPENTOFU.md#vendored-modules-frozen-snapshots-human-maintained).
+> [`docs/TERRAFORM.md` → Vendored modules](docs/TERRAFORM.md#vendored-modules-frozen-snapshots-human-maintained).
 
-📖 **Full guide: [`docs/OPENTOFU.md`](docs/OPENTOFU.md)** — layout, state &
+📖 **Full guide: [`docs/TERRAFORM.md`](docs/TERRAFORM.md)** — layout, state &
 locking, day-to-day workflow, common tasks (add a component, bump a provider,
 update a vendored module, bootstrap an env), conventions, CI, and what changed
 from the fogg/TFC setup. The README below is the quick start.
@@ -84,7 +84,7 @@ make plan  DIR=terraform/envs/dev/auth0
 make apply DIR=terraform/envs/dev/auth0
 ```
 
-CI (`.github/workflows/tofu_ci.yml`) runs `terraform fmt -check` + `terraform validate`
+CI (`.github/workflows/terraform_ci.yml`) runs `terraform fmt -check` + `terraform validate`
 on each changed stack. There is no auto-apply; applies are deliberate.
 
 ## SSH

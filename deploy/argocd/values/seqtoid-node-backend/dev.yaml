@@ -1,0 +1,42 @@
+# dev overrides for the seqtoid-node-backend chart. Layered over the chart
+# defaults. This is the ONLY env deployed during the strangler (Phase 0/1,
+# account 491013321714); staging/prod values exist for CI parity + the eventual
+# full cutover (#457), NOT for deploy now.
+environment: dev
+image:
+  repository: REPLACE_DEV_ACCT.dkr.ecr.us-west-2.amazonaws.com/seqtoid-node-backend
+  tag: latest            # CI advances this to the immutable git-sha tag on deploy
+replicaCount: 2
+serviceAccount:
+  # Output node_backend_role_arn from rewrite-node-nestjs/deploy/terraform/irsa-node-backend-dev.tf
+  roleArn: arn:aws:iam::REPLACE_DEV_ACCT:role/czid-dev-seqtoid-node-backend
+blueGreen:
+  autoPromotionEnabled: true     # dev: automated gate (promote on smoke pass)
+  scaleDownDelaySeconds: 30
+  analysis:
+    enabled: true
+    postPromotion: false
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+autoscaling:
+  enabled: false
+# STRANGLER seam: a SEPARATE, INTERNAL host — never the Rails ingress. You drive
+# test uploads at this host; Rails keeps serving everything else.
+ingress:
+  enabled: true
+  scheme: internal
+  host: node-dev.czid.internal          # REPLACE with the real dev internal DNS name
+  annotations:
+    alb.ingress.kubernetes.io/subnets: REPLACE_DEV_PRIVATE_SUBNETS   # subnet-...,subnet-...
+# STRANGLER isolation (dev): give the Node worker its OWN SFN-notifications queue
+# so its monitor doesn't race Rails' Shoryuken on the shared queue. Fill with the
+# dev queue ARN subscribed to the same EventBridge rule (or pause dev Shoryuken).
+extraEnv:
+  - name: SFN_NOTIFICATIONS_QUEUE_ARN
+    value: REPLACE_DEV_NODE_SFN_NOTIFICATIONS_QUEUE_ARN
+# DEMO_MODE intentionally UNSET (real auth + real ES384 token minting).

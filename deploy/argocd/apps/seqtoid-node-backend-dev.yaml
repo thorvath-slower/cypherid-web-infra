@@ -1,0 +1,36 @@
+# seqtoid-node-backend @ dev — the strangler slice (epic #454, ticket #455).
+# Multi-source: the chart comes from the app repo (versions with the Node code);
+# the env values come from THIS repo (versions with deploy config). $values
+# references the second source's checkout.
+#
+# DEV ONLY. There is intentionally no staging/prod Application here — the
+# strangler runs Node alongside Rails in dev only. staging/prod Apps get added at
+# the full-cutover step (#457), reusing deploy/argocd/values/seqtoid-node-backend/.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seqtoid-node-backend-dev
+  namespace: argocd
+spec:
+  project: czid
+  sources:
+    - repoURL: https://github.com/chanzuckerberg/seqtoid-web.git
+      # Pin to a release tag/sha in practice; CI advances it on deploy.
+      targetRevision: main
+      path: deploy/charts/seqtoid-node-backend
+      helm:
+        valueFiles:
+          - $values/deploy/argocd/values/seqtoid-node-backend/dev.yaml
+    - repoURL: https://github.com/chanzuckerberg/cypherid-web-infra.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: czid-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

@@ -1,0 +1,35 @@
+# staging overrides for the seqtoid-node-backend chart.
+# NOT DEPLOYED during the strangler — present for CI parity + the full-cutover
+# step (#457). At cutover this env is stood up like dev, then promoted.
+environment: staging
+image:
+  repository: REPLACE_STAGING_ACCT.dkr.ecr.us-west-2.amazonaws.com/seqtoid-node-backend
+  tag: latest
+replicaCount: 2
+serviceAccount:
+  roleArn: arn:aws:iam::REPLACE_STAGING_ACCT:role/czid-staging-seqtoid-node-backend
+blueGreen:
+  autoPromotionEnabled: true     # staging: automated gate (promote on smoke pass)
+  scaleDownDelaySeconds: 30
+  analysis:
+    enabled: true
+    postPromotion: false
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+autoscaling:
+  enabled: false
+ingress:
+  enabled: true
+  # Strangler seam stays internal until traffic is flipped to Node at cutover.
+  scheme: internal
+  host: node-staging.czid.internal        # REPLACE with the real staging DNS name
+  annotations:
+    alb.ingress.kubernetes.io/subnets: REPLACE_STAGING_PRIVATE_SUBNETS
+extraEnv:
+  - name: SFN_NOTIFICATIONS_QUEUE_ARN
+    value: REPLACE_STAGING_NODE_SFN_NOTIFICATIONS_QUEUE_ARN

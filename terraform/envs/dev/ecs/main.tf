@@ -1,7 +1,8 @@
 locals {
   s3_bucket_aegea_ecs_execute = "aegea-ecs-execute-${var.env}-${var.aws_accounts.idseq-dev}"
-  # off_hour_utc = 3
-  # on_hour_utc  = 13
+  # Off-hours window (UTC) for scheduled scale-to-zero — see ecs_scale_to_zero.tf (CZID-292 / #248).
+  off_hour_utc = 3  # ~19:00 US-Pacific: scale cluster to 0
+  on_hour_utc  = 13 # ~05:00 US-Pacific: scale cluster back to baseline
 }
 
 module "ecs-cluster" {
@@ -176,15 +177,14 @@ resource "aws_s3_bucket" "aegea-ecs-execute" {
   }
 }
 
-data "aws_vpc" "default" {
-  default = true
-}
-
 resource "aws_security_group" "aegea-ecs" {
   name        = "aegea.ecs"
   description = "undocumented but required Security Group needed by ECS to execute Download tasks"
-  # vpc_id      = data.terraform_remote_state.cloud-env.outputs.vpc_id
-  vpc_id = data.aws_vpc.default.id
+  # Bind to the Terraform-managed cloud-env VPC (matches staging/prod). This previously
+  # pointed at data.aws_vpc.default (the account default VPC), which (a) placed the
+  # bulk-download Fargate SG in the wrong VPC — bulk downloads couldn't reach cloud-env
+  # services — and (b) forced an account default VPC to exist for `apply` to plan at all.
+  vpc_id = data.terraform_remote_state.cloud-env.outputs.vpc_id
   tags = {
     Name = "aegea.ecs"
   }
@@ -201,7 +201,7 @@ resource "aws_security_group_rule" "aegea-ecs-egress-443-all-tcp" {
 }
 
 module "web-params" {
-  source  = "github.com/thorvath-slower/cztack//aws-ssm-params-writer?ref=0fe349fc39bcfeb0e069b4ca45a566751931089a" # cztack v0.104.2
+  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
   project = var.project
   env     = var.env
   service = "web"
@@ -209,6 +209,10 @@ module "web-params" {
 
   parameters = {
     S3_AEGEA_ECS_EXECUTE_BUCKET = local.s3_bucket_aegea_ecs_execute
+    # OpenTelemetry (#426): the OTLP HTTP endpoint of the in-cluster ADOT collector.
+    # Chamber surfaces this to every service (web + Resque/Shoryuken workers all load
+    # idseq-<env>-web); the app's initializer is inert until this is present.
+    OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector.${var.env}.otel.internal:4318"
   }
 }
 

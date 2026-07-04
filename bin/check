@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run cypherid-web-infra's CI checks locally — mirrors tofu_ci / validate-stack (make fmt-check + validate)
+# Run cypherid-web-infra's CI checks locally — mirrors terraform_ci / validate-stack (make fmt-check + validate)
 # + security.yml (the shared reusable). A green `make check` here predicts a green CI (local == CI, CZID-311).
 # Tools that aren't installed skip-with-a-note. Full set: brew install terraform trivy tflint gitleaks.
 #

@@ -184,7 +184,7 @@ make apply DIR=terraform/envs/dev/auth0
 ```
 
 Formatting and validation also run in CI on every changed stack
-([`.github/workflows/tofu_ci.yml`](../.github/workflows/tofu_ci.yml)). **There is
+([`.github/workflows/terraform_ci.yml`](../.github/workflows/terraform_ci.yml)). **There is
 no auto-apply** — applies are always a deliberate human action.
 
 ---
@@ -296,7 +296,7 @@ order their `terraform_remote_state` dependencies imply.
 
 ## 8. CI/CD
 
-[`tofu_ci.yml`](../.github/workflows/tofu_ci.yml) detects the stacks touched by a
+[`terraform_ci.yml`](../.github/workflows/terraform_ci.yml) detects the stacks touched by a
 push/PR and, for each, runs `terraform fmt -check` + `terraform init -backend=false` +
 `terraform validate` using `hashicorp/setup-terraform` (pinned via `.terraform-version`).
 It does **not** apply. Applies are done deliberately — locally, or by a separate

@@ -38,10 +38,10 @@ module "elasticsearch" {
 
   elasticsearch_version = "OpenSearch_2.7"
 
-  instance_type   = "m6g.xlarge.elasticsearch"
-  instance_count  = 10
-  ebs_volume_type = "gp3"
-  ebs_volume_size = 256
+  instance_type   = var.es_instance_type
+  instance_count  = var.es_instance_count
+  ebs_volume_type = var.es_ebs_volume_type
+  ebs_volume_size = var.es_ebs_volume_size
   log_publishing_options = {
     cloudwatch_log_group = aws_cloudwatch_log_group.elasticsearch-log-publishing-policy.arn
   }

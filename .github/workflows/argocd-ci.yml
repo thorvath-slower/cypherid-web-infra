@@ -3,7 +3,10 @@ name: argocd-ci
 # Tests-first gate for the blue/green deploy wiring (feature-#002). On any change
 # under deploy/argocd/**: schema-validate every Argo CD manifest (AppProject,
 # app-of-apps root, Applications) against the Argo CRD schemas, and sanity-check
-# the per-env promotion gates.
+# the per-env promotion gates. The `chart` job additionally renders the actual
+# seqtoid-web Helm chart (checked out from the app repo, per the Argo multi-source
+# model) against these env values and schema-validates the output — including the
+# Argo Rollout / AnalysisTemplate CRDs (#327).
 
 on:
   push:
@@ -67,3 +70,132 @@ jobs:
             grep -q 'enabled: true' <(grep -A1 '^ingress:' deploy/argocd/values/seqtoid-web/$e.yaml)
           done
           echo "load-balancer wiring OK (controller app + per-env ingress enabled)"
+
+      - name: Assert the node-backend strangler gates (#455)
+        run: |
+          set -e
+          NB=deploy/argocd/values/seqtoid-node-backend
+          # The Node backend ships the same blue/green promotion gates as web.
+          grep -q 'autoPromotionEnabled: true'  $NB/dev.yaml
+          grep -q 'autoPromotionEnabled: true'  $NB/staging.yaml
+          grep -q 'autoPromotionEnabled: false' $NB/prod.yaml
+          # Strangler seam: dev + staging edges must be INTERNAL (Node runs
+          # alongside Rails on its own host; it is not the public edge until #457).
+          grep -q 'scheme: internal' $NB/dev.yaml
+          grep -q 'scheme: internal' $NB/staging.yaml
+          # There must be a dev Application but NO staging/prod Application yet
+          # (the strangler is dev-only; staging/prod Apps arrive at cutover #457).
+          test -f deploy/argocd/apps/seqtoid-node-backend-dev.yaml
+          test -f deploy/argocd/apps/seqtoid-node-backend-staging.yaml && { echo "unexpected staging App before cutover #457"; exit 1; }
+          test -f deploy/argocd/apps/seqtoid-node-backend-prod.yaml && { echo "unexpected prod App before cutover #457"; exit 1; }
+          echo "node-backend gates OK (dev/staging auto, prod manual; dev/staging internal; dev-only App)"
+
+  chart:
+    # Render the REAL seqtoid-web chart (from the app repo) against these env values
+    # and schema-validate the output, incl. the Argo Rollout/AnalysisTemplate CRDs.
+    # Mirrors the Argo CD multi-source Application: chart from the app repo, values here.
+    #
+    # GATED ON `vars.CHART_CI_ENABLED == 'true'`: this job reads a DIFFERENT private repo
+    # (the seqtoid-web fork), which GITHUB_TOKEN cannot do, so it needs CHART_READ_TOKEN
+    # (read on the fork; same class of secret as the GitOps token, #74/#444). Until that
+    # secret is provisioned and the var is flipped on, the job is skipped (CI stays green)
+    # rather than failing on an impossible cross-repo checkout. Enable: set repo variable
+    # CHART_CI_ENABLED=true + secret CHART_READ_TOKEN. CHART_REF defaults to `integration`
+    # (where the chart lives); override via var to pin a tag/sha.
+    if: ${{ vars.CHART_CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout infra (env values)
+        uses: actions/checkout@v6
+
+      - name: Checkout seqtoid-web (the chart)
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ vars.CHART_REPO || 'thorvath-slower/seqtoid-web' }}
+          ref: ${{ vars.CHART_REF || 'integration' }}
+          token: ${{ secrets.CHART_READ_TOKEN || secrets.GITHUB_TOKEN }}
+          path: _chart-src
+
+      - name: Install helm + kubeconform
+        run: |
+          HV=3.16.4
+          curl -fsSL "https://get.helm.sh/helm-v${HV}-linux-amd64.tar.gz" \
+            | tar -xz linux-amd64/helm
+          sudo install -m 0755 linux-amd64/helm /usr/local/bin/helm
+          KV=0.6.7
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${KV}/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz kubeconform
+          sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
+
+      - name: helm lint
+        run: helm lint _chart-src/deploy/charts/seqtoid-web
+
+      - name: helm template + kubeconform (all envs, incl. Rollout/AnalysisTemplate CRDs)
+        run: |
+          set -euo pipefail
+          CHART=_chart-src/deploy/charts/seqtoid-web
+          for e in dev staging prod; do
+            echo "== $e =="
+            helm template svc "$CHART" -f "deploy/argocd/values/seqtoid-web/$e.yaml" \
+              | kubeconform -strict -summary -verbose \
+                  -schema-location default -schema-location "$CRD_SCHEMAS" \
+                  -kubernetes-version 1.30.0
+          done
+
+      - name: Assert the chart shape (Rollout not Deployment; analysis gate; prod manual)
+        run: |
+          set -euo pipefail
+          CHART=_chart-src/deploy/charts/seqtoid-web
+          helm template svc "$CHART" -f deploy/argocd/values/seqtoid-web/prod.yaml > /tmp/prod.yaml
+          # The web workload must be an Argo Rollout, not a plain Deployment.
+          grep -q '^kind: Rollout' /tmp/prod.yaml
+          # The smoke gate template must render and be referenced by the Rollout.
+          grep -q 'kind: AnalysisTemplate' /tmp/prod.yaml
+          grep -q 'prePromotionAnalysis' /tmp/prod.yaml
+          # prod must keep the manual promotion gate.
+          grep -q 'autoPromotionEnabled: false' /tmp/prod.yaml
+          # The migration must run as a pre-sync hook.
+          grep -q 'argocd.argoproj.io/hook: PreSync' /tmp/prod.yaml
+          echo "chart shape OK (Rollout + analysis gate + prod manual + presync migrate)"
+
+      - name: helm lint + template the node-backend chart (all envs, #455)
+        run: |
+          set -euo pipefail
+          NBCHART=_chart-src/deploy/charts/seqtoid-node-backend
+          # The node-backend chart lands on the app repo's integration via a
+          # companion PR (thorvath-slower/seqtoid-web #103). Until that merges the
+          # dir isn't on CHART_REF, so skip rather than hard-fail (CI stays green;
+          # this becomes a real gate the moment the chart is on integration).
+          if [ ! -f "$NBCHART/Chart.yaml" ]; then
+            echo "node-backend chart not on $NBCHART yet (companion PR pending) — skipping"
+            exit 0
+          fi
+          helm lint "$NBCHART"
+          for e in dev staging prod; do
+            echo "== node-backend $e =="
+            helm template nb "$NBCHART" -f "deploy/argocd/values/seqtoid-node-backend/$e.yaml" \
+              | kubeconform -strict -summary -verbose \
+                  -schema-location default -schema-location "$CRD_SCHEMAS" \
+                  -kubernetes-version 1.30.0
+          done
+
+      - name: Assert the node-backend chart shape (Rollout + worker + prod manual)
+        run: |
+          set -euo pipefail
+          NBCHART=_chart-src/deploy/charts/seqtoid-node-backend
+          if [ ! -f "$NBCHART/Chart.yaml" ]; then
+            echo "node-backend chart not on $NBCHART yet (companion PR pending) — skipping"
+            exit 0
+          fi
+          helm template nb "$NBCHART" -f deploy/argocd/values/seqtoid-node-backend/prod.yaml > /tmp/nb-prod.yaml
+          # The api workload must be an Argo Rollout, not a plain Deployment.
+          grep -q '^kind: Rollout' /tmp/nb-prod.yaml
+          # The smoke gate template must render and be referenced by the Rollout.
+          grep -q 'kind: AnalysisTemplate' /tmp/nb-prod.yaml
+          grep -q 'prePromotionAnalysis' /tmp/nb-prod.yaml
+          # The worker (BullMQ + SFN-notifications consumer) must be a Deployment.
+          grep -q 'component: worker' /tmp/nb-prod.yaml
+          grep -q 'node' /tmp/nb-prod.yaml
+          # prod must keep the manual promotion gate.
+          grep -q 'autoPromotionEnabled: false' /tmp/nb-prod.yaml
+          echo "node-backend chart shape OK (api Rollout + worker Deployment + analysis gate + prod manual)"

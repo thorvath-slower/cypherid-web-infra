@@ -1,6 +1,10 @@
 locals {
+  # #429: normalize prod assets to the seqtoid.org model. `domain` is now the
+  # parameterized env fqdn from route53 remote state (local.env_fqdn, defined in
+  # main.tf) instead of the hardcoded "${var.env}.idseq.net". Local names are kept
+  # unchanged; only their values move off idseq.net.
   subdomain     = "assets"
-  domain        = "${var.env}.idseq.net"
+  domain        = local.env_fqdn
   full_domain   = "${local.subdomain}.${local.domain}"
   origin_domain = local.domain
 
@@ -10,7 +14,7 @@ locals {
 }
 
 module "assets-cert" {
-  source = "github.com/thorvath-slower/cztack//aws-acm-certificate?ref=ad3cae93e104cf399f5c24ffd4f1096143202907" # cztack v0.41.0
+  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
 
   cert_domain_name               = local.full_domain
   aws_route53_zone_id            = local.zone_id
@@ -27,6 +31,15 @@ resource "aws_cloudfront_distribution" "distribution" {
 
   enabled = true
   comment = "Caches Rails web server static assets in Amazon's edge servers"
+
+  # CZID-61 (#61): CloudFront standard access logging to a private S3 bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_access_logs.bucket_domain_name
+    include_cookies = false
+    prefix          = "assets/"
+  }
+  # CZID-356 (#356): CLOUDFRONT-scoped WAF (CKV_AWS_68 / CKV2_AWS_47). ARN, per the WAFv2 contract.
+  web_acl_id = module.cloudfront_waf.web_acl_id
 
   aliases = [local.full_domain]
 

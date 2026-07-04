@@ -8,6 +8,11 @@ resource "aws_s3_bucket" "samples" {
   acceleration_status = "Enabled"
   force_destroy       = contains(["dev", "sandbox"], var.env)
 
+  # DATA-1 (#31): staging carries real sample data — never let terraform destroy/replace this bucket.
+  lifecycle {
+    prevent_destroy = true
+  }
+
   versioning {
     enabled = false
   }
@@ -152,6 +157,11 @@ resource "aws_s3_bucket" "samples_v1" {
   acl                 = "private"
   acceleration_status = "Enabled"
   force_destroy       = contains(["dev", "sandbox"], var.env)
+
+  # DATA-1 (#31): staging carries real sample data — never let terraform destroy/replace this bucket.
+  lifecycle {
+    prevent_destroy = true
+  }
 
   versioning {
     enabled = true

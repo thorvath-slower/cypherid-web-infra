@@ -16,7 +16,10 @@ resource "aws_wafv2_rule_group" "geo_restriction" {
     }
     statement {
       geo_match_statement {
-        country_codes = ["IR", "CU", "KP", "UA"]
+        # CZID-323 (#280): US export-embargoed jurisdictions. SINGLE SOURCE OF TRUTH:
+        # export-control/blocked-jurisdictions.json (counsel-owned, CZID-322), passed in by the env
+        # stack and read by the Layer-2 Lambda from the SAME file — no hard-coded copy here.
+        country_codes = var.blocked_country_codes
       }
     }
     visibility_config {
