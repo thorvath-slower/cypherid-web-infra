@@ -1,29 +1,43 @@
-# dev overrides for the seqtoid-web chart. Layered over the chart defaults.
+# seqtoid-web @ dev — filled for the EKS/Argo strangler bring-up (#319).
+# PROVING PHASE: ingress is DISABLED — the app runs + the in-cluster blue/green smoke
+# gate curls it (proving it boots + connects to DB/secrets/S3 via chamber+IRSA), and we
+# verify with `kubectl port-forward`. NO ALB, NO cert, NO DNS, zero exposure. The ingress
+# block below is pre-filled with the real cutover values; enabling it (stage 5) creates the
+# ALB and points dev.seqtoid.org at it — the deliberate cutover, do it with a test-host check.
 environment: dev
+
 image:
-  repository: REPLACE_DEV_ACCT.dkr.ecr.us-west-2.amazonaws.com/czid-dev/seqtoid-web
-  tag: latest            # CI advances this to the immutable git-sha tag on deploy
+  # Dev-account ECR, go-forward repo (the CZID-76 dual-push lands here too).
+  repository: 491013321714.dkr.ecr.us-west-2.amazonaws.com/seqtoid-web
+  tag: sha-19c73638            # the current hardened known-good build; CI advances this per build
+
 replicaCount: 2
+
 serviceAccount:
-  roleArn: arn:aws:iam::REPLACE_DEV_ACCT:role/czid-dev-seqtoid-web
+  create: true
+  name: seqtoid-web            # MUST match the IRSA trust (system:serviceaccount:seqtoid-dev:seqtoid-web)
+  roleArn: arn:aws:iam::491013321714:role/seqtoid-web-dev
+
 blueGreen:
-  autoPromotionEnabled: true     # dev: automated gate (promote on smoke pass)
+  autoPromotionEnabled: true   # dev: promote on the smoke AnalysisTemplate passing
   scaleDownDelaySeconds: 30
   analysis:
     enabled: true
     postPromotion: false
+
 resources:
   requests:
     cpu: 250m
     memory: 512Mi
   limits:
     memory: 1Gi
+
 autoscaling:
   enabled: false
-# Public edge for dev. ALB via the AWS Load Balancer Controller -> active service.
+
 ingress:
-  enabled: true
-  host: czid-dev.example.org           # REPLACE with the real dev DNS name
-  certificateArn: arn:aws:acm:us-west-2:REPLACE_DEV_ACCT:certificate/REPLACE_DEV_CERT
+  enabled: false               # STAGE 5 flips this to true (the DNS cutover) — leave false while proving
+  host: dev.seqtoid.org
+  certificateArn: arn:aws:acm:us-west-2:491013321714:certificate/9881060c-5652-40b6-9132-72a94171e18b
   annotations:
-    alb.ingress.kubernetes.io/subnets: REPLACE_DEV_PUBLIC_SUBNETS   # subnet-...,subnet-...
+    alb.ingress.kubernetes.io/subnets: subnet-06bfffadf91e2c189,subnet-0f94623d782341d71
