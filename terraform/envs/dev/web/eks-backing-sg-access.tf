@@ -21,7 +21,7 @@ resource "aws_vpc_security_group_ingress_rule" "eks_to_redis" {
   from_port                    = 6379
   to_port                      = 6379
   ip_protocol                  = "tcp"
-  description                  = "czid-dev-eks pods -> dev Redis (EKS/Argo strangler #319)"
+  description                  = "czid-dev-eks pods to dev Redis (EKS/Argo strangler #319)"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "eks_to_aurora" {
@@ -30,7 +30,7 @@ resource "aws_vpc_security_group_ingress_rule" "eks_to_aurora" {
   from_port                    = 3306
   to_port                      = 3306
   ip_protocol                  = "tcp"
-  description                  = "czid-dev-eks pods -> dev Aurora MySQL (EKS/Argo strangler #319)"
+  description                  = "czid-dev-eks pods to dev Aurora MySQL (EKS/Argo strangler #319)"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "eks_to_opensearch" {
@@ -39,5 +39,5 @@ resource "aws_vpc_security_group_ingress_rule" "eks_to_opensearch" {
   from_port                    = 443
   to_port                      = 443
   ip_protocol                  = "tcp"
-  description                  = "czid-dev-eks pods -> dev OpenSearch (EKS/Argo strangler #319)"
+  description                  = "czid-dev-eks pods to dev OpenSearch (EKS/Argo strangler #319)"
 }
