@@ -2,12 +2,12 @@
 environment: dev
 image:
   repository: REPLACE_DEV_ACCT.dkr.ecr.us-west-2.amazonaws.com/czid-dev/seqtoid-web
-  tag: latest            # CI advances this to the immutable git-sha tag on deploy
+  tag: sha-19c73638 # CI advances this to the immutable git-sha tag on deploy
 replicaCount: 2
 serviceAccount:
   roleArn: arn:aws:iam::REPLACE_DEV_ACCT:role/czid-dev-seqtoid-web
 blueGreen:
-  autoPromotionEnabled: true     # dev: automated gate (promote on smoke pass)
+  autoPromotionEnabled: true # dev: automated gate (promote on smoke pass)
   scaleDownDelaySeconds: 30
   analysis:
     enabled: true
@@ -23,7 +23,7 @@ autoscaling:
 # Public edge for dev. ALB via the AWS Load Balancer Controller -> active service.
 ingress:
   enabled: true
-  host: czid-dev.example.org           # REPLACE with the real dev DNS name
+  host: czid-dev.example.org # REPLACE with the real dev DNS name
   certificateArn: arn:aws:acm:us-west-2:REPLACE_DEV_ACCT:certificate/REPLACE_DEV_CERT
   annotations:
-    alb.ingress.kubernetes.io/subnets: REPLACE_DEV_PUBLIC_SUBNETS   # subnet-...,subnet-...
+    alb.ingress.kubernetes.io/subnets: REPLACE_DEV_PUBLIC_SUBNETS # subnet-...,subnet-...
