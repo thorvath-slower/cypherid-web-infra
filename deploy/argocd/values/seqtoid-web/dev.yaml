@@ -16,6 +16,15 @@ image:
 suspend: true
 replicaCount: 2
 
+# Target the dedicated small Karpenter NodePool `seqtoid-web` (#486). The shared pool
+# floors instance-cpu>8 (16-vCPU nodes) + consolidates empty nodes only after 24h; the
+# dedicated pool allows small nodes (<9 vCPU, verified: a c6a.large/2-vCPU was picked)
+# and reclaims fast (1m) — right-sizes the app AND makes the weekend spin-down actually
+# free the node quickly. Merged with the chart's amd64 pin (both keys kept explicitly).
+nodeSelector:
+  kubernetes.io/arch: amd64
+  seqtoid.io/pool: web
+
 # Rightsize dev worker memory (#486). The chart defaults (3Gi each) are prod-ish and
 # forced Karpenter onto an oversized node; dev needs far less. Per-worker overrides are
 # possible now that `workers` is a name-keyed map (seqtoid-web #129). NOTE: this reduces
