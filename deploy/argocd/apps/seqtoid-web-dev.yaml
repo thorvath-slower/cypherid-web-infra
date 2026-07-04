@@ -7,21 +7,21 @@ metadata:
   name: seqtoid-web-dev
   namespace: argocd
 spec:
-  project: czid
+  project: default   # proving phase; a scoped `seqtoid` AppProject is a follow-up
   sources:
-    - repoURL: https://github.com/chanzuckerberg/seqtoid-web.git
+    - repoURL: https://github.com/thorvath-slower/seqtoid-web.git
       # Pin to a release tag/sha in practice; CI advances it on deploy.
       targetRevision: main
       path: deploy/charts/seqtoid-web
       helm:
         valueFiles:
           - $values/deploy/argocd/values/seqtoid-web/dev.yaml
-    - repoURL: https://github.com/chanzuckerberg/cypherid-web-infra.git
+    - repoURL: https://github.com/thorvath-slower/cypherid-web-infra.git
       targetRevision: main
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: czid-dev
+    namespace: seqtoid-dev
   syncPolicy:
     automated:
       prune: true
