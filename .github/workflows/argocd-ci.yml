@@ -64,12 +64,17 @@ jobs:
           test -f deploy/argocd/apps/aws-load-balancer-controller.yaml
           grep -q 'chart: aws-load-balancer-controller' deploy/argocd/apps/aws-load-balancer-controller.yaml
           grep -q 'namespace: kube-system'              deploy/argocd/apps/aws-load-balancer-controller.yaml
-          # Every env must expose a public edge.
+          # The ingress block must exist for every env.
           for e in dev staging prod; do
             grep -qA1 '^ingress:' deploy/argocd/values/seqtoid-web/$e.yaml
+          done
+          # staging/prod must expose a public edge. dev MAY have ingress disabled during the
+          # EKS/Argo strangler bring-up (#319): the app is proven via port-forward first, and the
+          # ingress/ALB/DNS is enabled deliberately at the cutover step.
+          for e in staging prod; do
             grep -q 'enabled: true' <(grep -A1 '^ingress:' deploy/argocd/values/seqtoid-web/$e.yaml)
           done
-          echo "load-balancer wiring OK (controller app + per-env ingress enabled)"
+          echo "load-balancer wiring OK (controller app + staging/prod ingress enabled; dev may be disabled during bring-up)"
 
       - name: Assert the node-backend strangler gates (#455)
         run: |
