@@ -8,7 +8,7 @@ environment: dev
 image:
   # Dev-account ECR, go-forward repo (the CZID-76 dual-push lands here too).
   repository: 491013321714.dkr.ecr.us-west-2.amazonaws.com/seqtoid-web
-  tag: sha-6bbceee3 # the current hardened known-good build; CI advances this per build
+  tag: sha-e552b085 # the current hardened known-good build; CI advances this per build
 replicaCount: 2
 serviceAccount:
   create: true
