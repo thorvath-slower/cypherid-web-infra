@@ -5,38 +5,31 @@
 # block below is pre-filled with the real cutover values; enabling it (stage 5) creates the
 # ALB and points dev.seqtoid.org at it — the deliberate cutover, do it with a test-host check.
 environment: dev
-
 image:
   # Dev-account ECR, go-forward repo (the CZID-76 dual-push lands here too).
   repository: 491013321714.dkr.ecr.us-west-2.amazonaws.com/seqtoid-web
-  tag: sha-19c73638            # the current hardened known-good build; CI advances this per build
-
+  tag: sha-0ab4a52f # the current hardened known-good build; CI advances this per build
 replicaCount: 2
-
 serviceAccount:
   create: true
-  name: seqtoid-web            # MUST match the IRSA trust (system:serviceaccount:seqtoid-dev:seqtoid-web)
+  name: seqtoid-web # MUST match the IRSA trust (system:serviceaccount:seqtoid-dev:seqtoid-web)
   roleArn: arn:aws:iam::491013321714:role/seqtoid-web-dev
-
 blueGreen:
-  autoPromotionEnabled: true   # dev: promote on the smoke AnalysisTemplate passing
+  autoPromotionEnabled: true # dev: promote on the smoke AnalysisTemplate passing
   scaleDownDelaySeconds: 30
   analysis:
     enabled: true
     postPromotion: false
-
 resources:
   requests:
     cpu: 250m
     memory: 512Mi
   limits:
     memory: 1Gi
-
 autoscaling:
   enabled: false
-
 ingress:
-  enabled: false               # STAGE 5 flips this to true (the DNS cutover) — leave false while proving
+  enabled: false # STAGE 5 flips this to true (the DNS cutover) — leave false while proving
   host: dev.seqtoid.org
   certificateArn: arn:aws:acm:us-west-2:491013321714:certificate/9881060c-5652-40b6-9132-72a94171e18b
   annotations:
