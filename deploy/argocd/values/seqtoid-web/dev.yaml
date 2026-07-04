@@ -15,6 +15,39 @@ image:
 # (manually or via the weekend cadence, #487) brings the app up on the LATEST build.
 suspend: true
 replicaCount: 2
+
+# Rightsize dev worker memory (#486). The chart defaults (3Gi each) are prod-ish and
+# forced Karpenter onto an oversized node; dev needs far less. Per-worker overrides are
+# possible now that `workers` is a name-keyed map (seqtoid-web #129). NOTE: this reduces
+# memory pressure but the node stays large until seqtoid-web also lands on a dedicated
+# small Karpenter NodePool (the shared NodePool floors instance-cpu > 8) — see #486.
+workers:
+  resque:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+  resque-scheduler:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+  resque-pipeline-monitor:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+  resque-result-monitor:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+  shoryuken:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+
 serviceAccount:
   create: true
   name: seqtoid-web # MUST match the IRSA trust (system:serviceaccount:seqtoid-dev:seqtoid-web)

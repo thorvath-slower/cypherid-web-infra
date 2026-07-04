@@ -1,0 +1,75 @@
+name: dev-cost-cadence
+
+# Weekend cost spin-down for the DEV seqtoid-web app (#487). Flips the chart `suspend`
+# toggle in the dev Argo values; Argo CD (auto-sync) then scales the web Rollout + all
+# workers to 0 (Karpenter reclaims the node) or back. Data lives in Aurora + OpenSearch
+# (persistent), so this is safe + reversible. DEV ONLY — staging/prod are never touched.
+#
+# Schedule is expressed for PST (UTC-8). GitHub Actions cron is UTC and does NOT observe
+# DST, so during PDT (summer) these fire one hour later in local time — fine for a cost
+# cadence. Adjust the crons if you want strict local time year-round.
+#   DOWN: Fri->Sat midnight PST (Sat 00:00 PST = Sat 08:00 UTC)
+#   UP:   Mon 05:00 PST        (Mon 13:00 UTC)
+
+on:
+  schedule:
+    - cron: "0 8 * * 6"   # Saturday 08:00 UTC = Fri->Sat midnight PST -> spin DOWN
+    - cron: "0 13 * * 1"  # Monday   13:00 UTC = Mon 05:00 PST         -> spin UP
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "down (suspend) or up (resume) — manual override"
+        type: choice
+        options: [down, up]
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dev-cost-cadence
+  cancel-in-progress: false
+
+jobs:
+  flip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Decide down vs up
+        id: decide
+        run: |
+          set -euo pipefail
+          case "${{ github.event.schedule }}" in
+            "0 8 * * 6")  SUSPEND=true;  ACT=DOWN ;;   # Fri->Sat midnight PST
+            "0 13 * * 1") SUSPEND=false; ACT=UP   ;;   # Mon 05:00 PST
+            *)  # manual dispatch
+              if [ "${{ github.event.inputs.action }}" = "down" ]; then SUSPEND=true; ACT=DOWN; else SUSPEND=false; ACT=UP; fi ;;
+          esac
+          echo "suspend=$SUSPEND" >> "$GITHUB_OUTPUT"
+          echo "act=$ACT"         >> "$GITHUB_OUTPUT"
+
+      - name: Install yq
+        run: |
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Flip suspend in dev.yaml + commit
+        env:
+          SUSPEND: ${{ steps.decide.outputs.suspend }}
+          ACT: ${{ steps.decide.outputs.act }}
+        run: |
+          set -euo pipefail
+          FILE=deploy/argocd/values/seqtoid-web/dev.yaml
+          CUR="$(yq '.suspend' "$FILE")"
+          if [ "$CUR" = "$SUSPEND" ]; then
+            echo "dev already suspend=$SUSPEND ($ACT); nothing to do."
+            exit 0
+          fi
+          yq -i ".suspend = $SUSPEND" "$FILE"
+          git config user.name  "seqtoid-cost-cadence"
+          git config user.email "cadence@seqtoid.local"
+          git add "$FILE"
+          git commit -m "chore(dev cadence): $ACT — suspend=$SUSPEND"
+          git push origin main
+          echo "dev $ACT: suspend $CUR -> $SUSPEND. Argo CD (auto-sync) will scale the app $ACT."
