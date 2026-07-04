@@ -9,7 +9,7 @@ environment: dev
 image:
   # Dev-account ECR, go-forward repo (the CZID-76 dual-push lands here too).
   repository: 491013321714.dkr.ecr.us-west-2.amazonaws.com/seqtoid-web
-  tag: sha-19c73638            # the current hardened known-good build; CI advances this per build
+  tag: sha-716b89ab            # dev bring-up: build 716b89ab (StrongMigrations target_version 8.0 fix, PR #122)
 
 replicaCount: 2
 
