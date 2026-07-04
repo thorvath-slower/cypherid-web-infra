@@ -37,3 +37,6 @@ venv
 # CI installs from the lock, never re-resolves). Do NOT ignore it. Generate per stack with:
 #   terraform init && terraform providers lock -platform=linux_amd64 -platform=darwin_arm64
 # (.terraform.lock.hcl intentionally NOT ignored.)
+
+# tf-linux plan files
+tfplan.bin
