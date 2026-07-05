@@ -75,6 +75,12 @@ autoscaling:
 ingress:
   enabled: false # STAGE 5 flips this to true (the DNS cutover) — leave false while proving
   host: dev.seqtoid.org
+  # www.dev.seqtoid.org is a 301->apex vanity host. Route it through the same EKS
+  # ALB (the app does the redirect) so the old ECS edge — which currently serves
+  # this record — can be retired without breaking www. The ACM cert already covers
+  # www (SAN). Only takes effect where the ingress is enabled (v2 via the app param).
+  aliasHosts:
+    - www.dev.seqtoid.org
   certificateArn: arn:aws:acm:us-west-2:491013321714:certificate/9881060c-5652-40b6-9132-72a94171e18b
   annotations:
     alb.ingress.kubernetes.io/subnets: subnet-06bfffadf91e2c189,subnet-0f94623d782341d71
