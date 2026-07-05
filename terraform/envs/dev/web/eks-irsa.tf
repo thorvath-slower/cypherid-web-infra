@@ -24,14 +24,12 @@ locals {
   seqtoid_web_eks_namespace = "seqtoid-dev"
   seqtoid_web_eks_sa        = "seqtoid-web"
 
-  # STRANGLER: during the czid-dev-eks -> czid-dev-eks-v2 migration (Plan B, #489)
-  # the SAME pod ServiceAccount (seqtoid-dev/seqtoid-web) runs on BOTH clusters, so
-  # the role must trust BOTH OIDC providers. Each provider has a distinct issuer host,
-  # so the trust policy gets one AssumeRoleWithWebIdentity statement per cluster (the
-  # condition keys are issuer-host-specific). Additive; drop the czid-dev-eks entry
-  # once the old cluster is decommissioned (Phase 5).
+  # The pod ServiceAccount (seqtoid-dev/seqtoid-web) runs on czid-dev-eks-v2, so the role
+  # trusts that cluster's OIDC provider. (History: during the czid-dev-eks -> v2 strangler
+  # this map held BOTH clusters; the old czid-dev-eks was decommissioned in Phase 5, so its
+  # entry + data source are removed — the data source would otherwise error now that the
+  # cluster no longer exists. Kept as a map so a future second cluster is a one-line add.)
   seqtoid_web_eks_clusters = {
-    "czid-dev-eks"    = data.aws_eks_cluster.dev_eks.identity[0].oidc[0].issuer
     "czid-dev-eks-v2" = data.aws_eks_cluster.dev_eks_v2.identity[0].oidc[0].issuer
   }
   seqtoid_web_eks_oidc = {
@@ -41,10 +39,6 @@ locals {
       provider_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(issuer, "https://", "")}"
     }
   }
-}
-
-data "aws_eks_cluster" "dev_eks" {
-  name = "czid-dev-eks"
 }
 
 data "aws_eks_cluster" "dev_eks_v2" {
