@@ -13,7 +13,10 @@ image:
 # (chart `suspend`). Safe + reversible — the app's data lives in Aurora + OpenSearch, not
 # the pods. The CD keeps advancing `image.tag` while suspended, so flipping this to false
 # (manually or via the weekend cadence, #487) brings the app up on the LATEST build.
-suspend: true
+# Now false: dev is live on czid-dev-eks-v2 serving real traffic. The weekend cadence
+# (#487) still flips this to true on its schedule; dev.yaml is the source of truth again
+# now that the old cluster's Argo app (which also read this file) is decommissioned.
+suspend: false
 replicaCount: 2
 # Target the dedicated small Karpenter NodePool `seqtoid-web` (#486). The shared pool
 # floors instance-cpu>8 (16-vCPU nodes) + consolidates empty nodes only after 24h; the
@@ -73,7 +76,7 @@ resources:
 autoscaling:
   enabled: false
 ingress:
-  enabled: false # STAGE 5 flips this to true (the DNS cutover) — leave false while proving
+  enabled: true # DNS cutover done — dev.seqtoid.org (+ www via aliasHosts) served by the v2 ALB
   host: dev.seqtoid.org
   # www.dev.seqtoid.org is a 301->apex vanity host. Route it through the same EKS
   # ALB (the app does the redirect) so the old ECS edge — which currently serves
