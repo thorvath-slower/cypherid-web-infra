@@ -23,34 +23,56 @@
 locals {
   seqtoid_web_eks_namespace = "seqtoid-dev"
   seqtoid_web_eks_sa        = "seqtoid-web"
-  # The czid-dev-eks OIDC provider (registered for IRSA). Issuer host without scheme.
-  eks_oidc_issuer_host  = replace(data.aws_eks_cluster.dev_eks.identity[0].oidc[0].issuer, "https://", "")
-  eks_oidc_provider_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${local.eks_oidc_issuer_host}"
+
+  # STRANGLER: during the czid-dev-eks -> czid-dev-eks-v2 migration (Plan B, #489)
+  # the SAME pod ServiceAccount (seqtoid-dev/seqtoid-web) runs on BOTH clusters, so
+  # the role must trust BOTH OIDC providers. Each provider has a distinct issuer host,
+  # so the trust policy gets one AssumeRoleWithWebIdentity statement per cluster (the
+  # condition keys are issuer-host-specific). Additive; drop the czid-dev-eks entry
+  # once the old cluster is decommissioned (Phase 5).
+  seqtoid_web_eks_clusters = {
+    "czid-dev-eks"    = data.aws_eks_cluster.dev_eks.identity[0].oidc[0].issuer
+    "czid-dev-eks-v2" = data.aws_eks_cluster.dev_eks_v2.identity[0].oidc[0].issuer
+  }
+  seqtoid_web_eks_oidc = {
+    for name, issuer in local.seqtoid_web_eks_clusters :
+    name => {
+      issuer_host  = replace(issuer, "https://", "")
+      provider_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(issuer, "https://", "")}"
+    }
+  }
 }
 
 data "aws_eks_cluster" "dev_eks" {
   name = "czid-dev-eks"
 }
 
+data "aws_eks_cluster" "dev_eks_v2" {
+  name = "czid-dev-eks-v2"
+}
+
 # IRSA trust: only the seqtoid-web ServiceAccount in the seqtoid-dev namespace may
-# assume this role, via the cluster's OIDC provider.
+# assume this role — via EITHER cluster's OIDC provider (one statement per cluster).
 data "aws_iam_policy_document" "seqtoid_web_eks_trust" {
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    principals {
-      type        = "Federated"
-      identifiers = [local.eks_oidc_provider_arn]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "${local.eks_oidc_issuer_host}:sub"
-      values   = ["system:serviceaccount:${local.seqtoid_web_eks_namespace}:${local.seqtoid_web_eks_sa}"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "${local.eks_oidc_issuer_host}:aud"
-      values   = ["sts.amazonaws.com"]
+  dynamic "statement" {
+    for_each = local.seqtoid_web_eks_oidc
+    content {
+      effect  = "Allow"
+      actions = ["sts:AssumeRoleWithWebIdentity"]
+      principals {
+        type        = "Federated"
+        identifiers = [statement.value.provider_arn]
+      }
+      condition {
+        test     = "StringEquals"
+        variable = "${statement.value.issuer_host}:sub"
+        values   = ["system:serviceaccount:${local.seqtoid_web_eks_namespace}:${local.seqtoid_web_eks_sa}"]
+      }
+      condition {
+        test     = "StringEquals"
+        variable = "${statement.value.issuer_host}:aud"
+        values   = ["sts.amazonaws.com"]
+      }
     }
   }
 }
