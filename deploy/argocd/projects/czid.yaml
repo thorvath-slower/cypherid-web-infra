@@ -8,8 +8,8 @@ metadata:
 spec:
   description: CZ ID stack delivery (blue/green via Argo Rollouts)
   sourceRepos:
-    - https://github.com/chanzuckerberg/seqtoid-web.git        # app chart
-    - https://github.com/chanzuckerberg/cypherid-web-infra.git # env values + apps
+    - https://github.com/thorvath-slower/seqtoid-web.git        # app chart
+    - https://github.com/thorvath-slower/cypherid-web-infra.git # env values + apps
     - https://argoproj.github.io/argo-helm                     # argo-rollouts controller chart
     - https://aws.github.io/eks-charts                         # AWS Load Balancer Controller chart (CZID #321)
   destinations:

@@ -12,7 +12,7 @@ metadata:
 spec:
   project: czid
   source:
-    repoURL: https://github.com/chanzuckerberg/cypherid-web-infra.git
+    repoURL: https://github.com/thorvath-slower/cypherid-web-infra.git
     targetRevision: main
     path: deploy/argocd/apps
     directory:

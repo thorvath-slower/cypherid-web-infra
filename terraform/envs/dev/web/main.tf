@@ -200,8 +200,12 @@ data "aws_iam_policy_document" "idseq-upload-assume-role" {
     sid     = "WebAssumeRole"
 
     principals {
-      type        = "AWS"
-      identifiers = [aws_iam_role.idseq-web.arn]
+      type = "AWS"
+      # The web app assumes this role to mint scoped S3 upload creds for the browser
+      # (get_upload_credentials -> CLI_UPLOAD_ROLE_ARN). BOTH the ECS task role AND the
+      # EKS/IRSA pod role must be trusted so uploads work on either runtime during the
+      # ECS->EKS strangler (#489). Drop idseq-web once ECS dev is decommissioned (Phase 5).
+      identifiers = [aws_iam_role.idseq-web.arn, aws_iam_role.seqtoid_web_eks.arn]
     }
   }
   # statement {
