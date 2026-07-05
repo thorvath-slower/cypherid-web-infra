@@ -44,12 +44,21 @@ if ! aws sts get-caller-identity --profile "$PROFILE" >/dev/null 2>&1; then
 fi
 
 _run() {  # subcommand + args
+  # The eks stacks use the kubernetes/kubectl/helm providers, whose exec-based auth
+  # shells out to `aws eks get-token` — but the stock hashicorp/terraform image ships
+  # no aws CLI (plan/apply on eks fails with 'executable aws not found'). Install it on
+  # demand (alpine apk) before running terraform. The ~/.aws mount is read-WRITE so the
+  # SSO token can be refreshed inside the container (a read-only mount fails the refresh
+  # with 'read-only file system'); only the SSO token cache is written.
   docker run --rm -it \
     --platform linux/amd64 \
+    --entrypoint sh \
     -v "$ROOT":/work -w "/work/$STACK" \
-    -v "$HOME/.aws":/root/.aws:ro \
+    -v "$HOME/.aws":/root/.aws \
     -e AWS_PROFILE="$PROFILE" -e AWS_REGION="$REGION" \
-    "hashicorp/terraform:${TFVER}" "$@"
+    "hashicorp/terraform:${TFVER}" -c \
+    'command -v aws >/dev/null 2>&1 || apk add --no-cache aws-cli >/dev/null 2>&1; exec terraform "$@"' \
+    tf-linux "$@"
 }
 
 case "${1:-}" in
