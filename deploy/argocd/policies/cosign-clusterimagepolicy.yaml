@@ -1,0 +1,60 @@
+# seqtoid-web cosign admission policy (#77).
+#
+# Enforces "only the seqtoid-web image signed by OUR build workflow may run": requires a
+# KEYLESS cosign signature whose Fulcio certificate was issued to the GitHub Actions OIDC
+# identity of the seqtoid-web build workflow, verified against the Rekor transparency log
+# (the chart ships with the public-good Fulcio root + Rekor by default, so no keyRef).
+#
+# ── Certificate identity (must match the signer in seqtoid-web) ───────────────────────
+# The build workflow (thorvath-slower/seqtoid-web, .github/workflows/build-docker-image.yml,
+# job build_dev_docker_image) runs `cosign sign` keyless via the GHA OIDC token on push to
+# `main`. Fulcio therefore issues a short-lived cert with:
+#   • issuer  = https://token.actions.githubusercontent.com
+#   • SAN URI = https://github.com/thorvath-slower/seqtoid-web/.github/workflows/build-docker-image.yml@refs/heads/main
+# The identity regexp below pins the repo + workflow-file path and accepts any git ref
+# (@refs/...), so a tagged/release-branch build of the SAME workflow still verifies while a
+# signature from any OTHER repo/workflow is rejected. Tighten `@refs/.*` to
+# `@refs/heads/main` when locking to main-only builds (do it with the enforce flip).
+#
+# ── Image match ───────────────────────────────────────────────────────────────────────
+# Globs the dev-account ECR repo the seqtoid-web pods actually pull
+# (deploy/argocd/values/seqtoid-web/dev.yaml → image.repository). The signature travels
+# with the image DIGEST, so it verifies regardless of which registry the digest was
+# pushed to (the CZID-76 dual-push lands the same signed digest here). Add the
+# staging/prod ECR globs alongside their namespace opt-in when this rolls forward.
+#
+# ── Posture: WARN (audit, non-blocking) ───────────────────────────────────────────────
+# `mode: warn` reports policy failures as warnings/events but ADMITS the pod. This lets us
+# observe on a labeled seqtoid-dev namespace with ZERO risk of blocking real traffic.
+# FLIP-TO-ENFORCE is a DELIBERATE, GATED follow-up: change `mode: warn` → `mode: enforce`
+# in a reviewed commit only after a clean warn-mode observation window (see the staged
+# rollout in ../apps/sigstore-policy-controller.yaml).
+#
+# ── Namespace opt-in (REQUIRED for this to gate anything) ─────────────────────────────
+# policy-controller ONLY evaluates namespaces labeled `policy.sigstore.dev/include=true`.
+# This policy gates NOTHING until an operator runs:
+#     kubectl label namespace seqtoid-dev policy.sigstore.dev/include=true
+# Do NOT label system namespaces (kube-system, argocd, cosign-system, kube-node-lease,
+# kube-public) — under enforce their unsigned system images would be DENIED and could
+# wedge the cluster.
+apiVersion: policy.sigstore.dev/v1alpha1
+kind: ClusterImagePolicy
+metadata:
+  name: seqtoid-web-cosign-keyless
+spec:
+  # Audit-first. Change to `enforce` only as the deliberate, gated go-live step.
+  mode: warn
+  images:
+    - glob: "491013321714.dkr.ecr.us-west-2.amazonaws.com/seqtoid-web**"
+  authorities:
+    - name: seqtoid-web-build-workflow-keyless
+      keyless:
+        # Public-good Fulcio CA (chart default trust root). The identity below is what
+        # actually scopes trust; the CA just says "a Fulcio-issued cert".
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subjectRegExp: "^https://github\\.com/thorvath-slower/seqtoid-web/\\.github/workflows/build-docker-image\\.yml@refs/.*$"
+        # Require the signature to be logged in the Rekor transparency log (chart default
+        # public-good Rekor). Explicit for auditability.
+        ctlog:
+          url: https://rekor.sigstore.dev

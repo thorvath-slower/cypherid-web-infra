@@ -12,6 +12,7 @@ spec:
     - https://github.com/thorvath-slower/cypherid-web-infra.git # env values + apps
     - https://argoproj.github.io/argo-helm                     # argo-rollouts controller chart
     - https://aws.github.io/eks-charts                         # AWS Load Balancer Controller chart (CZID #321)
+    - https://sigstore.github.io/helm-charts                   # sigstore policy-controller chart (#77)
   destinations:
     - server: https://kubernetes.default.svc
       namespace: czid-dev
@@ -23,6 +24,8 @@ spec:
       namespace: argo-rollouts
     - server: https://kubernetes.default.svc
       namespace: kube-system # AWS Load Balancer Controller (CZID #321)
+    - server: https://kubernetes.default.svc
+      namespace: cosign-system # sigstore policy-controller + cosign ClusterImagePolicy (#77)
   # The Rollouts controller installs cluster-scoped CRDs + RBAC.
   clusterResourceWhitelist:
     - group: "*"
