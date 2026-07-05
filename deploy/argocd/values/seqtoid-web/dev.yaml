@@ -8,14 +8,13 @@ environment: dev
 image:
   # Dev-account ECR, go-forward repo (the CZID-76 dual-push lands here too).
   repository: 491013321714.dkr.ecr.us-west-2.amazonaws.com/seqtoid-web
-  tag: sha-e552b085 # the current hardened known-good build; CI advances this per build
+  tag: sha-99c064b7 # the current hardened known-good build; CI advances this per build
 # COST SPIN-DOWN (dev): scale ALL workloads to 0 and skip the migrate/taxon-load hooks
 # (chart `suspend`). Safe + reversible — the app's data lives in Aurora + OpenSearch, not
 # the pods. The CD keeps advancing `image.tag` while suspended, so flipping this to false
 # (manually or via the weekend cadence, #487) brings the app up on the LATEST build.
 suspend: true
 replicaCount: 2
-
 # Target the dedicated small Karpenter NodePool `seqtoid-web` (#486). The shared pool
 # floors instance-cpu>8 (16-vCPU nodes) + consolidates empty nodes only after 24h; the
 # dedicated pool allows small nodes (<9 vCPU, verified: a c6a.large/2-vCPU was picked)
@@ -24,7 +23,6 @@ replicaCount: 2
 nodeSelector:
   kubernetes.io/arch: amd64
   seqtoid.io/pool: web
-
 # Rightsize dev worker memory (#486). The chart defaults (3Gi each) are prod-ish and
 # forced Karpenter onto an oversized node; dev needs far less. Per-worker overrides are
 # possible now that `workers` is a name-keyed map (seqtoid-web #129). NOTE: this reduces
@@ -56,7 +54,6 @@ workers:
       requests:
         cpu: 100m
         memory: 512Mi
-
 serviceAccount:
   create: true
   name: seqtoid-web # MUST match the IRSA trust (system:serviceaccount:seqtoid-dev:seqtoid-web)
