@@ -43,7 +43,9 @@ jobs:
         run: |
           kubeconform -strict -summary \
             -schema-location default -schema-location "$CRD_SCHEMAS" \
-            deploy/argocd/projects deploy/argocd/bootstrap deploy/argocd/apps
+            deploy/argocd/projects deploy/argocd/bootstrap \
+            deploy/argocd/apps/dev deploy/argocd/apps/staging deploy/argocd/apps/prod \
+            deploy/argocd/_terraform-owned deploy/argocd/_deliberate
 
       - name: Assert per-env promotion gates
         run: |
@@ -60,10 +62,12 @@ jobs:
       - name: Assert the load-balancer wiring (improvement-#015)
         run: |
           set -e
-          # The LB controller app must exist and target kube-system.
-          test -f deploy/argocd/apps/aws-load-balancer-controller.yaml
-          grep -q 'chart: aws-load-balancer-controller' deploy/argocd/apps/aws-load-balancer-controller.yaml
-          grep -q 'namespace: kube-system'              deploy/argocd/apps/aws-load-balancer-controller.yaml
+          # The LB controller manifest is retained for reference (installed + owned by
+          # the eks Terraform module, NOT synced by Argo — see #493) and must still
+          # describe the chart targeting kube-system.
+          test -f deploy/argocd/_terraform-owned/aws-load-balancer-controller.yaml
+          grep -q 'chart: aws-load-balancer-controller' deploy/argocd/_terraform-owned/aws-load-balancer-controller.yaml
+          grep -q 'namespace: kube-system'              deploy/argocd/_terraform-owned/aws-load-balancer-controller.yaml
           # The ingress block must exist for every env.
           for e in dev staging prod; do
             grep -qA1 '^ingress:' deploy/argocd/values/seqtoid-web/$e.yaml
@@ -90,9 +94,10 @@ jobs:
           grep -q 'scheme: internal' $NB/staging.yaml
           # There must be a dev Application but NO staging/prod Application yet
           # (the strangler is dev-only; staging/prod Apps arrive at cutover #457).
-          test -f deploy/argocd/apps/seqtoid-node-backend-dev.yaml
-          test -f deploy/argocd/apps/seqtoid-node-backend-staging.yaml && { echo "unexpected staging App before cutover #457"; exit 1; }
-          test -f deploy/argocd/apps/seqtoid-node-backend-prod.yaml && { echo "unexpected prod App before cutover #457"; exit 1; }
+          # The Node backend is a DELIBERATE app (applied by hand, not root-managed) — see #493.
+          test -f deploy/argocd/_deliberate/seqtoid-node-backend-dev.yaml
+          test -f deploy/argocd/_deliberate/seqtoid-node-backend-staging.yaml && { echo "unexpected staging App before cutover #457"; exit 1; }
+          test -f deploy/argocd/_deliberate/seqtoid-node-backend-prod.yaml && { echo "unexpected prod App before cutover #457"; exit 1; }
           echo "node-backend gates OK (dev/staging auto, prod manual; dev/staging internal; dev-only App)"
 
   chart:
