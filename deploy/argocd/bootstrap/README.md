@@ -1,11 +1,25 @@
 # Argo CD bootstrap
 
 One-time setup to bring up GitOps blue/green delivery on an EKS cluster. After
-this, everything is managed by the app-of-apps (`root-app.yaml`) — you add or
-change deployments by committing to this repo, not by running `kubectl`.
+this, the **app layer** is managed by the per-env app-of-apps root (`root-app.yaml`)
+— you change app deployments by committing to this repo, not by running `kubectl`.
 
-> Prereqs (Bucket B — live env): an EKS cluster from the foundation `eks`
-> module, `kubectl` pointed at it, and `helm`.
+## Ownership model (#493)
+
+- **Terraform = infra addons (SSOT).** The eks module installs LBC, argo-rollouts,
+  cert-manager, external-dns, karpenter, efs-csi, metrics-server as Helm releases.
+  Argo does **not** manage these — their reference manifests live in
+  [`../_terraform-owned/`](../_terraform-owned/README.md) and are never synced.
+- **Argo = app layer, per env.** The dev root manages only `apps/dev/`
+  (`seqtoid-web-dev`). staging/prod are separate clusters with their own roots over
+  `apps/{staging,prod}/`. This is cluster-per-env, not one cluster with env-namespaces.
+- **Deliberate apps** (sigstore #77, the Node backend) live in
+  [`../_deliberate/`](../_deliberate/README.md) and are applied by hand, never by a root.
+
+## Bring-up
+
+> Prereqs: an EKS cluster from the foundation `eks` module (which also installs the
+> infra addons above), `kubectl` pointed at it, and `helm`.
 
 ```sh
 # 1. Install Argo CD itself (pinned). server.insecure=true terminates TLS at the
@@ -18,22 +32,39 @@ helm upgrade --install argocd argo/argo-cd \
 # 2. Create the AppProject that scopes what CZ ID may deploy.
 kubectl apply -f deploy/argocd/projects/czid.yaml
 
-# 3. Apply the app-of-apps root. From here Argo CD self-manages the
-#    argo-rollouts controller and the per-env seqtoid-web Applications.
+# 3. Apply the DEV app-of-apps root (see the staged-adoption runbook below).
 kubectl apply -f deploy/argocd/bootstrap/root-app.yaml
-
-# 4. (Optional) the Rollouts kubectl plugin, for promote/abort/watch:
-#    https://argo-rollouts.readthedocs.io/en/stable/installation/#kubectl-plugin-installation
 ```
 
-Argo CD versions here (Argo CD chart `10.1.1` / app v3.4.4, Argo Rollouts chart
-`2.41.0` in `../apps/argo-rollouts.yaml`) are pinned; bump deliberately. Day-2
-operations (promote, rollback, drain) are in [`../../RUNBOOK.md`](../../RUNBOOK.md).
+Argo CD chart `10.1.1` / app v3.4.4 is pinned; Argo Rollouts (`2.41.0`) is a
+Terraform-owned addon (see `../_terraform-owned/`). Day-2 ops (promote, rollback,
+drain) are in [`../../RUNBOOK.md`](../../RUNBOOK.md).
 
-> **Single-env clusters (e.g. the dev strangler `czid-dev-eks-v2`):** step 3's
-> `root-app.yaml` recurses `deploy/argocd/apps/` — which includes the staging AND
-> prod `seqtoid-web` Applications, all destined for `kubernetes.default.svc`. On a
-> per-env cluster that would deploy the wrong envs. There, skip the root-app and
-> register just that env's Application directly, e.g.
-> `kubectl apply -f deploy/argocd/apps/seqtoid-web-dev.yaml`. The app-of-apps root
-> is for a hub cluster that fans out to remote env clusters.
+## Staged-adoption runbook (step 3, in detail)
+
+`root-app.yaml` is `czid-root-dev`: it manages only `apps/dev/`, and ships with
+`prune: false` / `selfHeal: false` so adopting an already-running cluster is safe.
+
+1. **Apply the root.** `seqtoid-web-dev` is typically already running (registered
+   directly during bring-up). `czid-root-dev` adopts it; because the git spec
+   matches the running app, the first sync is a **no-op**.
+2. **Verify the adoption is clean** before trusting automation:
+   ```sh
+   kubectl -n argocd get application czid-root-dev seqtoid-web-dev
+   # both Synced/Healthy; confirm the diff is empty:
+   argocd app diff seqtoid-web-dev        # (or the Argo UI) — expect NO changes
+   ```
+   If the diff shows unexpected changes, stop and reconcile the git manifest to
+   reality before proceeding — do **not** enable prune/selfHeal on a dirty diff.
+3. **Enable automation** once the diff is clean: set `prune: true` and
+   `selfHeal: true` in `root-app.yaml`, commit, and let it sync. From here the dev
+   app layer is fully GitOps-managed.
+
+## Adding things later
+
+- **A new dev app:** drop its Application manifest in `apps/dev/` — the root picks
+  it up. Keep infra addons in Terraform, not here.
+- **staging/prod:** stand up that env's cluster + Argo, repoint
+  `apps/{staging,prod}/*.yaml` `destination.server` at that cluster (they currently
+  point at `kubernetes.default.svc` — see #493), and apply a matching per-env root.
+- **A deliberate app** (sigstore, Node backend): follow [`../_deliberate/README.md`](../_deliberate/README.md).
