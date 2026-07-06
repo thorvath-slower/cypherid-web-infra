@@ -168,6 +168,27 @@ resource "aws_cloudwatch_metric_alarm" "rds_free_storage_low" {
   tags                = var.tags
 }
 
+# FreeableMemory low: distinct from FreeLocalStorage (disk) — memory exhaustion
+# forces swapping / OOM and is a classic Aurora degradation mode. CZID-157.
+resource "aws_cloudwatch_metric_alarm" "rds_freeable_memory_low" {
+  count = local.rds_enabled ? 1 : 0
+
+  alarm_name          = "${local.name}-rds-freeable-memory-low"
+  alarm_description   = "Aurora ${var.rds_cluster_identifier} freeable memory low (memory pressure / risk of swap+OOM) — ${var.env}."
+  namespace           = "AWS/RDS"
+  metric_name         = "FreeableMemory"
+  dimensions          = { DBClusterIdentifier = var.rds_cluster_identifier }
+  statistic           = "Minimum"
+  period              = 300
+  evaluation_periods  = 3
+  threshold           = var.rds_freeable_memory_threshold_bytes
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.actions
+  ok_actions          = local.actions
+  tags                = var.tags
+}
+
 # =============================================================================
 # OpenSearch — cluster status (red) / JVM memory pressure / free storage
 # =============================================================================

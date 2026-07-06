@@ -88,6 +88,12 @@ variable "rds_free_storage_threshold_bytes" {
   default     = 10737418240
 }
 
+variable "rds_freeable_memory_threshold_bytes" {
+  description = "FreeableMemory low-water alarm (bytes) — memory pressure, distinct from disk. Default 512 MiB; tune to the instance class RAM."
+  type        = number
+  default     = 536870912
+}
+
 # --- OpenSearch / Elasticsearch ----------------------------------------------
 variable "opensearch_domain_name" {
   description = "OpenSearch/Elasticsearch domain name. Empty disables OpenSearch alarms."
