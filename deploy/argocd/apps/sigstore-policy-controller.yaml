@@ -1,0 +1,74 @@
+# Installs the sigstore policy-controller admission controller cluster-wide (#77).
+# This is the engine that ENFORCES "only images signed by our build workflow may run":
+# it validates the keyless cosign signature + Fulcio certificate identity (against Rekor)
+# that the seqtoid-web build workflow produces (seqtoid-web build-docker-image.yml,
+# `cosign sign` keyless — CZID-67/#67). Signing without this gate only documents
+# provenance; this controller is what turns provenance into enforcement.
+#
+# It admits/denies Pods per the ClusterImagePolicy resources it watches. The seqtoid-web
+# cosign ClusterImagePolicy lives in deploy/argocd/policies/ and is delivered by a
+# SEPARATE Argo Application (sigstore-cosign-policy.yaml) that waits on these CRDs — see
+# that file's header and the staged-rollout note below. Chart version is pinned; bump
+# deliberately.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# SAFETY / STAGED ROLLOUT (read before syncing — an over-strict policy blocks ALL pods):
+#
+#   0. The dev cluster serves REAL traffic. policy-controller only evaluates namespaces
+#      that OPT IN via the label `policy.sigstore.dev/include: "true"`. Installing this
+#      controller with NO labeled namespaces is inert — it gates nothing yet. That is the
+#      intended first state.
+#   1. Sync THIS app → controller runs, webhook registered, but gating no namespace.
+#   2. Sync the sigstore-cosign-policy app (ClusterImagePolicy, `mode: warn`) — still
+#      non-blocking everywhere.
+#   3. Label ONLY `seqtoid-dev`:  kubectl label ns seqtoid-dev policy.sigstore.dev/include=true
+#      Do NOT label kube-system / argocd / cosign-system / kube-node-lease /
+#      kube-public — a system namespace under an unmatched policy gets its pods DENIED
+#      once mode flips to enforce, which can wedge the cluster.
+#   4. Observe warn-mode audit events / controller logs on seqtoid-dev (no enforcement).
+#   5. Only after a clean observation window: flip the ClusterImagePolicy to
+#      `mode: enforce` (a deliberate, gated commit — never automatic).
+#
+# `failurePolicy` on the webhook is left at the chart default (Ignore) so a controller
+# outage cannot brick admission during the proving phase; harden to Fail alongside the
+# enforce flip in step 5.
+# ─────────────────────────────────────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sigstore-policy-controller
+  namespace: argocd
+spec:
+  project: czid
+  source:
+    repoURL: https://sigstore.github.io/helm-charts
+    chart: policy-controller
+    targetRevision: 0.10.6 # appVersion 0.13.1; pinned, bump deliberately
+    helm:
+      values: |
+        # Namespace-scoped opt-in: the controller ONLY evaluates namespaces labeled
+        # policy.sigstore.dev/include=true. This is the default behaviour of the chart's
+        # webhook namespaceSelector and is the core of the safe rollout — keep it.
+        webhook:
+          # Do not evaluate the controller's own namespace or core system namespaces.
+          # (These are excluded by the chart defaults; listed here for auditability.)
+          namespaceSelector:
+            matchExpressions:
+              - key: policy.sigstore.dev/include
+                operator: In
+                values:
+                  - "true"
+        # Proving-phase posture: a controller/webhook outage must NOT block admission.
+        # Harden to Fail together with the ClusterImagePolicy enforce flip (step 5 above).
+        webhookName: policy.sigstore.dev
+        installCRDs: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cosign-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # the sigstore CRDs are large; SSA avoids the annotation-size limit
