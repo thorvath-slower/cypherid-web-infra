@@ -26,10 +26,35 @@ module "assets-cert" {
 
 resource "aws_s3_bucket" "redirect_bucket" {
   bucket = "public.idseq.net-redirect"
+}
+
+# The inline `acl` and `website` sub-arguments of `aws_s3_bucket` were deprecated
+# in AWS provider v4 and moved to dedicated `aws_s3_bucket_*` resources (#475).
+# Apply-safe: no bucket recreation, so no `moved {}` blocks are required.
+# Applying the canned `public-read` ACL via the standalone resource requires
+# ownership controls that permit ACLs (BucketOwnerPreferred), which the account
+# previously allowed implicitly.
+resource "aws_s3_bucket_ownership_controls" "redirect_bucket" {
+  bucket = aws_s3_bucket.redirect_bucket.id
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+resource "aws_s3_bucket_acl" "redirect_bucket" {
+  #checkov:skip=CKV_AWS_20:intentionally public read-only redirect bucket fronting a CloudFront distribution (preexisting behavior)
+  bucket = aws_s3_bucket.redirect_bucket.id
   acl    = "public-read"
 
-  website {
-    redirect_all_requests_to = "http://public.czid.org"
+  depends_on = [aws_s3_bucket_ownership_controls.redirect_bucket]
+}
+
+resource "aws_s3_bucket_website_configuration" "redirect_bucket" {
+  bucket = aws_s3_bucket.redirect_bucket.id
+
+  redirect_all_requests_to {
+    host_name = "public.czid.org"
+    protocol  = "http"
   }
 }
 
@@ -43,8 +68,8 @@ resource "aws_cloudfront_distribution" "distribution" {
   price_class     = "PriceClass_All"
 
   origin {
-    domain_name = aws_s3_bucket.redirect_bucket.website_endpoint
-    origin_id   = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
+    domain_name = aws_s3_bucket_website_configuration.redirect_bucket.website_endpoint
+    origin_id   = "S3-Website-${aws_s3_bucket_website_configuration.redirect_bucket.website_endpoint}"
 
     custom_origin_config {
       http_port                = 80
@@ -64,7 +89,7 @@ resource "aws_cloudfront_distribution" "distribution" {
     allowed_methods = ["GET", "HEAD", ]
     cached_methods  = ["GET", "HEAD"]
 
-    target_origin_id       = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
+    target_origin_id       = "S3-Website-${aws_s3_bucket_website_configuration.redirect_bucket.website_endpoint}"
     viewer_protocol_policy = "allow-all"
 
     default_ttl = 86400
