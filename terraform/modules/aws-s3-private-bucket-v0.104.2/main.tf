@@ -23,28 +23,72 @@ locals {
   }
 }
 
+# Needed as the bucket owner when defining an explicit grant-based ACL policy
+# (the standalone aws_s3_bucket_acl resource requires an owner block).
+data "aws_canonical_user_id" "current" {}
+
 resource "aws_s3_bucket" "bucket" {
   bucket        = var.bucket_name
   force_destroy = var.force_destroy
-  # `grant` and `acl` conflict with each other - https://www.terraform.io/docs/providers/aws/r/s3_bucket.html#acl
 
-  # Using canned ACL will conflict with using grant ACL
-  acl = local.acl
+  tags = local.tags
+}
 
-  dynamic "grant" {
-    for_each = local.valid_grants
+# The inline `acl`/`grant`, `versioning`, `cors_rule`, `acceleration_status`,
+# `lifecycle_rule`, and `logging` sub-arguments of `aws_s3_bucket` were
+# deprecated in the AWS provider v4 and moved to dedicated resources
+# (removed entirely in a future major). They are split out below. Migrating
+# an inline block to its standalone resource is apply-safe: the S3 bucket is
+# not recreated, so no `moved {}` blocks are required.
+
+# `grant` and `acl` conflict with each other - https://www.terraform.io/docs/providers/aws/r/s3_bucket.html#acl
+# ACLs require object ownership other than BucketOwnerEnforced; the caller is
+# responsible for setting var.object_ownership accordingly when using grants.
+resource "aws_s3_bucket_acl" "bucket" {
+  count = length(local.valid_grants) == 0 ? (local.acl == null ? 0 : 1) : 1
+
+  bucket = aws_s3_bucket.bucket.id
+
+  # Using a canned ACL conflicts with using grant ACLs, so they are mutually
+  # exclusive (mirrors the original inline behavior driven by var.grants).
+  acl = length(local.valid_grants) == 0 ? local.acl : null
+
+  dynamic "access_control_policy" {
+    for_each = length(local.valid_grants) == 0 ? [] : [1]
 
     content {
-      id          = lookup(grant.value, "canonical_user_id", null)
-      uri         = lookup(grant.value, "uri", null)
-      permissions = grant.value.permissions
-      type        = lookup(grant.value, "canonical_user_id", null) == null ? "Group" : "CanonicalUser"
+      dynamic "grant" {
+        for_each = local.valid_grants
+
+        content {
+          grantee {
+            id   = lookup(grant.value, "canonical_user_id", null)
+            uri  = lookup(grant.value, "uri", null)
+            type = lookup(grant.value, "canonical_user_id", null) == null ? "Group" : "CanonicalUser"
+          }
+          permission = grant.value.permissions
+        }
+      }
+
+      owner {
+        id = data.aws_canonical_user_id.current.id
+      }
     }
   }
+}
 
-  versioning {
-    enabled = var.enable_versioning
+resource "aws_s3_bucket_versioning" "bucket" {
+  bucket = aws_s3_bucket.bucket.id
+
+  versioning_configuration {
+    status = var.enable_versioning ? "Enabled" : "Suspended"
   }
+}
+
+resource "aws_s3_bucket_cors_configuration" "bucket" {
+  count = length(var.cors_rules) == 0 ? 0 : 1
+
+  bucket = aws_s3_bucket.bucket.id
 
   dynamic "cors_rule" {
     for_each = var.cors_rules
@@ -57,23 +101,49 @@ resource "aws_s3_bucket" "bucket" {
       max_age_seconds = lookup(cors_rule.value, "max_age_seconds", null)
     }
   }
+}
 
-  acceleration_status = var.transfer_acceleration ? "Enabled" : "Suspended"
+resource "aws_s3_bucket_accelerate_configuration" "bucket" {
+  bucket = aws_s3_bucket.bucket.id
+  status = var.transfer_acceleration ? "Enabled" : "Suspended"
+}
 
-  # dynamic block used instead of simply assigning a variable b/c lifecycle_rule is configuration block
-  dynamic "lifecycle_rule" {
+resource "aws_s3_bucket_lifecycle_configuration" "bucket" {
+  #checkov:skip=CKV_AWS_300:every rule sets abort_incomplete_multipart_upload (days_after_initiation defaults to var.abort_incomplete_multipart_upload_days = 14); the block is dynamic so checkov's static scan cannot see it
+  count = length(var.lifecycle_rules) == 0 ? 0 : 1
+
+  bucket = aws_s3_bucket.bucket.id
+
+  dynamic "rule" {
     for_each = var.lifecycle_rules
 
     content {
-      id      = lookup(lifecycle_rule.value, "id", null) #lookup() provides default value in case it does not exist in var.lifecycle_rules input
-      prefix  = lookup(lifecycle_rule.value, "prefix", null)
-      tags    = lookup(lifecycle_rule.value, "tags", null)
-      enabled = lookup(lifecycle_rule.value, "enabled", false)
+      id     = lookup(rule.value, "id", null)
+      status = lookup(rule.value, "enabled", false) ? "Enabled" : "Disabled"
+
+      # `prefix` (and `tags`) moved under a `filter` block in the standalone
+      # lifecycle resource. An empty filter matches all objects, preserving the
+      # original behavior when no prefix/tags were supplied.
+      filter {
+        prefix = lookup(rule.value, "prefix", null)
+
+        dynamic "tag" {
+          for_each = lookup(rule.value, "tags", null) == null ? {} : rule.value.tags
+
+          content {
+            key   = tag.key
+            value = tag.value
+          }
+        }
+      }
+
       # var.abort_incomplete_multipart_upload_days is 14 by default
-      abort_incomplete_multipart_upload_days = lookup(lifecycle_rule.value, "abort_incomplete_multipart_upload_days", var.abort_incomplete_multipart_upload_days)
+      abort_incomplete_multipart_upload {
+        days_after_initiation = lookup(rule.value, "abort_incomplete_multipart_upload_days", var.abort_incomplete_multipart_upload_days)
+      }
 
       dynamic "expiration" {
-        for_each = length(keys(lookup(lifecycle_rule.value, "expiration", {}))) == 0 ? [] : [lookup(lifecycle_rule.value, "expiration", {})]
+        for_each = length(keys(lookup(rule.value, "expiration", {}))) == 0 ? [] : [lookup(rule.value, "expiration", {})]
 
         content {
           date                         = lookup(expiration.value, "date", null)
@@ -83,7 +153,7 @@ resource "aws_s3_bucket" "bucket" {
       }
 
       dynamic "transition" {
-        for_each = length(keys(lookup(lifecycle_rule.value, "transition", {}))) == 0 ? [] : [lookup(lifecycle_rule.value, "transition", {})]
+        for_each = length(keys(lookup(rule.value, "transition", {}))) == 0 ? [] : [lookup(rule.value, "transition", {})]
 
         content {
           date          = lookup(transition.value, "date", null)
@@ -93,33 +163,31 @@ resource "aws_s3_bucket" "bucket" {
       }
 
       dynamic "noncurrent_version_expiration" {
-        for_each = length(keys(lookup(lifecycle_rule.value, "noncurrent_version_expiration", {}))) == 0 ? [] : [lookup(lifecycle_rule.value, "noncurrent_version_expiration", {})]
+        for_each = length(keys(lookup(rule.value, "noncurrent_version_expiration", {}))) == 0 ? [] : [lookup(rule.value, "noncurrent_version_expiration", {})]
 
         content {
-          days = lookup(noncurrent_version_expiration.value, "days", null)
+          noncurrent_days = lookup(noncurrent_version_expiration.value, "days", null)
         }
       }
 
       dynamic "noncurrent_version_transition" {
-        for_each = length(keys(lookup(lifecycle_rule.value, "noncurrent_version_transition", {}))) == 0 ? [] : [lookup(lifecycle_rule.value, "noncurrent_version_transition", {})]
+        for_each = length(keys(lookup(rule.value, "noncurrent_version_transition", {}))) == 0 ? [] : [lookup(rule.value, "noncurrent_version_transition", {})]
 
         content {
-          days          = lookup(lifecycle_rule.value.noncurrent_version_transition, "days", null)
-          storage_class = lookup(lifecycle_rule.value.noncurrent_version_transition, "storage_class", null)
+          noncurrent_days = lookup(rule.value.noncurrent_version_transition, "days", null)
+          storage_class   = lookup(rule.value.noncurrent_version_transition, "storage_class", null)
         }
       }
     }
   }
+}
 
-  dynamic "logging" {
-    for_each = var.logging_bucket == null ? [] : [var.logging_bucket]
-    content {
-      target_bucket = var.logging_bucket.name
-      target_prefix = var.logging_bucket.prefix
-    }
-  }
+resource "aws_s3_bucket_logging" "bucket" {
+  count = var.logging_bucket == null ? 0 : 1
 
-  tags = local.tags
+  bucket        = aws_s3_bucket.bucket.id
+  target_bucket = var.logging_bucket.name
+  target_prefix = var.logging_bucket.prefix
 }
 
 resource "aws_s3_bucket_public_access_block" "bucket" {

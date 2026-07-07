@@ -164,20 +164,33 @@ resource "aws_ecs_cluster" "idseq-fargate-tasks" {
 
 resource "aws_s3_bucket" "aegea-ecs-execute" {
   bucket = var.s3_bucket_aegea_ecs_execute
-  acl    = "private"
-
-  lifecycle_rule {
-    id      = "ExpireRule"
-    enabled = true
-
-    expiration {
-      days = 30
-    }
-  }
 
   tags = {
     env       = var.env
     terraform = "true"
+  }
+}
+
+# Inline `acl` and `lifecycle_rule` were deprecated in AWS provider v4 and moved
+# to dedicated `aws_s3_bucket_*` resources (#475). Apply-safe: no bucket recreation.
+resource "aws_s3_bucket_acl" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+
+  rule {
+    id     = "ExpireRule"
+    status = "Enabled"
+    filter {}
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+    expiration {
+      days = 30
+    }
   }
 }
 
