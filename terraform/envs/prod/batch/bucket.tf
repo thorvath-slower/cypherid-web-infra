@@ -14,6 +14,7 @@ resource "aws_s3_bucket" "pipeline_public_assets" {
 # standalone resource requires ownership controls that permit ACLs
 # (BucketOwnerPreferred), which the account previously allowed implicitly.
 resource "aws_s3_bucket_ownership_controls" "pipeline_public_assets" {
+  #checkov:skip=CKV2_AWS_65:this is an intentionally public read-only static-website bucket; ACLs must stay enabled (BucketOwnerPreferred) so the public-read canned ACL applies (preexisting behavior)
   bucket = aws_s3_bucket.pipeline_public_assets.id
   rule {
     object_ownership = "BucketOwnerPreferred"
