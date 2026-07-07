@@ -225,14 +225,6 @@
             "file": "/terraform/envs/dev/ecs/main.tf",
             "findings": [
                 {
-                    "resource": "aws_cloudwatch_log_group.ecs",
-                    "check_ids": [
-                        "CKV_AWS_158",
-                        "CKV_AWS_338",
-                        "CKV_AWS_66"
-                    ]
-                },
-                {
                     "resource": "aws_ecs_cluster.idseq-fargate-tasks",
                     "check_ids": [
                         "CKV_AWS_65"
@@ -281,19 +273,6 @@
                     "resource": "aws_sns_topic.aws_heatmap_topic",
                     "check_ids": [
                         "CKV_AWS_26"
-                    ]
-                }
-            ]
-        },
-        {
-            "file": "/terraform/envs/dev/heatmap-optimization/esdomain.tf",
-            "findings": [
-                {
-                    "resource": "aws_cloudwatch_log_group.elasticsearch-log-publishing-policy",
-                    "check_ids": [
-                        "CKV_AWS_158",
-                        "CKV_AWS_338",
-                        "CKV_AWS_66"
                     ]
                 }
             ]
@@ -644,14 +623,6 @@
             "file": "/terraform/envs/prod/ecs/main.tf",
             "findings": [
                 {
-                    "resource": "aws_cloudwatch_log_group.ecs",
-                    "check_ids": [
-                        "CKV_AWS_158",
-                        "CKV_AWS_338",
-                        "CKV_AWS_66"
-                    ]
-                },
-                {
                     "resource": "aws_ecs_cluster.idseq-fargate-tasks",
                     "check_ids": [
                         "CKV_AWS_65"
@@ -726,19 +697,6 @@
                     "resource": "aws_sns_topic.aws_heatmap_topic",
                     "check_ids": [
                         "CKV_AWS_26"
-                    ]
-                }
-            ]
-        },
-        {
-            "file": "/terraform/envs/prod/heatmap-optimization/esdomain.tf",
-            "findings": [
-                {
-                    "resource": "aws_cloudwatch_log_group.elasticsearch-log-publishing-policy",
-                    "check_ids": [
-                        "CKV_AWS_158",
-                        "CKV_AWS_338",
-                        "CKV_AWS_66"
                     ]
                 }
             ]
@@ -1291,14 +1249,6 @@
             "file": "/terraform/envs/sandbox/ecs/main.tf",
             "findings": [
                 {
-                    "resource": "aws_cloudwatch_log_group.ecs",
-                    "check_ids": [
-                        "CKV_AWS_158",
-                        "CKV_AWS_338",
-                        "CKV_AWS_66"
-                    ]
-                },
-                {
                     "resource": "aws_ecs_cluster.idseq-fargate-tasks",
                     "check_ids": [
                         "CKV_AWS_65"
@@ -1335,19 +1285,6 @@
                     "resource": "aws_sns_topic.aws_heatmap_topic",
                     "check_ids": [
                         "CKV_AWS_26"
-                    ]
-                }
-            ]
-        },
-        {
-            "file": "/terraform/envs/sandbox/heatmap-optimization/esdomain.tf",
-            "findings": [
-                {
-                    "resource": "aws_cloudwatch_log_group.elasticsearch-log-publishing-policy",
-                    "check_ids": [
-                        "CKV_AWS_158",
-                        "CKV_AWS_338",
-                        "CKV_AWS_66"
                     ]
                 }
             ]
@@ -1649,14 +1586,6 @@
             "file": "/terraform/envs/staging/ecs/main.tf",
             "findings": [
                 {
-                    "resource": "aws_cloudwatch_log_group.ecs",
-                    "check_ids": [
-                        "CKV_AWS_158",
-                        "CKV_AWS_338",
-                        "CKV_AWS_66"
-                    ]
-                },
-                {
                     "resource": "aws_ecs_cluster.idseq-fargate-tasks",
                     "check_ids": [
                         "CKV_AWS_65"
@@ -1726,19 +1655,6 @@
                     "resource": "aws_sns_topic.aws_heatmap_topic",
                     "check_ids": [
                         "CKV_AWS_26"
-                    ]
-                }
-            ]
-        },
-        {
-            "file": "/terraform/envs/staging/heatmap-optimization/esdomain.tf",
-            "findings": [
-                {
-                    "resource": "aws_cloudwatch_log_group.elasticsearch-log-publishing-policy",
-                    "check_ids": [
-                        "CKV_AWS_158",
-                        "CKV_AWS_338",
-                        "CKV_AWS_66"
                     ]
                 }
             ]

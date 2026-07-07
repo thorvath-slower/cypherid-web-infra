@@ -1,5 +1,46 @@
+# CZID-63: customer-managed KMS key encrypting the Elasticsearch log-publishing group.
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "elasticsearch_logs_kms" {
+  #checkov:skip=CKV_AWS_111:key policy resource is implicitly the key itself; cannot scope
+  #checkov:skip=CKV_AWS_356:key policy resource is implicitly the key itself; cannot scope
+  #checkov:skip=CKV_AWS_109:root kms:* is the required lockout-prevention grant for a CMK
+  statement {
+    sid       = "RootAdmin"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+  statement {
+    sid       = "CloudWatchLogs"
+    actions   = ["kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
+    resources = ["*"]
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${var.region}.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnLike"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = ["arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:${var.env}-elasticsearch-log-publishing-policy"]
+    }
+  }
+}
+
+resource "aws_kms_key" "elasticsearch_logs" {
+  description             = "${var.env}-elasticsearch log group encryption (CZID-63)"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+  policy                  = data.aws_iam_policy_document.elasticsearch_logs_kms.json
+}
+
 resource "aws_cloudwatch_log_group" "elasticsearch-log-publishing-policy" {
-  name = "${var.env}-elasticsearch-log-publishing-policy"
+  name              = "${var.env}-elasticsearch-log-publishing-policy"
+  retention_in_days = 365                                # >= 1yr (CKV_AWS_338)
+  kms_key_id        = aws_kms_key.elasticsearch_logs.arn # CMK-encrypted (CKV_AWS_158)
 }
 
 
