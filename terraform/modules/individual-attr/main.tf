@@ -36,8 +36,8 @@ data "aws_iam_policy_document" "on_call_incident_response" {
   # objects. Constrained via kms:ViaService to ssm/s3 so the role cannot use account KMS keys
   # for any other purpose.
   statement {
-    sid     = "DecryptSsmAndS3ViaService"
-    actions = ["kms:Decrypt", "kms:GenerateDataKey"]
+    sid       = "DecryptSsmAndS3ViaService"
+    actions   = ["kms:Decrypt", "kms:GenerateDataKey"]
     resources = ["*"]
     condition {
       test     = "StringEquals"
