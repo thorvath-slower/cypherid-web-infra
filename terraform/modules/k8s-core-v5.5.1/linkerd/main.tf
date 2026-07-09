@@ -380,46 +380,50 @@ resource "helm_release" "linkerd" {
   create_namespace = false
   version          = var.linkerd_control_plane_chart_version
 
-  set {
-    name  = "identityTrustAnchorsPEM"
-    value = data.aws_ssm_parameter.ca_cert.value
-  }
-  set {
-    name  = "proxy.resources.memory.limit"
-    value = "1Gi"
-  }
-  set {
-    name  = "proxy.resources.memory.request"
-    value = "512Mi"
-  }
-  set {
-    name  = "identity.issuer.scheme"
-    value = "kubernetes.io/tls"
-  }
-  set {
-    name  = "proxyInjector.externalSecret"
-    value = "true"
-  }
-  set {
-    name  = "proxyInjector.caBundle"
-    value = data.aws_ssm_parameter.webhook_ca_cert.value
-  }
-  set {
-    name  = "profileValidator.externalSecret"
-    value = "true"
-  }
-  set {
-    name  = "profileValidator.caBundle"
-    value = data.aws_ssm_parameter.webhook_ca_cert.value
-  }
-  set {
-    name  = "policyValidator.externalSecret"
-    value = "true"
-  }
-  set {
-    name  = "policyValidator.caBundle"
-    value = data.aws_ssm_parameter.webhook_ca_cert.value
-  }
+  # CZID-93: helm provider v3 replaced the repeated `set {}` blocks with a
+  # single `set = [{...}]` list attribute.
+  set = [
+    {
+      name  = "identityTrustAnchorsPEM"
+      value = data.aws_ssm_parameter.ca_cert.value
+    },
+    {
+      name  = "proxy.resources.memory.limit"
+      value = "1Gi"
+    },
+    {
+      name  = "proxy.resources.memory.request"
+      value = "512Mi"
+    },
+    {
+      name  = "identity.issuer.scheme"
+      value = "kubernetes.io/tls"
+    },
+    {
+      name  = "proxyInjector.externalSecret"
+      value = "true"
+    },
+    {
+      name  = "proxyInjector.caBundle"
+      value = data.aws_ssm_parameter.webhook_ca_cert.value
+    },
+    {
+      name  = "profileValidator.externalSecret"
+      value = "true"
+    },
+    {
+      name  = "profileValidator.caBundle"
+      value = data.aws_ssm_parameter.webhook_ca_cert.value
+    },
+    {
+      name  = "policyValidator.externalSecret"
+      value = "true"
+    },
+    {
+      name  = "policyValidator.caBundle"
+      value = data.aws_ssm_parameter.webhook_ca_cert.value
+    },
+  ]
   values = [
     "${file("${path.module}/ha.yml")}"
   ]
