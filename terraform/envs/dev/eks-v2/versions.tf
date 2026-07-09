@@ -33,11 +33,15 @@
 terraform {
   required_version = ">= 1.10" # >= 1.10 for native S3 state locking (use_lockfile)
   required_providers {
-    aws        = { source = "hashicorp/aws", version = "~> 5.100.0" }
-    archive    = { source = "hashicorp/archive", version = "~> 2.0" }
-    assert     = { source = "bwoznicki/assert", version = "0.0.1" }
-    auth0      = { source = "auth0/auth0", version = "~> 1.48.0" }
-    helm       = { source = "hashicorp/helm", version = "~> 2.17.0" }
+    aws     = { source = "hashicorp/aws", version = "~> 5.100.0" }
+    archive = { source = "hashicorp/archive", version = "~> 2.0" }
+    assert  = { source = "bwoznicki/assert", version = "0.0.1" }
+    auth0   = { source = "auth0/auth0", version = "~> 1.48.0" }
+    # CZID-93: helm provider v3 migration. This standalone copy mirrors
+    # _shared/versions.tf. eks-v2 consumes aws-eks-cluster, whose addon tree
+    # (aws-ia/eks-blueprints-addons) caps helm at `>= 2.9, < 3.0`, so this stack
+    # resolves helm v2. See _shared/versions.tf for the full rationale.
+    helm       = { source = "hashicorp/helm", version = ">= 2.17.0, < 4.0.0" }
     kubectl    = { source = "gavinbunney/kubectl", version = "~> 1.19.0" }
     kubernetes = { source = "hashicorp/kubernetes", version = "~> 3.1.0" }
     local      = { source = "hashicorp/local", version = "~> 2.0" }
