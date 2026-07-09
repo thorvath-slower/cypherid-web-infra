@@ -1,5 +1,5 @@
 module "elasticache_secure" {
-  source                     = "../../../modules/aws-redis-replication-group-v0.104.2" # cztack v0.104.2
+  source                     = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-redis-replication-group?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2
   at_rest_encryption_enabled = local.at_rest_encryption_enabled
   auth_token                 = local.auth_token
   description                = local.description
