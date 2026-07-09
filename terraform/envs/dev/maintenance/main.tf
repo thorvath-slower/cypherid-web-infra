@@ -60,7 +60,11 @@ resource "aws_s3_bucket_policy" "s3_bucket_policy" {
 }
 
 module "assets-cert" {
-  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
+  # CZID-424 PILOT (DO NOT MERGE): cztack SSOT consolidation (Option B). Repointed from the
+  # per-repo vendored copy (../../../modules/aws-acm-certificate-v0.104.2) to the single SSOT copy
+  # in the PUBLIC seqtoid-ssot-infra repo, fetched over public https with NO credentials, SHA-pinned.
+  # cztack v0.104.2 == ssot modules/cztack/aws-acm-certificate @ 3703d33 (origin/main).
+  source = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-acm-certificate?ref=3703d33743bed615bde7bd9f989883e113d5185c"
 
   cert_domain_name               = local.full_domain
   aws_route53_zone_id            = local.zone_id
