@@ -94,6 +94,20 @@ terraform {
 
   }
 }
+data "terraform_remote_state" "idseq-newdev" {
+  backend = "s3"
+  config = {
+
+
+    bucket = "tfstate-941377154785-test"
+
+    key     = "terraform/idseq/envs/sandbox/components/route53.tfstate"
+    region  = "us-west-2"
+    profile = "default"
+
+
+  }
+}
 # tflint-ignore: terraform_unused_declarations
 variable "env" {
   type    = string
