@@ -7,6 +7,8 @@ terraform {
     }
     helm = {
       source = "hashicorp/helm"
+      # CZID-93: this module uses the helm provider v3 `set = [{...}]` list schema.
+      version = "~> 3.0"
     }
     kubernetes = {
       source = "hashicorp/kubernetes"

@@ -19,8 +19,3 @@ terraform/envs/sandbox/
 #   now sourced via data.aws_route53_zone lookup of the existing czid.org /
 #   idseq.net zones (the idseq-prod remote_state outputs were commented out).
 #   acm-validation: bug-#014. CI validates all of them again.
-
-# CZID-93 — vendored k8s-core module: helm provider v2->v3 `set` block break.
-terraform/modules/k8s-core-v5.5.1
-terraform/modules/k8s-core-v5.5.1/linkerd
-terraform/modules/k8s-core-v5.5.1/nginx-ingress-controller
