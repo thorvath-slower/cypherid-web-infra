@@ -23,7 +23,7 @@ nothing will remind you — so this list is how we avoid silently drifting.
 | A6 | **Hardcoded AWS identifiers** | account IDs (`tfstate-<id>` backend bucket in `…/terraform.tf`; the `aws_accounts` map in `…/terraform.tf`); S3 bucket-name defaults (`variable "s3_bucket_*"` in `…/terraform.tf`); domains; AMI owner IDs in `terraform/modules/machine-images/` | Real-world identifiers, no upstream to track | Edit by hand; keep in sync with the live AWS accounts |
 | A7 | **Provider list membership** (which providers exist, not their versions) | `terraform/_shared/versions.tf` → `required_providers { … }` block | Adding/removing a provider is a design choice | Edit by hand; versions of existing entries are Renovate-managed (B2) |
 | A8 | **CI skip & quarantine lists** | `.github/terraform-ci-skip.txt`, `.github/terraform-ci-quarantine.txt` | Hand-curated exclusions (inaccessible deps / known defects) | Edit by hand; remove entries as stacks are fixed |
-| A9 | **CI bucketing logic** | `.github/workflows/tofu_ci.yml` (the `find-changed` classification script), `.github/workflows/validate-stack.yml`, `.github/actions/terraform-validate/action.yml` | Bespoke workflow logic | Edit by hand (the `uses:` pins *inside* these files are Renovate-managed — B4) |
+| A9 | **CI bucketing logic** | `.github/workflows/terraform_ci.yml` (the `find-changed` classification script), `.github/workflows/validate-stack.yml`, `.github/actions/terraform-validate/action.yml` | Bespoke workflow logic | Edit by hand (the `uses:` pins *inside* these files are Renovate-managed — B4) |
 
 > **No committed `.terraform.lock.hcl`** in this repo by design (`renovate.json` sets
 > `:maintainLockFilesDisabled`; provider reproducibility comes from the appliance
