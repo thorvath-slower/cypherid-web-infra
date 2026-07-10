@@ -1,6 +1,6 @@
 # =============================================================================
 # EKS/Argo strangler (#319) — network wiring: let the seqtoid-web pods on
-# czid-dev-eks reach the backing services (Redis / Aurora / OpenSearch). This is
+# czid-dev-eks-v2 reach the backing services (Redis / Aurora / OpenSearch). This is
 # the next happy-gap: happy wired its workloads into these SGs; the Argo-deployed
 # pods aren't in the allowlist, so Rails times out at boot (Redis::TimeoutError).
 #
@@ -8,14 +8,18 @@
 # allowing that SG on the service port. PURELY ADDITIVE — new ingress rules only;
 # the ECS app's existing rules are untouched. Apply with `-target` (dev/web drift).
 #
-# (Uses data.aws_eks_cluster.dev_eks already declared in eks-irsa.tf.)
+# (Uses data.aws_eks_cluster.dev_eks_v2 declared in eks-irsa.tf. The original on the
+# integration branch referenced the pre-v2 cluster data source (dev_eks); main moved
+# to czid-dev-eks-v2 and the old cluster is decommissioned, so this repoints to the
+# v2 data source. The node SG name czid-dev-eks-node-sg is unchanged and resolves
+# uniquely in the v2 VPC to sg-0a4c9fabacd12ac87 — the SG already in the dev/web state.)
 # =============================================================================
 
 # The seqtoid-web pods egress with the NODE security group (czid-dev-eks-node-sg),
 # NOT the cluster SG — so the ingress rules must reference the node SG. Looked up by
 # name (scoped to the cluster VPC) so it survives an SG-id change.
 data "aws_security_group" "eks_node" {
-  vpc_id = data.aws_eks_cluster.dev_eks.vpc_config[0].vpc_id
+  vpc_id = data.aws_eks_cluster.dev_eks_v2.vpc_config[0].vpc_id
   filter {
     name   = "group-name"
     values = ["czid-dev-eks-node-sg"]
