@@ -57,17 +57,6 @@
             ]
         },
         {
-            "file": "/.github/workflows/tofu_ci.yml",
-            "findings": [
-                {
-                    "resource": "on(tofu-ci)",
-                    "check_ids": [
-                        "CKV2_GHA_1"
-                    ]
-                }
-            ]
-        },
-        {
             "file": "/.github/workflows/validate-stack.yml",
             "findings": [
                 {
