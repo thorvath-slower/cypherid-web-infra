@@ -44,6 +44,31 @@ subjects:
     name: seqtoid-preview-reaper
     namespace: argocd
 ---
+# Namespaces are cluster-scoped, so ns cleanup needs a ClusterRole. Scoped to the minimum:
+# read namespaces + delete them. The reaper's SCRIPT only ever deletes namespaces that
+# carry the seqtoid.io/preview label AND have no live Application AND are >1h old.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: seqtoid-preview-reaper-ns
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: seqtoid-preview-reaper-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: seqtoid-preview-reaper-ns
+subjects:
+  - kind: ServiceAccount
+    name: seqtoid-preview-reaper
+    namespace: argocd
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -99,6 +124,23 @@ spec:
                             "https://api.github.com/repos/${GH_REPO}/issues/${pr}/labels/preview" \
                             && echo "  label removed -- Argo will reap the sandbox" \
                             || echo "  WARN: could not remove label for PR #$pr (already gone?)"
+                        fi
+                      done
+                  # Second pass: reap ORPHANED preview namespaces. Argo does not delete a
+                  # CreateNamespace'd namespace on app deletion, so a closed PR leaves an
+                  # empty seqtoid-pr-N namespace behind after teardown. Delete namespaces
+                  # labelled seqtoid.io/preview that have NO live Application and are >1h old
+                  # (the age guard avoids racing a just-created sandbox before its app lists).
+                  kubectl get ns -l seqtoid.io/preview=true \
+                    -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.creationTimestamp}{"\n"}{end}' \
+                    | while read -r ns created; do
+                        [ -n "$ns" ] || continue
+                        age_min=$(( (now - $(date -d "$created" +%s)) / 60 ))
+                        [ "$age_min" -lt 60 ] && continue
+                        if ! kubectl get application "$ns" -n argocd >/dev/null 2>&1; then
+                          echo "reaping ORPHANED namespace $ns (no Application, age ${age_min}m)"
+                          kubectl delete ns "$ns" --wait=false \
+                            || echo "  WARN: could not delete namespace $ns"
                         fi
                       done
                   echo "reaper done"
