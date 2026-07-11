@@ -129,25 +129,51 @@ resource "aws_iam_role_policy" "seqtoid_web_preview_s3" {
 #    (the MySQL->ES indexing Lambda is intentionally NOT targeted per-sandbox; ES indexing
 #    is disabled in preview, see the #619 gate).
 data "aws_iam_policy_document" "seqtoid_web_preview_backend" {
+  # The only "*" resources below are read-only status actions (states List*, batch
+  # Describe*/List*) that do NOT support resource-level IAM permissions; every WRITE
+  # action (StartExecution, SubmitJob, ...) is scoped to the dev pipeline ARNs.
+  #checkov:skip=CKV_AWS_356:read-only states List*/batch Describe*+List* do not support resource-level scoping; all writes are ARN-scoped
+  # SFN: dispatch to + monitor the SHARED dev state machines. Writes scoped to the dev
+  # state-machine ARNs (idseq-swipe-<env>-*).
   statement {
-    sid = "SfnDispatchShared"
+    sid = "SfnDispatchDev"
     actions = [
       "states:StartExecution",
       "states:StopExecution",
-      "states:DescribeExecution",
       "states:DescribeStateMachine",
-      "states:GetExecutionHistory",
-      "states:ListExecutions",
     ]
-    resources = ["*"]
+    resources = ["arn:aws:states:${var.region}:${data.aws_caller_identity.current.account_id}:stateMachine:idseq-swipe-${var.env}-*"]
   }
   statement {
-    sid = "BatchSubmitShared"
+    sid = "SfnMonitorDev"
+    actions = [
+      "states:DescribeExecution",
+      "states:GetExecutionHistory",
+    ]
+    resources = ["arn:aws:states:${var.region}:${data.aws_caller_identity.current.account_id}:execution:idseq-swipe-${var.env}-*:*"]
+  }
+  # Batch: submit/terminate scoped to the dev job queues + definitions.
+  statement {
+    sid = "BatchSubmitDev"
     actions = [
       "batch:SubmitJob",
+      "batch:TerminateJob",
+    ]
+    resources = [
+      "arn:aws:batch:${var.region}:${data.aws_caller_identity.current.account_id}:job-queue/*",
+      "arn:aws:batch:${var.region}:${data.aws_caller_identity.current.account_id}:job-definition/*",
+      "arn:aws:batch:${var.region}:${data.aws_caller_identity.current.account_id}:job/*",
+    ]
+  }
+  # Read-only pipeline status. These states/batch List*+Describe* actions do not support
+  # resource-level permissions, so they require "*" (read-only; no data/isolation impact).
+  statement {
+    sid = "PipelineReadOnlyStatus"
+    actions = [
+      "states:ListExecutions",
+      "states:ListStateMachines",
       "batch:DescribeJobs",
       "batch:ListJobs",
-      "batch:TerminateJob",
       "batch:DescribeJobQueues",
       "batch:DescribeJobDefinitions",
       "batch:DescribeComputeEnvironments",
