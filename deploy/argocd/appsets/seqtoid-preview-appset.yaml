@@ -86,6 +86,11 @@ spec:
         server: https://kubernetes.default.svc
         namespace: "seqtoid-pr-{{.number}}"
       syncPolicy:
+        # Label the auto-created namespace so the TTL reaper can find + delete it once the
+        # PR closes (Argo does not delete a CreateNamespace'd namespace on app deletion).
+        managedNamespaceMetadata:
+          labels:
+            seqtoid.io/preview: "true"
         automated:
           prune: true
           selfHeal: true
