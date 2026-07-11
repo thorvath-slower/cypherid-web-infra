@@ -53,7 +53,7 @@ preview:
 # db:seed derives them from ENVIRONMENT (dev) + AWS_ACCOUNT_ID, so they point at the
 # shared dev state machines. Idempotent find_or_create-style seed.
 migrate:
-  command: ["rails", "db:migrate:with_data", "db:seed"]
+  command: ["rails", "db:migrate:with_data", "sandbox:seed_once"]
   # Run the migrate PreSync hook as the provisioner SA. On a brand-new sandbox namespace
   # the app SA (Sync phase) does not exist yet when this PreSync hook runs; the provisioner
   # SA is a PreSync hook that is already present and can read the sandbox SSM path.
