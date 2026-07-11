@@ -19,9 +19,12 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: seqtoid-pr-*
-  # Previews create NO cluster-scoped resources (the Rollouts/LBC CRDs already exist from
-  # the dev install). Empty whitelist structurally blocks any cluster-scoped object.
-  clusterResourceWhitelist: []
+  # The ONLY cluster-scoped resource a preview may create is its OWN namespace (via
+  # syncOptions CreateNamespace=true). Combined with destinations = seqtoid-pr-* only, a
+  # preview can create nothing but seqtoid-pr-<n> namespaces -- no other cluster object.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
   # Exactly the namespaced kinds the chart renders -- nothing else can be created even
   # inside a pr-* namespace.
   namespaceResourceWhitelist:

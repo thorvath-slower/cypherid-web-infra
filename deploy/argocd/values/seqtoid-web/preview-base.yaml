@@ -51,6 +51,10 @@ preview:
 # shared dev state machines. Idempotent find_or_create-style seed.
 migrate:
   command: ["rails", "db:migrate:with_data", "db:seed"]
+  # Run the migrate PreSync hook as the provisioner SA. On a brand-new sandbox namespace
+  # the app SA (Sync phase) does not exist yet when this PreSync hook runs; the provisioner
+  # SA is a PreSync hook that is already present and can read the sandbox SSM path.
+  serviceAccountName: seqtoid-web-provisioner
 
 # Skip the multi-GB taxon-lineage import + ES index build -- reference data is shared
 # read-only and per-sandbox OpenSearch is out of scope (heatmap/taxon-search degraded in
