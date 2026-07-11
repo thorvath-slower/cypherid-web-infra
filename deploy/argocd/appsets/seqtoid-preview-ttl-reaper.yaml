@@ -1,0 +1,104 @@
+# TTL reaper for stale per-PR preview sandboxes (#607c). Belt-and-suspenders beyond the
+# PR-close teardown: a PR left open + labelled `preview` for weeks would otherwise keep
+# its sandbox (and its share of the capped preview NodePool) forever.
+#
+# Correct reap path for an ApplicationSet-driven system: this does NOT delete namespaces
+# or Applications directly (the ApplicationSet would just recreate them, and a raw
+# namespace delete would orphan the DB schema + SSM). Instead it REMOVES the `preview`
+# label from PRs whose sandbox is older than MAX_AGE_DAYS -> the pullRequest generator
+# stops matching them -> Argo deletes the Application -> the finalizer + the chart's
+# PostDelete teardown Job reap the namespace, schema, scoped user, and SSM path cleanly.
+#
+# Reuses the same github-pr-generator token secret the ApplicationSet uses. Applied
+# deliberately to ns argocd. Age is read from each preview Application's creationTimestamp.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: seqtoid-preview-reaper
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: seqtoid-preview-reaper
+  namespace: argocd
+rules:
+  # Read-only: the reaper only LISTS preview Applications to find stale ones; it never
+  # deletes k8s objects (it removes the PR label and lets Argo do the deletion).
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: seqtoid-preview-reaper
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: seqtoid-preview-reaper
+subjects:
+  - kind: ServiceAccount
+    name: seqtoid-preview-reaper
+    namespace: argocd
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: seqtoid-preview-ttl-reaper
+  namespace: argocd
+spec:
+  # Daily at 06:00 UTC.
+  schedule: "0 6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: seqtoid-preview-reaper
+          containers:
+            - name: reaper
+              # alpine/k8s bundles kubectl + jq + curl.
+              image: alpine/k8s:1.31.1
+              env:
+                - name: MAX_AGE_DAYS
+                  value: "7"
+                - name: GH_REPO
+                  value: thorvath-slower/seqtoid-web
+                - name: GITHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: github-pr-generator
+                      key: token
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  now=$(date +%s)
+                  # Each preview Application carries seqtoid.io/pr=<number>. Find those
+                  # older than MAX_AGE_DAYS and drop the `preview` label from their PR.
+                  kubectl get applications -n argocd -l seqtoid.io/preview=true \
+                    -o jsonpath='{range .items[*]}{.metadata.labels.seqtoid\.io/pr}{" "}{.metadata.creationTimestamp}{"\n"}{end}' \
+                    | while read -r pr created; do
+                        [ -n "$pr" ] || continue
+                        age=$(( (now - $(date -d "$created" +%s)) / 86400 ))
+                        if [ "$age" -ge "$MAX_AGE_DAYS" ]; then
+                          echo "reaping PR #$pr (sandbox age ${age}d >= ${MAX_AGE_DAYS}d): removing 'preview' label"
+                          curl -sf -X DELETE \
+                            -H "Authorization: token $GITHUB_TOKEN" \
+                            -H "Accept: application/vnd.github+json" \
+                            "https://api.github.com/repos/${GH_REPO}/issues/${pr}/labels/preview" \
+                            && echo "  label removed -- Argo will reap the sandbox" \
+                            || echo "  WARN: could not remove label for PR #$pr (already gone?)"
+                        fi
+                      done
+                  echo "reaper done"
