@@ -13,7 +13,10 @@ environment: dev
 replicaCount: 1
 nodeSelector:
   kubernetes.io/arch: amd64
-  seqtoid.io/pool: web
+  # Dedicated, capacity-capped preview pool (#607c) -- NOT the shared web pool. Keeps
+  # sandbox scheduling off dev's small/contended nodes so migrate + the app schedule
+  # reliably, and bounds total preview spend via the pool's limits.
+  seqtoid.io/pool: preview
 
 # POLLING pipeline model: run result-monitor + pipeline-monitor (they poll the sandbox's
 # OWN DB), but NOT shoryuken -- a sandbox shoryuken would be a competing consumer on dev's
