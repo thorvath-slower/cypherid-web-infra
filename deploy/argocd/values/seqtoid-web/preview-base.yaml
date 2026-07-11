@@ -74,6 +74,7 @@ autoscaling:
 # per-PR by the ApplicationSet.
 ingress:
   enabled: true
-  certificateArn: ""   # set to the *.dev.seqtoid.org wildcard ACM cert ARN (prereq)
+  # *.dev.seqtoid.org wildcard cert (declared in dev/web preview-wildcard-cert.tf, #617).
+  certificateArn: "arn:aws:acm:us-west-2:491013321714:certificate/0c85408b-ceb9-4e9e-8275-a999e36e9e87"
   annotations:
     alb.ingress.kubernetes.io/subnets: subnet-06bfffadf91e2c189,subnet-0f94623d782341d71
