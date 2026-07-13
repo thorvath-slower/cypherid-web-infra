@@ -2,12 +2,12 @@ locals {
   account_id          = var.aws_accounts.idseq-prod
   s3_bucket_workflows = data.terraform_remote_state.web.outputs.s3_bucket_workflows
 
-  # D1 (CZID-81/26): repoint the OIDC trust from the IT-Academic-Research-Services
-  # org to our fork org. CI runs on thorvath-slower, so the OIDC token sub is
-  # `repo:thorvath-slower/<repo>:...`; the old IT-ARS pattern never matched and
-  # every AssumeRoleWithWebIdentity was denied. IT-ARS is NOT added — we do not
-  # deploy from their org. The dead seqtoid-graphql-federation-server is dropped.
-  gh_org = "thorvath-slower"
+  # OIDC trust orgs. During the merge-back transition (CZID-81/26) we trust BOTH the
+  # thorvath-slower fork (where active development + CI has been running) AND the live
+  # IT-Academic-Research-Services org (now that main + integration are merged back there),
+  # so deploys work from either while the team cuts over. The token sub is
+  # `repo:<org>/<repo>:...`; the module's :pull_request deny (C1) still applies per role.
+  gh_orgs = ["thorvath-slower", "IT-Academic-Research-Services"]
   gh_repos = [
     "cypherid-web-infra",
     "cypherid-workflow-infra",
@@ -58,7 +58,7 @@ module "czid_gh_actions_plan" {
     name = "czid-${var.env}-gh-actions-plan"
   }
   authorized_github_repos = {
-    (local.gh_org) : local.gh_repos
+    for org in local.gh_orgs : org => local.gh_repos
   }
   # Any branch/tag/env may run a read-only plan; the module still denies
   # :pull_request subjects (C1).
@@ -74,7 +74,7 @@ module "czid_gh_actions_apply" {
     name = "czid-${var.env}-gh-actions-apply"
   }
   authorized_github_repos = {
-    (local.gh_org) : local.gh_repos
+    for org in local.gh_orgs : org => local.gh_repos
   }
   # D2: only merges to main may apply. Combined with the module's C1 deny this
   # restricts the write role to sub `repo:<org>/<repo>:refs/heads/main`.
@@ -96,7 +96,7 @@ module "czid_web_private_gh_actions_executor" {
     name = "czid-${var.env}-gh-actions-executor"
   }
   authorized_github_repos = {
-    (local.gh_org) : local.gh_repos
+    for org in local.gh_orgs : org => local.gh_repos
   }
 }
 

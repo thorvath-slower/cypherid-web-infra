@@ -28,7 +28,7 @@ module "czid_gh_actions_build" {
     name = "czid-${var.env}-gh-actions-build"
   }
   authorized_github_repos = {
-    (local.gh_org) : ["seqtoid-web"]
+    for org in local.gh_orgs : org => ["seqtoid-web"]
   }
   subject_ref_pattern = "*"
 }
