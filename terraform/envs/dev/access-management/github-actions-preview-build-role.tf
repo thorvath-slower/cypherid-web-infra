@@ -34,7 +34,7 @@ data "aws_iam_policy_document" "preview_build_assume" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${local.gh_org}/seqtoid-web:pull_request"]
+      values   = [for org in local.gh_orgs : "repo:${org}/seqtoid-web:pull_request"]
     }
     condition {
       test     = "StringEquals"
