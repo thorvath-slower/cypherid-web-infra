@@ -255,7 +255,7 @@ resource "aws_security_group_rule" "aegea-ecs-egress-443-all-tcp" {
 }
 
 module "web-params" {
-  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
+  source  = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-ssm-params-writer?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2
   project = var.project
   env     = var.env
   service = "web"

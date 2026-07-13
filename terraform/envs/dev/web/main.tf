@@ -251,7 +251,7 @@ resource "aws_iam_role_policy" "idseq-upload" {
 }
 
 module "parameters-policy" {
-  source = "../../../modules/aws-params-reader-policy-v0.104.2" # cztack v0.104.2
+  source = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-params-reader-policy?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2
 
   project   = var.project
   env       = var.env
@@ -270,7 +270,7 @@ resource "random_string" "secret_key_base" {
 }
 
 module "web-service-params" {
-  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
+  source  = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-ssm-params-writer?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2
   project = var.project
   env     = var.env
   service = var.component
@@ -292,7 +292,7 @@ module "web-service-params" {
 }
 
 module "staging" {
-  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
+  source = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-acm-certificate?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2
 
   cert_domain_name    = local.env_fqdn
   aws_route53_zone_id = local.zone_id
@@ -304,7 +304,7 @@ module "staging" {
 }
 
 module "staging_east" {
-  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
+  source = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-acm-certificate?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2
 
   cert_domain_name    = local.env_fqdn
   aws_route53_zone_id = local.zone_id

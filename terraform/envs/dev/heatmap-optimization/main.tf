@@ -51,7 +51,7 @@ resource "aws_security_group_rule" "sec_group_outbound_czid" {
 }
 
 module "idseq-heatmap-es-param" {
-  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
+  source  = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-ssm-params-writer?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2
   project = var.project
   env     = var.env
   service = "web"
@@ -126,7 +126,7 @@ resource "aws_iam_role_policy_attachment" "glue-service-role-policy" {
 }
 
 module "aws-s3-batch-taxon-indexing-private-bucket" {
-  source        = "../../../modules/aws-s3-private-bucket-v0.104.2" # cztack v0.104.2
+  source        = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-s3-private-bucket?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2
   bucket_name   = local.bucket_name
   env           = var.env
   owner         = var.owner

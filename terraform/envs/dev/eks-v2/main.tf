@@ -1,5 +1,5 @@
 module "eks-cluster" {
-  source                  = "../../../modules/aws-eks-cluster-v0.104.2" # cztack v0.104.2-seqtoid.1
+  source                  = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-eks-cluster?ref=5fae7f3216c66d5eaf85912b107df25627c3703f" # cztack v0.104.2-seqtoid.1
   addons                  = local.addons
   authorized_github_repos = local.authorized_github_repos
   cluster_name            = local.cluster_name

@@ -29,7 +29,7 @@ resource "aws_ssm_parameter" "db_master_password" {
 }
 
 module "db_password" {
-  source     = "../../../modules/aws-param-v0.104.2"
+  source     = "git::https://github.com/thorvath-slower/seqtoid-ssot-infra.git//modules/cztack/aws-param?ref=5fae7f3216c66d5eaf85912b107df25627c3703f"
   project    = var.project
   env        = var.env
   service    = "web"
