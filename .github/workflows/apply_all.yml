@@ -57,7 +57,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       #- name: 'Download Artifacts for Workflow Run ${{ inputs.run-id || github.event.workflow_run.id }} using nektos act'
       #  if: ${{ env.ACT }}
-      #  uses: actions/download-artifact@v3 # TODO: nektosact requires this version for local cross-workflow artifacts
+      #  uses: actions/download-artifact@v5 # TODO: nektosact requires this version for local cross-workflow artifacts
       #  with:
       #    path: results
       #- name: 'Decompress Artifacts for Workflow Run ${{ inputs.run-id || github.event.workflow_run.id }} using nektos act'
@@ -93,10 +93,10 @@ jobs:
           echo "| ------------ | ----------- | ---------- | ------------------ | -------------------- |" >> "$GITHUB_STEP_SUMMARY"
           if [[ "$component_count" -gt 0 ]]; then
             echo "| :green_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run-id }} |"
-            echo "| :green_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run_id }} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| :green_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run-id }} |" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "| :yellow_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run-id }} |"
-            echo "| :yellow_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run_id }} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| :yellow_circle: Enabled | $environment | $component_count | $changing_component_count | ${{ inputs.run-id }} |" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -107,6 +107,17 @@ jobs:
           echo "| - | --------- | ------- |" >> "$GITHUB_STEP_SUMMARY"
           jq -r '.[] | "|\(if .change_count == 0 then ":green_circle:" else ":yellow_circle:" end)|\(.component)|\(.change_count)|"' results.json
           jq -r '.[] | "|\(if .change_count == 0 then ":green_circle:" else ":yellow_circle:" end)|\(.component)|\(.change_count)|"' results.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Reject direct-to-prod apply
+        # No-direct-to-prod (CZID-96): apply_all may apply dev/staging on demand,
+        # but prod is reachable ONLY through the promote.yml chain
+        # (dev -> staging -> prod, each gated on the previous). The environment is
+        # derived from the plan artifacts above; if it resolves to prod, fail here
+        # so a prod plan can't be applied directly, bypassing the promotion gates.
+        if: ${{ steps.changing-components.outputs.environment == 'prod' }}
+        run: |
+          echo "::error::Direct apply to prod is not allowed. Use the 'Promote (dev -> staging -> prod)' workflow (promote.yml), which gates prod on successful dev then staging applies (CZID-96)."
+          exit 1
 
   apply-components:
     name: Terraform Apply each Component

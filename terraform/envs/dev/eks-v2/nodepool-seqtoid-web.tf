@@ -1,0 +1,57 @@
+# =============================================================================
+# Dedicated Karpenter NodePool for seqtoid-web (#486), codified (not kubectl-applied).
+#
+# The module's DEFAULT NodePool floors instance-cpu > 8 (>=16-vCPU nodes) and only
+# consolidates empty nodes after 24h — wasteful for a small dev app and slow to give
+# the node back on the weekend cost spin-down. This pool:
+#   * labels its nodes `seqtoid.io/pool=web` so the chart's nodeSelector lands here,
+#   * allows SMALL amd64 nodes (instance-cpu < 9, e.g. a 2-vCPU c6a.large),
+#   * consolidates fast (1m) so a suspend->0 actually frees the node quickly.
+# amd64-only because the seqtoid-web image is single-arch amd64 (multi-arch is #482).
+#
+# Managed as a kubectl_manifest for consistency with the module's own default
+# NodePool/EC2NodeClass (also kubectl_manifest). Reuses the module's `default`
+# EC2NodeClass (correct subnet/SG/AMI discovery for czid-dev-eks-v2). Applied after
+# the cluster exists (depends on the module's karpenter CRDs + nodeclass).
+# =============================================================================
+resource "kubectl_manifest" "seqtoid_web_nodepool" {
+  yaml_body = yamlencode({
+    apiVersion = "karpenter.sh/v1"
+    kind       = "NodePool"
+    metadata   = { name = "seqtoid-web" }
+    spec = {
+      disruption = {
+        consolidationPolicy = "WhenEmptyOrUnderutilized"
+        consolidateAfter    = "1m"
+      }
+      template = {
+        metadata = { labels = { "seqtoid.io/pool" = "web" } }
+        spec = {
+          expireAfter = "360h"
+          nodeClassRef = {
+            group = "karpenter.k8s.aws"
+            kind  = "EC2NodeClass"
+            name  = "default"
+          }
+          terminationGracePeriod = "1h"
+          requirements = [
+            { key = "kubernetes.io/arch", operator = "In", values = ["amd64"] },
+            { key = "kubernetes.io/os", operator = "In", values = ["linux"] },
+            { key = "karpenter.sh/capacity-type", operator = "In", values = ["spot", "on-demand"] },
+            # Small nodes only — dev right-sizing.
+            { key = "karpenter.k8s.aws/instance-cpu", operator = "Lt", values = ["9"] },
+            # Exclude the ancient/instance-store families (mirrors the default pool).
+            { key = "karpenter.k8s.aws/instance-family", operator = "NotIn",
+            values = ["a1", "c1", "cc1", "cc2", "cg1", "cg2", "cr1", "g1", "g2", "hi1", "hs1", "m1", "m2", "m3", "t1"] },
+          ]
+        }
+      }
+    }
+  })
+
+  # No broad `depends_on = [module.eks-cluster]`: it would make the whole cluster
+  # module a dependency of a -target, dragging unrelated module drift into every
+  # scoped apply. The NodePool only needs the Karpenter CRDs to exist first; on a
+  # from-empty apply the provider's apply_retry_count (providers.tf) rides out the
+  # brief window while the module's karpenter addon registers them.
+}

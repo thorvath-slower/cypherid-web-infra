@@ -1,0 +1,154 @@
+name: terraform-ci
+
+# Native Terraform CI (replaces the fogg-driven workflow removed in
+# improvement-#002). find-changed groups the changed stacks into concurrent
+# BUCKETS, then validates each bucket:
+#
+#   * one bucket per mirrored stack (auth0, db, access-management, ...). The
+#     bucket validates that stack across dev -> staging -> prod as a CHAIN
+#     (see validate-stack.yml): dev/staging/prod mirror each other, so a failure
+#     in the env in front skips the envs behind it. Strict mirror — touching a
+#     stack in ANY env validates every env it exists in, to catch drift.
+#   * one bucket for the aws-account dirs (accounts/idseq-{dev,staging,prod}),
+#     chained the same way.
+#   * one "rest" bucket for everything that doesn't mirror across envs (modules,
+#     _shared, accounts/idseq-support, envs/{public,sandbox}, and prod-only /
+#     unaligned stacks), validated as a flat matrix.
+#
+# Buckets run CONCURRENTLY; the env tiers inside a bucket are the only thing that
+# chains. Stacks listed in .github/terraform-ci-skip.txt (they pull the inaccessible
+# chanzuckerberg/shared-infra module — CZID-90) are dropped from every bucket.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+
+concurrency:
+  group: terraform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  find-changed:
+    runs-on: ubuntu-latest
+    outputs:
+      buckets: ${{ steps.bucket.outputs.buckets }}
+      rest: ${{ steps.bucket.outputs.rest }}
+      has_buckets: ${{ steps.bucket.outputs.has_buckets }}
+      has_rest: ${{ steps.bucket.outputs.has_rest }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
+        id: filter
+        with:
+          list-files: json
+          filters: |
+            changed:
+              - added|modified: 'terraform/**/*.tf'
+      - uses: actions/github-script@v9
+        id: bucket
+        with:
+          script: |
+            const path = require("path")
+            const fs = require("fs")
+            // Stacks listed here can't be validated in CI (e.g. they pull the
+            // inaccessible chanzuckerberg/shared-infra module — see CZID-90).
+            let skip = new Set()
+            try {
+              skip = new Set(fs.readFileSync(".github/terraform-ci-skip.txt", "utf8")
+                .split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#")))
+            } catch (e) {}
+            // Quarantined stacks: known pre-existing defects tracked separately
+            // (CZID-91/92/93), excluded so they don't block unrelated PRs. An
+            // entry ending in "/" matches a whole tree (prefix); otherwise exact.
+            let quarantine = []
+            try {
+              quarantine = fs.readFileSync(".github/terraform-ci-quarantine.txt", "utf8")
+                .split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#"))
+            } catch (e) {}
+            const isQuarantined = d => quarantine.some(q => q.endsWith("/") ? d.startsWith(q) : d === q)
+            const files = ${{ steps.filter.outputs.changed_files }}
+            const dirs = [...new Set(files
+              .filter(f => f.endsWith(".tf") && !f.includes("/.terraform/"))
+              .map(f => path.dirname(f)))]
+
+            // Classify each changed dir. envs/{dev,staging,prod}/<stack> -> the
+            // <stack> mirror bucket; accounts/idseq-{dev,staging,prod} -> the
+            // aws-account bucket; everything else -> the flat "rest" bucket.
+            const mirror = new Set()   // bare stack names touched in any env
+            let accountsTouched = false
+            const rest = new Set()
+            for (const d of dirs) {
+              let m
+              if (m = d.match(/^terraform\/envs\/(dev|staging|prod)\/(.+)$/)) {
+                mirror.add(m[2])
+              } else if (/^terraform\/accounts\/idseq-(dev|staging|prod)$/.test(d)) {
+                accountsTouched = true
+              } else {
+                rest.add(d)
+              }
+            }
+
+            // A tier is validatable when the dir exists and isn't skip-listed or
+            // quarantined. Strict mirror: include every existing env of a touched
+            // stack, even envs whose files didn't change (drift guard).
+            const tier = p => (fs.existsSync(p) && !skip.has(p) && !isQuarantined(p)) ? p : ""
+            const buckets = []
+            for (const name of [...mirror].sort()) {
+              const b = { name, dev: tier(`terraform/envs/dev/${name}`),
+                          staging: tier(`terraform/envs/staging/${name}`),
+                          prod: tier(`terraform/envs/prod/${name}`) }
+              if (b.dev || b.staging || b.prod) buckets.push(b)
+            }
+            if (accountsTouched) {
+              const b = { name: "aws-accounts",
+                          dev: tier("terraform/accounts/idseq-dev"),
+                          staging: tier("terraform/accounts/idseq-staging"),
+                          prod: tier("terraform/accounts/idseq-prod") }
+              if (b.dev || b.staging || b.prod) buckets.push(b)
+            }
+            const restList = [...rest].filter(d => !skip.has(d) && !isQuarantined(d)).sort()
+
+            const skipped = dirs.filter(d => skip.has(d)).sort()
+            if (skipped.length) core.notice(`Skipping ${skipped.length} stack(s) excluded by .github/terraform-ci-skip.txt (chanzuckerberg/shared-infra unavailable — CZID-90): ${skipped.join(", ")}`)
+            const quarantined = dirs.filter(d => isQuarantined(d) && !skip.has(d)).sort()
+            if (quarantined.length) core.notice(`Quarantining ${quarantined.length} stack(s) with known pre-existing defects (.github/terraform-ci-quarantine.txt — CZID-91/92/93): ${quarantined.join(", ")}`)
+
+            core.setOutput("buckets", JSON.stringify(buckets))
+            core.setOutput("rest", JSON.stringify(restList))
+            core.setOutput("has_buckets", buckets.length ? "true" : "false")
+            core.setOutput("has_rest", restList.length ? "true" : "false")
+
+  # One concurrent bucket per mirrored stack (and the aws-accounts trio); each
+  # chains dev -> staging -> prod internally via the reusable workflow.
+  validate-stacks:
+    needs: find-changed
+    if: ${{ needs.find-changed.outputs.has_buckets == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        bucket: ${{ fromJson(needs.find-changed.outputs.buckets) }}
+    name: validate-stacks (${{ matrix.bucket.name }})
+    uses: ./.github/workflows/validate-stack.yml
+    with:
+      name: ${{ matrix.bucket.name }}
+      dev: ${{ matrix.bucket.dev }}
+      staging: ${{ matrix.bucket.staging }}
+      prod: ${{ matrix.bucket.prod }}
+
+  # The non-mirrored "rest" bucket: flat matrix, runs concurrently with the
+  # per-stack buckets above.
+  validate-rest:
+    needs: find-changed
+    if: ${{ needs.find-changed.outputs.has_rest == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: ${{ fromJson(needs.find-changed.outputs.rest) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/terraform-validate
+        with:
+          stack: ${{ matrix.stack }}

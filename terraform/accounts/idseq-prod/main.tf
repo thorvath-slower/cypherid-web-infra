@@ -3,7 +3,7 @@
 # be bootstrapped according to the simple yet essential procedure in
 # https://github.com/cloudposse/terraform-aws-tfstate-backend#usage
 module "terraform-aws-tfstate-backend" {
-  source     = "git@github.com:cloudposse/terraform-aws-tfstate-backend?ref=v1.7.1"
+  source     = "github.com/cloudposse/terraform-aws-tfstate-backend?ref=v1.7.1"
   attributes = local.attributes
   # billing_mode                = local.billing_mode
   dynamodb_enabled = local.dynamodb_enabled

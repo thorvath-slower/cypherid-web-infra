@@ -1,0 +1,28 @@
+name: security
+
+# Calls the shared reusable security workflow — the SSOT in thorvath-slower/ci-workflows (CZID-310).
+# One definition for all repos; this repo keeps only its own .trivyignore baseline (CZID-264).
+# No `prepare`: web-infra is native Terraform (no codegen), so the scanners see complete config from checkout.
+on:
+  push:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      run_checkov:
+        description: "Also run the full Checkov policy pass (full-suite / prod check)"
+        type: boolean
+        default: false
+
+jobs:
+  security:
+    # SSOT reusable, pinned to the @v1 moving major tag. checkov_baseline landed in v1 (#416); the
+    # previously-archived ci-workflows repo is retired in favor of seqtoid-ci-workflows.
+    uses: thorvath-slower/seqtoid-ci-workflows/.github/workflows/security.yml@v1
+    with:
+      run_checkov: true                   # checkov is now a GATE on every run (was workflow_dispatch-only)
+      checkov_soft_fail: false            # hard-fail on findings NOT in the baseline
+      checkov_baseline: .checkov.baseline # 259 inherited findings accepted (CZID-264); gate on NEW only
+      # vuln only: trivy's full-tree terraform misconfig resolution hangs on this repo's large
+      # multi-env module graph. IaC misconfig is covered by tflint + checkov instead.
+      trivy_scanners: vuln

@@ -12,7 +12,7 @@ resource "random_pet" "this" {
 
 module "ecr_writer_policy" {
   count               = length(var.ecrs) > 0 ? 1 : 0
-  source              = "github.com/chanzuckerberg/cztack//aws-iam-policy-ecr-writer?ref=v0.104.2"
+  source              = "../aws-iam-policy-ecr-writer-v0.104.2" # cztack v0.104.2
   role_name           = var.gh_actions_role_name
   ecr_repository_arns = flatten([for ecr in var.ecrs : ecr.repository_arn])
   policy_name         = "gh_actions_ecr_push_${random_pet.this.id}"
@@ -22,7 +22,7 @@ module "ecr_writer_policy" {
 
 // used for the dynamic autocreated ECRs
 module "autocreated_ecr_writer_policy" {
-  source    = "github.com/chanzuckerberg/cztack//aws-iam-policy-ecr-writer?ref=v0.104.2"
+  source    = "../aws-iam-policy-ecr-writer-v0.104.2" # cztack v0.104.2
   role_name = var.gh_actions_role_name
   // TODO: not a super fan of this. Would be ideal to have the role only have access to the stacks created by this happy project
   ecr_repository_arns = ["arn:aws:ecr:us-west-2:${local.account_id}:repository/*/${var.tags.env}/*"]
@@ -32,20 +32,37 @@ module "autocreated_ecr_writer_policy" {
 }
 
 data "aws_iam_policy_document" "ecr_scanner" {
+  # CZID-342 (IAM-2 least-privilege): the old single statement granted every action on resources = ["*"].
+  # Split into registry-level actions (no resource-level form in the AWS IAM reference — must remain "*")
+  # and repository-level actions (scoped to this account/region's repositories). This removes the wildcard
+  # from the high-value repo-level actions without changing what CI can actually do.
   statement {
-    sid = "ScanECR"
+    sid = "ScanECRRegistryConfig"
 
+    # Account-level registry / scanning-configuration actions; no resource-level form, so "*" is required.
+    # (BatchGet... kept here conservatively — a scanning-config read with low blast radius; do not narrow
+    # without plan validation.)
     actions = [
       "ecr:BatchGetRepositoryScanningConfiguration",
       "ecr:GetRegistryScanningConfiguration",
-      "ecr:DescribeImageScanFindings",
-      "ecr:StartImageScan",
-      "ecr:PutImageScanningConfiguration",
       "ecr:PutRegistryScanningConfiguration",
-      "ecr:PutImageTagMutability"
     ]
 
     resources = ["*"]
+  }
+
+  statement {
+    sid = "ScanECRRepositories"
+
+    # Repository-level actions: scoped to repositories in this account + region.
+    actions = [
+      "ecr:DescribeImageScanFindings",
+      "ecr:StartImageScan",
+      "ecr:PutImageScanningConfiguration",
+      "ecr:PutImageTagMutability",
+    ]
+
+    resources = ["arn:aws:ecr:us-west-2:${local.account_id}:repository/*"]
   }
 }
 

@@ -1,6 +1,10 @@
 locals {
+  # #429: normalize prod assets to the seqtoid.org model. `domain` is now the
+  # parameterized env fqdn from route53 remote state (local.env_fqdn, defined in
+  # main.tf) instead of the hardcoded "${var.env}.idseq.net". Local names are kept
+  # unchanged; only their values move off idseq.net.
   subdomain     = "assets"
-  domain        = "${var.env}.idseq.net"
+  domain        = local.env_fqdn
   full_domain   = "${local.subdomain}.${local.domain}"
   origin_domain = local.domain
 
@@ -10,7 +14,7 @@ locals {
 }
 
 module "assets-cert" {
-  source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.41.0"
+  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
 
   cert_domain_name               = local.full_domain
   aws_route53_zone_id            = local.zone_id
@@ -28,6 +32,15 @@ resource "aws_cloudfront_distribution" "distribution" {
   enabled = true
   comment = "Caches Rails web server static assets in Amazon's edge servers"
 
+  # CZID-61 (#61): CloudFront standard access logging to a private S3 bucket (CKV_AWS_86).
+  logging_config {
+    bucket          = module.cloudfront_access_logs.bucket_domain_name
+    include_cookies = false
+    prefix          = "assets/"
+  }
+  # CZID-356 (#356): CLOUDFRONT-scoped WAF (CKV_AWS_68 / CKV2_AWS_47). ARN, per the WAFv2 contract.
+  web_acl_id = module.cloudfront_waf.web_acl_id
+
   aliases = [local.full_domain]
 
   # Rails web server
@@ -39,17 +52,18 @@ resource "aws_cloudfront_distribution" "distribution" {
       http_port              = "80"
       https_port             = "443"
       origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.1"]
+      origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
 
   # By default, forward without caching requests to Rails web server. In future,
   # we may want to cache some of these, and forward others to an s3 bucket.
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = local.origin_domain
-    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = local.origin_domain
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = module.security_headers.policy_id
 
     default_ttl = 0
     max_ttl     = 0
@@ -65,11 +79,12 @@ resource "aws_cloudfront_distribution" "distribution" {
 
   # Forward and cache assets requests to Rails web server.
   ordered_cache_behavior {
-    path_pattern           = "/assets/*"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = local.origin_domain
-    viewer_protocol_policy = "redirect-to-https"
+    path_pattern               = "/assets/*"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = local.origin_domain
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = module.security_headers.policy_id
     # Time-to-live is set to 1 year. Rails puts a hash in the filename of
     # static assets, so changes to assets will result in new files, which
     # clients will then download from the origin.
@@ -92,7 +107,7 @@ resource "aws_cloudfront_distribution" "distribution" {
   viewer_certificate {
     acm_certificate_arn      = module.assets-cert.arn
     ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.1_2016"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   restrictions {

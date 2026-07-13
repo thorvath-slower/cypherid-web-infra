@@ -1,5 +1,11 @@
 locals {
-  zone_id = data.terraform_remote_state.idseq-prod.outputs.idseq_net_zone_id
+  # #429: normalize prod to the dev/staging seqtoid.org model. The zone + fqdn come
+  # from the route53 remote state (env_seqtoid_org_*), which prod/route53 already
+  # exports — the same source dev and staging consume. Drops the hardcoded idseq.net
+  # domain and the idseq-prod idseq_net_zone_id lookup.
+  zone_id      = data.terraform_remote_state.route53.outputs.env_seqtoid_org_zone_id
+  env_fqdn     = data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn
+  www_env_fqdn = "www.${local.env_fqdn}"
 }
 
 data "aws_iam_policy_document" "idseq-web-assume-role" {
@@ -177,7 +183,7 @@ data "aws_iam_policy_document" "idseq-web" {
     ]
 
     resources = [
-      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:*",
+      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.env}/*",
     ]
   }
 }
@@ -232,7 +238,7 @@ resource "aws_iam_role_policy" "idseq-upload" {
 }
 
 module "parameters-policy" {
-  source = "github.com/chanzuckerberg/cztack//aws-params-reader-policy?ref=v0.41.0"
+  source = "../../../modules/aws-params-reader-policy-v0.104.2" # cztack v0.104.2
 
   project   = var.project
   env       = var.env
@@ -242,7 +248,7 @@ module "parameters-policy" {
 }
 
 module "web-service-params" {
-  source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.41.0"
+  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
   project = var.project
   env     = var.env
   service = var.component
@@ -258,49 +264,27 @@ module "web-service-params" {
     ALIGNMENT_CONFIG_DEFAULT_NAME = var.alignment_index_date
     ES_ADDRESS                    = "https://${data.terraform_remote_state.heatmap-optimization.outputs.elastic_search_endpoint}"
     CLOUDFRONT_ENDPOINT           = local.full_domain
-    CZID_CLOUDFRONT_ENDPOINT      = local.czid_full_domain
+    CZID_CLOUDFRONT_ENDPOINT      = local.full_domain
     S3_DATABASE_BUCKET            = var.s3_bucket_public_references
     CLI_UPLOAD_ROLE_ARN           = aws_iam_role.idseq-upload.arn
   }
 }
 
 module "prod" {
-  source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.41.0"
+  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
 
-  cert_domain_name    = "idseq.net"
+  cert_domain_name    = local.env_fqdn
   aws_route53_zone_id = local.zone_id
 
   cert_subject_alternative_names = {
-    "www.idseq.net"            = local.zone_id
-    "www.${var.env}.idseq.net" = local.zone_id
-    "${var.env}.idseq.net"     = local.zone_id
+    (local.www_env_fqdn) = local.zone_id
   }
 
   tags = var.tags
-}
-
-module "prod_east" {
-  source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.41.0"
-
-  cert_domain_name    = "idseq.net"
-  aws_route53_zone_id = local.zone_id
-
-  cert_subject_alternative_names = {
-    "www.idseq.net"            = local.zone_id
-    "www.${var.env}.idseq.net" = local.zone_id
-    "${var.env}.idseq.net"     = local.zone_id
-  }
-
-  tags = var.tags
-
-  # cloudfront requires us-east-1 acm certs
-  providers = {
-    aws = aws.us-east-1
-  }
 }
 
 module "web-service" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/ecs-service-with-alb?ref=v0.421.0"
+  source = "../../../modules/ecs-service-with-alb-v0.421.0"
 
   service             = "web"
   container_port      = 3000
@@ -328,7 +312,7 @@ module "web-service" {
 
 resource "aws_route53_record" "www" {
   zone_id = local.zone_id
-  name    = "www.idseq.net"
+  name    = local.www_env_fqdn
   type    = "A"
 
   alias {
@@ -338,127 +322,35 @@ resource "aws_route53_record" "www" {
   }
 }
 
-resource "aws_route53_record" "root" {
-  zone_id = local.zone_id
-  name    = "idseq.net"
-  type    = "A"
 
-  alias {
-    name                   = aws_cloudfront_distribution.redirect_distribution.domain_name
-    zone_id                = aws_cloudfront_distribution.redirect_distribution.hosted_zone_id
-    evaluate_target_health = false
+resource "aws_ecr_repository" "web-repository" {
+  #checkov:skip=CKV_AWS_51:image tag immutability is intentionally gated behind var.ecr_immutable_tags (default MUTABLE) — flipping it unconditionally broke the latest-tag dual-push deploy (see #59/PR#110); re-enable once the deploy uses immutable sha/SemVer tags.
+  name = "idseq-web"
+  # CZID-59: IMMUTABLE tags (CKV_AWS_51). This is an in-place update on an existing
+  # repo (PutImageTagMutability), NOT a replacement.
+  image_tag_mutability = var.ecr_immutable_tags ? "IMMUTABLE" : "MUTABLE"
+  force_delete         = contains(["dev", "sandbox"], var.env)
+
+  image_scanning_configuration {
+    scan_on_push = true
   }
-}
 
-resource "aws_s3_bucket" "redirect_bucket" {
-  bucket = "idseq.net"
-  acl    = "public-read"
-
-  website {
-    redirect_all_requests_to = "http://czid.org"
-  }
-}
-
-resource "aws_cloudfront_distribution" "redirect_distribution" {
-  aliases             = ["idseq.net", "prod.idseq.net", "www.prod.idseq.net"]
-  enabled             = true
-  http_version        = "http2"
-  is_ipv6_enabled     = true
-  price_class         = "PriceClass_All"
-  retain_on_delete    = false
-  wait_for_deployment = true
-
-  default_cache_behavior {
-    allowed_methods = [
-      "GET",
-      "HEAD",
-    ]
-    cached_methods = [
-      "GET",
-      "HEAD",
-    ]
-    compress               = false
-    default_ttl            = 86400
-    max_ttl                = 31536000
-    min_ttl                = 0
-    smooth_streaming       = false
-    target_origin_id       = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
-    trusted_signers        = []
-    viewer_protocol_policy = "allow-all"
-
-    forwarded_values {
-      headers                 = []
-      query_string            = false
-      query_string_cache_keys = []
-
-      cookies {
-        forward           = "none"
-        whitelisted_names = []
-      }
+  # CZID-59: customer-managed KMS encryption of image layers (CKV_AWS_136), gated on
+  # var.manage_ecr_kms_cmk. encryption_configuration is IMMUTABLE — enabling it on an
+  # existing repo forces DESTROY+RECREATE, so it is emitted ONLY on greenfield envs
+  # (see ecr_hardening.tf). When the var is false the block is absent and the repo
+  # keeps the AWS-owned key with no change.
+  dynamic "encryption_configuration" {
+    for_each = var.manage_ecr_kms_cmk ? [1] : []
+    content {
+      encryption_type = "KMS"
+      kms_key         = local.ecr_kms_key_arn
     }
-  }
-
-  origin {
-    domain_name = aws_s3_bucket.redirect_bucket.website_endpoint
-    origin_id   = "S3-Website-${aws_s3_bucket.redirect_bucket.website_endpoint}"
-
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_keepalive_timeout = 5
-      origin_protocol_policy   = "http-only"
-      origin_read_timeout      = 30
-      origin_ssl_protocols = [
-        "TLSv1",
-        "TLSv1.1",
-        "TLSv1.2",
-      ]
-    }
-  }
-
-  restrictions {
-    geo_restriction {
-      locations        = []
-      restriction_type = "none"
-    }
-  }
-
-  viewer_certificate {
-    acm_certificate_arn            = module.prod_east.arn
-    cloudfront_default_certificate = false
-    minimum_protocol_version       = "TLSv1.1_2016"
-    ssl_support_method             = "sni-only"
-  }
-}
-
-resource "aws_route53_record" "redirect-prod" {
-  zone_id         = local.zone_id
-  name            = "prod.idseq.net."
-  type            = "A"
-  allow_overwrite = true
-  depends_on      = [module.web-service]
-
-  alias {
-    name                   = aws_cloudfront_distribution.redirect_distribution.domain_name
-    zone_id                = aws_cloudfront_distribution.redirect_distribution.hosted_zone_id
-    evaluate_target_health = true
-  }
-}
-
-resource "aws_route53_record" "redirect-www-prod" {
-  zone_id = local.zone_id
-  name    = "www.prod.idseq.net."
-  type    = "A"
-
-  alias {
-    name                   = aws_cloudfront_distribution.redirect_distribution.domain_name
-    zone_id                = aws_cloudfront_distribution.redirect_distribution.hosted_zone_id
-    evaluate_target_health = true
   }
 }
 
 resource "aws_ecr_lifecycle_policy" "idseq-web" {
-  repository = "idseq-web"
+  repository = aws_ecr_repository.web-repository.name
 
   policy = jsonencode({
     rules = [
@@ -491,3 +383,4 @@ resource "aws_ecr_lifecycle_policy" "idseq-web" {
     ]
   })
 }
+

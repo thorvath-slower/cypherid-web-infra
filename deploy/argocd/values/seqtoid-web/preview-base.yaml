@@ -1,0 +1,87 @@
+# Shared base values for EVERY per-PR preview sandbox (#617). The ApplicationSet layers
+# the per-PR overrides (image.tag, preview.prNumber, ingress.host, extraEnv) on top of
+# this. Isolation model: own app + DB (schema idseq_pr_N + scoped user) + S3 prefix, but
+# the SHARED dev Batch/Step Functions backend (so a sandbox can actually run pipelines).
+#
+# environment stays `dev` on purpose: it keeps Rails.env=development, the dev SFN ARNs
+# (db:seed derives them from ENVIRONMENT+AWS_ACCOUNT_ID -> the dev state machines), and
+# the dev account. Per-PR DB isolation comes from CHAMBER_SERVICE+DB_NAME, NOT from the
+# environment name.
+environment: dev
+
+# Small footprint -- previews are ephemeral and many may run at once.
+replicaCount: 1
+nodeSelector:
+  kubernetes.io/arch: amd64
+  # Dedicated, capacity-capped preview pool (#607c) -- NOT the shared web pool. Keeps
+  # sandbox scheduling off dev's small/contended nodes so migrate + the app schedule
+  # reliably, and bounds total preview spend via the pool's limits.
+  seqtoid.io/pool: preview
+
+# POLLING pipeline model: run result-monitor + pipeline-monitor (they poll the sandbox's
+# OWN DB), but NOT shoryuken -- a sandbox shoryuken would be a competing consumer on dev's
+# shared SQS queue. (#618)
+workers:
+  shoryuken:
+    enabled: false
+  resque:
+    resources: { requests: { cpu: 100m, memory: 768Mi } }
+  resque-scheduler:
+    resources: { requests: { cpu: 50m, memory: 384Mi } }
+  resque-pipeline-monitor:
+    resources: { requests: { cpu: 50m, memory: 384Mi } }
+  resque-result-monitor:
+    resources: { requests: { cpu: 50m, memory: 384Mi } }
+
+# App pods run as the tightly-scoped preview IRSA role (fail-closed vs dev). The
+# ApplicationSet does not override serviceAccount.name, so it stays `seqtoid-web` --
+# which the preview role's trust (system:serviceaccount:seqtoid-pr-*:seqtoid-web) expects.
+serviceAccount:
+  create: true
+  name: seqtoid-web
+  roleArn: arn:aws:iam::491013321714:role/seqtoid-web-preview
+
+# The per-PR sandbox extras (provision/teardown Jobs + provisioner SA). prNumber +
+# ingress.host + image.tag are set per-PR by the ApplicationSet.
+preview:
+  enabled: true
+  provisioner:
+    serviceAccountName: seqtoid-web-provisioner
+    roleArn: arn:aws:iam::491013321714:role/seqtoid-web-preview-provisioner
+
+# Seed app_configs after migrate so the sandbox has the (dev) SFN ARNs to dispatch with.
+# db:seed derives them from ENVIRONMENT (dev) + AWS_ACCOUNT_ID, so they point at the
+# shared dev state machines. Idempotent find_or_create-style seed.
+migrate:
+  command: ["rails", "db:migrate:with_data", "sandbox:seed_once"]
+  # Run the migrate PreSync hook as the provisioner SA. On a brand-new sandbox namespace
+  # the app SA (Sync phase) does not exist yet when this PreSync hook runs; the provisioner
+  # SA is a PreSync hook that is already present and can read the sandbox SSM path.
+  serviceAccountName: seqtoid-web-provisioner
+
+# Skip the multi-GB taxon-lineage import + ES index build -- reference data is shared
+# read-only and per-sandbox OpenSearch is out of scope (heatmap/taxon-search degraded in
+# preview; #619 gate item). taxonLoad/taxonRefresh OFF avoids writing to dev's ES.
+taxonLoad:
+  enabled: false
+taxonRefresh:
+  enabled: false
+
+# Fast promotion -- no manual gate for an ephemeral preview.
+blueGreen:
+  autoPromotionEnabled: true
+  analysis:
+    enabled: true
+autoscaling:
+  enabled: false
+
+# Public per-PR host. cert-manager + external-dns (already running on the cluster)
+# provision the cert + Route53 record from the host below. certificateArn points at a
+# wildcard *.dev.seqtoid.org ACM cert (PREREQ -- provisioned separately); host is set
+# per-PR by the ApplicationSet.
+ingress:
+  enabled: true
+  # *.dev.seqtoid.org wildcard cert (declared in dev/web preview-wildcard-cert.tf, #617).
+  certificateArn: "arn:aws:acm:us-west-2:491013321714:certificate/0c85408b-ceb9-4e9e-8275-a999e36e9e87"
+  annotations:
+    alb.ingress.kubernetes.io/subnets: subnet-06bfffadf91e2c189,subnet-0f94623d782341d71

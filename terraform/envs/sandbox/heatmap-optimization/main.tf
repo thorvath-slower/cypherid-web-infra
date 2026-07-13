@@ -2,7 +2,7 @@ locals {
   service     = "es"
   name        = "${var.project}-${var.env}-${local.service}"
   bucket_name = "idseq-${var.env}-heatmap-batch-jobs-${local.account_id}"
-  account_id  = var.aws_accounts.idseq-sandbox
+  account_id  = var.aws_accounts.idseq-dev
   tags = {
     managedBy = "terraform"
     Name      = local.name
@@ -15,11 +15,13 @@ locals {
 
 # The security group is used by the taxon-indexing-lambda in the idseq codebase
 resource "aws_security_group" "glue_sec_group" {
-  name   = "${var.project}_${var.env}_glue_sec_group"
-  vpc_id = data.terraform_remote_state.cloud-env.outputs.vpc_id
+  description = "Heatmap-optimization (Glue/OpenSearch) ingest security group"
+  name        = "${var.project}_${var.env}_glue_sec_group"
+  vpc_id      = data.terraform_remote_state.cloud-env.outputs.vpc_id
 }
 
 resource "aws_security_group_rule" "sec_group_allow_tcp" {
+  description              = "Intra-SG TCP (self-referencing) for Glue jobs"
   type                     = "ingress"
   from_port                = 0
   to_port                  = 65535
@@ -29,6 +31,7 @@ resource "aws_security_group_rule" "sec_group_allow_tcp" {
 }
 
 resource "aws_security_group_rule" "sec_group_outbound_tcp" {
+  description       = "Outbound TCP for package/data fetch"
   type              = "egress"
   from_port         = 0
   to_port           = 65535
@@ -38,6 +41,7 @@ resource "aws_security_group_rule" "sec_group_outbound_tcp" {
 }
 
 resource "aws_security_group_rule" "sec_group_outbound_czid" {
+  description              = "Intra-SG egress (self-referencing)"
   type                     = "egress"
   from_port                = 0
   to_port                  = 65535
@@ -47,7 +51,7 @@ resource "aws_security_group_rule" "sec_group_outbound_czid" {
 }
 
 module "idseq-heatmap-es-param" {
-  source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.104.2"
+  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
   project = var.project
   env     = var.env
   service = "web"
@@ -121,7 +125,7 @@ resource "aws_iam_role_policy_attachment" "glue-service-role-policy" {
 }
 
 module "aws-s3-batch-taxon-indexing-private-bucket" {
-  source      = "github.com/chanzuckerberg/cztack//aws-s3-private-bucket?ref=v0.104.2"
+  source      = "../../../modules/aws-s3-private-bucket-v0.104.2" # cztack v0.104.2
   bucket_name = local.bucket_name
   env         = var.env
   owner       = var.owner

@@ -1,0 +1,45 @@
+# Installs the AWS Load Balancer Controller cluster-wide. This is the controller
+# that turns the seqtoid-web chart's Ingress (improvement-#015) into a real
+# internet-facing ALB and keeps its target set pointed at the rollout's ACTIVE
+# pods. Chart version is pinned; bump deliberately.
+#
+# Prerequisite (IaC, not GitOps): an IRSA IAM role with the AWS Load Balancer
+# Controller policy, referenced below via the service-account role-arn. The
+# REPLACE_* values are filled per cluster/account at bootstrap.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+spec:
+  project: czid
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    targetRevision: 1.8.1
+    helm:
+      values: |
+        clusterName: REPLACE_CLUSTER_NAME
+        region: us-west-2
+        vpcId: REPLACE_VPC_ID
+        replicaCount: 2
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller
+          annotations:
+            # IRSA: the controller assumes this role to call ELB/EC2 APIs.
+            eks.amazonaws.com/role-arn: REPLACE_LBC_IAM_ROLE_ARN
+        # Restrict the controller to Ingresses that opt in via ingressClassName: alb.
+        ingressClassConfig:
+          default: false
+        createIngressClassResource: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

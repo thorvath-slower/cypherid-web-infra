@@ -1,0 +1,31 @@
+# Stacks excluded from terraform-ci validation. Tracked in Linear CZID-90.
+# Parser does exact-match on each non-# line — keep BARE paths (no inline comments).
+#
+# RESOLVED 2026-06-18 (CZID-90 — shared-infra vendored in-tree, repointed to local
+# ../../../modules/...): prod/downloads, prod/fivetran-ssh, staging/fivetran-ssh-nextgen
+# now validate in CI.
+#
+# RESOLVED 2026-06-18 (CZID-217 — declared the missing s3_bucket_pipeline_public_assets
+# variable): prod/batch now validates in CI.
+#
+# RESOLVED 2026-06-18 (CZID-218 — declared the missing idseq-prod remote-state data
+# source + project_v1 variable, dropped during the idseq-infra import): prod/web now
+# validates in CI.
+#
+# RESOLVED 2026-06-18 (CZID-216 — vendored ecs-cluster-v2.2.1 + its transitive
+# sub-modules instance-cloud-init-script / aws-iam-policy-orgwide-secrets /
+# aws-iam-policy-document-orgwide-secrets, repointed prod/ecs to the local copy):
+# prod/ecs now validates in CI.
+#
+# The vendored ecs-cluster module dirs are consumed (relative ../ sub-module deps,
+# template provider) — not standalone stacks — so they stay excluded from the flat
+# "rest" bucket. They are still validated transitively via the stacks that use them
+# (prod/ecs -> ecs-cluster-v2.2.1; ecs-service-with-alb is used by prod/web).
+terraform/modules/ecs-cluster-v2.2.1
+terraform/modules/ecs-cluster-v2.4.0
+terraform/modules/ecs-service-with-alb-v0.421.0
+#
+# aws-eks-cluster (vendored v0.104.2-seqtoid.1, #403/#322): uses kubernetes/helm/kubectl
+# providers configured only by the calling stack; standalone validate fails "Provider
+# configuration not present". Validated transitively via {dev,staging,sandbox,prod}/eks.
+terraform/modules/aws-eks-cluster-v0.104.2

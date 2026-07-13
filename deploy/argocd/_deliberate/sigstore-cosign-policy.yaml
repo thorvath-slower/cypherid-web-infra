@@ -1,0 +1,34 @@
+# Delivers the seqtoid-web cosign ClusterImagePolicy (#77) from deploy/argocd/policies/.
+# Kept as a SEPARATE Application from sigstore-policy-controller.yaml (the chart install)
+# because the ClusterImagePolicy is a CRD the controller owns — it can only be applied
+# AFTER that CRD exists. The sync-wave below orders it after the controller.
+#
+# The policy this app ships starts in `mode: warn` (audit, non-blocking). It gates ONLY
+# namespaces labeled policy.sigstore.dev/include=true — i.e. NOTHING until an operator
+# labels seqtoid-dev. See deploy/argocd/policies/cosign-clusterimagepolicy.yaml and the
+# staged-rollout note in sigstore-policy-controller.yaml. Flipping to `mode: enforce`
+# is a deliberate, gated commit to that policy file — never automatic.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sigstore-cosign-policy
+  namespace: argocd
+  annotations:
+    # Apply after the policy-controller chart (which registers the ClusterImagePolicy CRD).
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: czid
+  source:
+    repoURL: https://github.com/thorvath-slower/cypherid-web-infra.git
+    targetRevision: main
+    path: deploy/argocd/policies
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cosign-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # cosign-system is created by the controller app
+      - ServerSideApply=true

@@ -1,137 +1,263 @@
+# The inline `acl`, `acceleration_status`, `versioning`,
+# `server_side_encryption_configuration`, `lifecycle_rule`, and `cors_rule`
+# sub-arguments of `aws_s3_bucket` were deprecated in the AWS provider v4 and
+# moved to dedicated `aws_s3_bucket_*` resources (removed in a future major).
+# They are split out below (#475). Splitting an inline block into its standalone
+# resource is apply-safe: the bucket is not recreated, so no `moved {}` blocks
+# are required. The DATA-1 `prevent_destroy` guard stays on the bucket resources.
+
 resource "aws_s3_bucket" "samples" {
-  bucket              = var.s3_bucket_samples
-  acl                 = "private"
-  acceleration_status = "Enabled"
+  bucket = var.s3_bucket_samples
 
-  versioning {
-    enabled = true
-  }
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
-      }
-    }
-  }
-
-  lifecycle_rule {
-    id      = "TransitionToIA"
-    enabled = true
-    prefix  = "samples"
-
-    transition {
-      days          = 30
-      storage_class = "STANDARD_IA"
-    }
-  }
-
-  lifecycle_rule {
-    id      = "TransitionToGlacierIR"
-    enabled = true
-    prefix  = "samples"
-
-    transition {
-      days          = 90
-      storage_class = "GLACIER_IR"
-    }
-  }
-
-  lifecycle_rule {
-    id      = "Expire Noncurrent Versions"
-    enabled = true
-    prefix  = "samples/"
-
-    noncurrent_version_expiration {
-      days = 10
-    }
-
-    expiration {
-      expired_object_delete_marker = true
-    }
-  }
-
-  lifecycle_rule {
-    id      = "Expire Noncurrent Versions - Deprecated Bulk Downloads"
-    enabled = true
-    prefix  = "downloads/"
-
-    noncurrent_version_expiration {
-      days = 10
-    }
-
-    expiration {
-      expired_object_delete_marker = true
-    }
-  }
-
-  lifecycle_rule {
-    id      = "Expire Noncurrent Versions - Deprecated PhyloTrees"
-    enabled = true
-    prefix  = "phylo_trees/"
-
-    noncurrent_version_expiration {
-      days = 10
-    }
-
-    expiration {
-      expired_object_delete_marker = true
-    }
-  }
-
-  lifecycle_rule {
-    id      = "Expire Noncurrent Versions - PhyloTrees"
-    enabled = true
-    prefix  = "phylotree-ng/"
-
-    noncurrent_version_expiration {
-      days = 10
-    }
-
-    expiration {
-      expired_object_delete_marker = true
-    }
-  }
-
-  lifecycle_rule {
-    id      = "Clade Exports Expiration"
-    enabled = true
-    prefix  = "clade_exports/"
-
-    expiration {
-      days = 1
-    }
-
-    noncurrent_version_expiration {
-      days = 1
-    }
-  }
-
-  lifecycle_rule {
-    id      = "Expire intermediate output files"
-    enabled = true
-    prefix  = "samples/"
-
-    tags = {
-      intermediate_output = "true"
-    }
-
-    expiration {
-      days = 10
-    }
-  }
-
-  lifecycle_rule {
-    id                                     = "Abort Incomplete Multipart Uploads"
-    enabled                                = true
-    prefix                                 = ""
-    abort_incomplete_multipart_upload_days = 7
+  # DATA-1 (#31): prod carries real sample data — never let terraform destroy/replace this bucket.
+  lifecycle {
+    prevent_destroy = true
   }
 
   tags = {
     env       = var.env
     terraform = "true"
   }
+}
+
+resource "aws_s3_bucket" "samples_v1" {
+  bucket = var.s3_bucket_samples_v1
+
+  # DATA-1 (#31): prod carries real sample data — never let terraform destroy/replace this bucket.
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = {
+    env       = var.env
+    terraform = "true"
+  }
+}
+
+resource "aws_s3_bucket_acl" "samples" {
+  bucket = aws_s3_bucket.samples.id
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_acl" "samples_v1" {
+  bucket = aws_s3_bucket.samples_v1.id
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_accelerate_configuration" "samples" {
+  bucket = aws_s3_bucket.samples.id
+  status = "Enabled"
+}
+
+resource "aws_s3_bucket_accelerate_configuration" "samples_v1" {
+  bucket = aws_s3_bucket.samples_v1.id
+  status = "Enabled"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "samples" {
+  bucket = aws_s3_bucket.samples.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "samples_v1" {
+  bucket = aws_s3_bucket.samples_v1.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "samples" {
+  bucket = aws_s3_bucket.samples.id
+
+  rule {
+    id     = "TransitionToIA"
+    status = "Enabled"
+    filter {
+      prefix = "samples"
+    }
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+  }
+
+  rule {
+    id     = "TransitionToGlacierIR"
+    status = "Enabled"
+    filter {
+      prefix = "samples"
+    }
+    transition {
+      days          = 90
+      storage_class = "GLACIER_IR"
+    }
+  }
+
+  rule {
+    id     = "Expire Noncurrent Versions"
+    status = "Enabled"
+    filter {
+      prefix = "samples/"
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 10
+    }
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  rule {
+    id     = "Expire Noncurrent Versions - Deprecated Bulk Downloads"
+    status = "Enabled"
+    filter {
+      prefix = "downloads/"
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 10
+    }
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  rule {
+    id     = "Expire Noncurrent Versions - Deprecated PhyloTrees"
+    status = "Enabled"
+    filter {
+      prefix = "phylo_trees/"
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 10
+    }
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  rule {
+    id     = "Expire Noncurrent Versions - PhyloTrees"
+    status = "Enabled"
+    filter {
+      prefix = "phylotree-ng/"
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 10
+    }
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  rule {
+    id     = "Clade Exports Expiration"
+    status = "Enabled"
+    filter {
+      prefix = "clade_exports/"
+    }
+    expiration {
+      days = 1
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 1
+    }
+  }
+
+  rule {
+    id     = "Expire intermediate output files"
+    status = "Enabled"
+    filter {
+      tag {
+        key   = "intermediate_output"
+        value = "true"
+      }
+    }
+    expiration {
+      days = 10
+    }
+  }
+
+  rule {
+    id     = "Abort Incomplete Multipart Uploads"
+    status = "Enabled"
+    filter {
+      prefix = ""
+    }
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "samples_v1" {
+  bucket = aws_s3_bucket.samples_v1.id
+
+  rule {
+    id     = "TransitionToIA"
+    status = "Enabled"
+    filter {
+      prefix = "samples"
+    }
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+    noncurrent_version_transition {
+      noncurrent_days = 30
+      storage_class   = "STANDARD_IA"
+    }
+  }
+
+  rule {
+    id     = "Clade Exports Expiration"
+    status = "Enabled"
+    filter {
+      prefix = "clade_exports/"
+    }
+    expiration {
+      days = 1
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 1
+    }
+  }
+
+  rule {
+    id     = "Expire Noncurrent Versions - Bulk Downloads"
+    status = "Enabled"
+    filter {
+      prefix = "downloads/"
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 10
+    }
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  rule {
+    id     = "Abort Incomplete Multipart Uploads"
+    status = "Enabled"
+    filter {
+      prefix = ""
+    }
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+resource "aws_s3_bucket_cors_configuration" "samples" {
+  bucket = aws_s3_bucket.samples.id
 
   cors_rule {
     allowed_headers = ["*"]
@@ -152,78 +278,8 @@ resource "aws_s3_bucket" "samples" {
   }
 }
 
-resource "aws_s3_bucket" "samples_v1" {
-  bucket              = var.s3_bucket_samples_v1
-  acl                 = "private"
-  acceleration_status = "Enabled"
-
-  versioning {
-    enabled = true
-  }
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
-      }
-    }
-  }
-
-  lifecycle_rule {
-    id      = "TransitionToIA"
-    enabled = true
-    prefix  = "samples"
-
-    transition {
-      days          = 30
-      storage_class = "STANDARD_IA"
-    }
-
-    noncurrent_version_transition {
-      days          = 30
-      storage_class = "STANDARD_IA"
-    }
-  }
-
-  lifecycle_rule {
-    id      = "Clade Exports Expiration"
-    enabled = true
-    prefix  = "clade_exports/"
-
-    expiration {
-      days = 1
-    }
-
-    noncurrent_version_expiration {
-      days = 1
-    }
-  }
-
-  lifecycle_rule {
-    id      = "Expire Noncurrent Versions - Bulk Downloads"
-    enabled = true
-    prefix  = "downloads/"
-
-    noncurrent_version_expiration {
-      days = 10
-    }
-
-    expiration {
-      expired_object_delete_marker = true
-    }
-  }
-
-  lifecycle_rule {
-    id                                     = "Abort Incomplete Multipart Uploads"
-    enabled                                = true
-    prefix                                 = ""
-    abort_incomplete_multipart_upload_days = 7
-  }
-
-  tags = {
-    env       = var.env
-    terraform = "true"
-  }
+resource "aws_s3_bucket_cors_configuration" "samples_v1" {
+  bucket = aws_s3_bucket.samples_v1.id
 
   cors_rule {
     allowed_headers = ["*"]
@@ -241,4 +297,34 @@ resource "aws_s3_bucket" "samples_v1" {
     allowed_methods = ["GET"]
     allowed_origins = ["https://clades.nextstrain.org", "https://v2.clades.nextstrain.org"]
   }
+}
+
+resource "aws_s3_bucket_versioning" "samples" {
+  bucket = aws_s3_bucket.samples.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "samples_v1" {
+  bucket = aws_s3_bucket.samples_v1.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "samples" {
+  bucket                  = aws_s3_bucket.samples.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_public_access_block" "samples_v1" {
+  bucket                  = aws_s3_bucket.samples_v1.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }

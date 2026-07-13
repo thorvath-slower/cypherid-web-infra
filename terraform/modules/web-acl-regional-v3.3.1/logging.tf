@@ -85,7 +85,7 @@ data "aws_iam_policy_document" "waf_logs" {
 }
 
 module "logs_bucket" {
-  source        = "github.com/chanzuckerberg/cztack//aws-s3-private-bucket?ref=v0.104.2"
+  source        = "../aws-s3-private-bucket-v0.104.2" # cztack v0.104.2
   project       = var.tags.project
   env           = var.tags.env
   service       = var.tags.service

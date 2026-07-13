@@ -6,7 +6,7 @@ resource "random_password" "db_secret" {
 
 module "dbs" {
   for_each = var.rds_dbs
-  source   = "github.com/chanzuckerberg/cztack//aws-aurora-postgres?ref=v0.104.2"
+  source   = "../aws-aurora-mysql-v0.104.2" # cztack v0.104.2, in-house fork
 
   project = var.tags.project
   env     = var.tags.env

@@ -46,7 +46,7 @@ EOF
 }
 
 module "kiam-role" {
-  source               = "github.com/chanzuckerberg/cztack//aws-iam-service-account-eks?ref=v0.104.2"
+  source               = "../../aws-iam-service-account-eks-v0.104.2" # cztack v0.104.2
   eks_cluster          = var.eks_cluster
   iam_path             = var.iam_role_path
   k8s_namespace        = var.namespace

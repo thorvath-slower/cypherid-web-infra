@@ -1,0 +1,75 @@
+name: Deploy Environment
+run-name: Deploy all components to ${{ inputs.environment }}
+
+# Reusable single-environment deploy: list the env's components, then plan+apply
+# each one (via apply_component_call in its no-run-id plan+apply mode). Used as
+# one tier of the promote.yml dev -> staging -> prod chain, so the promotion
+# ordering lives in promote.yml and the per-env apply work lives here.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment (dev | staging | prod).
+        type: string
+        required: true
+    secrets:
+      AUTH0_CLIENT_ID:
+        required: true
+      AUTH0_CLIENT_SECRET:
+        required: true
+      AUTH0_DOMAIN:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  list-components:
+    name: List deployable components - ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.list.outputs.components }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: List components (minus skip-listed / quarantined / special-case)
+        id: list
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          dir="terraform/envs/${ENVIRONMENT}"
+          : > /tmp/exclude
+          # Components excluded from CI validation are also excluded from deploy:
+          #  - .github/terraform-ci-skip.txt       (CZID-90 shared-infra, can't init)
+          #  - .github/terraform-ci-quarantine.txt (CZID-91/92/93 known defects)
+          # Both list full paths (quarantine prefixes end in "/"); pull the
+          # component names that fall under this environment.
+          cat .github/terraform-ci-skip.txt .github/terraform-ci-quarantine.txt 2>/dev/null \
+            | sed -E 's/#.*//; s/[[:space:]]+$//' | grep . \
+            | sed -nE "s#^terraform/envs/${ENVIRONMENT}/([^/]+).*#\1#p" >> /tmp/exclude
+          # Special cases the legacy plan_all also skipped (cross-account / bootstrap).
+          printf 'route53\ns3-tf-state\nfivetran-ssh-nextgen\n' >> /tmp/exclude
+          sort -u /tmp/exclude -o /tmp/exclude
+          components=$(find "$dir" -maxdepth 1 -mindepth 1 -type d -printf '%P\n' \
+            | grep -vxF -f /tmp/exclude \
+            | jq -R . | jq -cs 'sort')
+          echo "components=$components"
+          echo "components=$components" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy - ${{ inputs.environment }}
+    needs: list-components
+    if: ${{ needs.list-components.outputs.components != '[]' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(needs.list-components.outputs.components) }}
+    uses: ./.github/workflows/apply_component_call.yml
+    with:
+      environment: ${{ inputs.environment }}
+      component: ${{ matrix.component }}
+    secrets: inherit

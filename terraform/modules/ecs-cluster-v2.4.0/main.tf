@@ -19,14 +19,6 @@ locals {
   rolling_start_hour_offset = random_id.rand.dec % 30
 
   rolling_end_hour_offset = local.rolling_start_hour_offset + 15
-
-  boothook = templatefile("${path.module}/templates/boothook.tpl", {
-    cluster_name = aws_ecs_cluster.cluster.name
-  })
-
-  user_data = templatefile("${path.module}/templates/user_data.tpl", {
-    additional_user_data_script = var.additional_user_data_script
-  })
 }
 
 resource "random_id" "rand" {
@@ -53,7 +45,7 @@ module "images" {
 }
 
 module "logs" {
-  source            = "github.com/chanzuckerberg/cztack//aws-cloudwatch-log-group?ref=v0.104.2"
+  source            = "../aws-cloudwatch-log-group-v0.104.2" # cztack v0.104.2
   project           = var.project
   env               = var.env
   service           = var.service
@@ -79,7 +71,7 @@ resource "aws_autoscaling_lifecycle_hook" "graceful_shutdown_asg_hook" {
 }
 
 module "profile" {
-  source      = "github.com/chanzuckerberg/cztack//aws-iam-instance-profile?ref=v0.104.2"
+  source      = "../aws-iam-instance-profile-v0.104.2" # cztack v0.104.2
   name_prefix = "${local.name}-"
   iam_path    = var.iam_path
 }
@@ -154,7 +146,7 @@ resource "aws_iam_role_policy_attachment" "attach-ecs" {
 }
 
 module "attach-logs" {
-  source    = "github.com/chanzuckerberg/cztack//aws-iam-policy-cwlogs?ref=v0.104.2"
+  source    = "../aws-iam-policy-cwlogs-v0.104.2" # cztack v0.104.2
   role_name = module.profile.role_name
   iam_path  = var.iam_path
 }
@@ -298,10 +290,26 @@ module "sg" {
   egress_rules        = ["all-all"]
 }
 
+data "template_file" "boothook" {
+  template = file("${path.module}/templates/boothook.tpl")
+
+  vars = {
+    cluster_name = aws_ecs_cluster.cluster.name
+  }
+}
+
+data "template_file" "user_data" {
+  template = file("${path.module}/templates/user_data.tpl")
+
+  vars = {
+    additional_user_data_script = var.additional_user_data_script
+  }
+}
+
 module "user_data" {
   source          = "../instance-cloud-init-script-v0.484.6"
-  user_script     = local.user_data
-  user_boothook   = local.boothook
+  user_script     = data.template_file.user_data.rendered
+  user_boothook   = data.template_file.boothook.rendered
   users           = var.ssh_users
   datadog_api_key = var.datadog_api_key
 

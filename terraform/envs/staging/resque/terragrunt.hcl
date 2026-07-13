@@ -1,6 +1,0 @@
-dependencies {
-  paths = [
-    "../ecs",
-    "../web",
-  ]
-}

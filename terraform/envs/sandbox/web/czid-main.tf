@@ -16,7 +16,7 @@
 # }
 #
 # module "czid-sandbox-cert" {
-#   source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.41.0"
+#   source = "../../../modules/aws-acm-certificate-v0.41.0" # cztack v0.41.0
 #
 #   cert_domain_name    = local.czid_domain
 #   aws_route53_zone_id = data.aws_route53_zone.czid_zone.id

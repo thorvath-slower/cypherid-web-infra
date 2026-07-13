@@ -20,11 +20,27 @@ resource "aws_iam_role" "idseq-web" {
 }
 
 resource "aws_ecr_repository" "web-repository" {
-  name                 = "idseq-web"
-  image_tag_mutability = "MUTABLE"
+  #checkov:skip=CKV_AWS_51:image tag immutability is intentionally gated behind var.ecr_immutable_tags (default MUTABLE) — flipping it unconditionally broke the latest-tag dual-push deploy (see #59/PR#110); re-enable once the deploy uses immutable sha/SemVer tags.
+  name = "idseq-web"
+  # CZID-59: IMMUTABLE tags (CKV_AWS_51). This is an in-place update on an existing
+  # repo (PutImageTagMutability), NOT a replacement.
+  image_tag_mutability = var.ecr_immutable_tags ? "IMMUTABLE" : "MUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true
+  }
+
+  # CZID-59: customer-managed KMS encryption of image layers (CKV_AWS_136), gated on
+  # var.manage_ecr_kms_cmk. encryption_configuration is IMMUTABLE — enabling it on an
+  # existing repo forces DESTROY+RECREATE, so it is emitted ONLY on greenfield envs
+  # (see ecr_hardening.tf). When the var is false the block is absent and the repo
+  # keeps the AWS-owned key with no change.
+  dynamic "encryption_configuration" {
+    for_each = var.manage_ecr_kms_cmk ? [1] : []
+    content {
+      encryption_type = "KMS"
+      kms_key         = local.ecr_kms_key_arn
+    }
   }
 }
 
@@ -181,7 +197,7 @@ data "aws_iam_policy_document" "idseq-web" {
     ]
 
     resources = [
-      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:*",
+      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.env}/*",
     ]
   }
 }
@@ -252,7 +268,7 @@ resource "aws_iam_role_policy" "idseq-upload" {
 }
 
 module "parameters-policy" {
-  source = "github.com/chanzuckerberg/cztack//aws-params-reader-policy?ref=v0.41.0"
+  source = "../../../modules/aws-params-reader-policy-v0.41.0" # cztack v0.41.0
 
   project   = var.project
   env       = var.env
@@ -262,7 +278,7 @@ module "parameters-policy" {
 }
 
 module "web-service-params" {
-  source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.41.0"
+  source  = "../../../modules/aws-ssm-params-writer-v0.41.0" # cztack v0.41.0
   project = var.project
   env     = var.env
   service = var.component
@@ -278,7 +294,7 @@ module "web-service-params" {
     ALIGNMENT_CONFIG_DEFAULT_NAME = var.alignment_index_date
     # ES_ADDRESS                    = "https://${data.terraform_remote_state.heatmap-optimization.outputs.elastic_search_endpoint}"
     CLOUDFRONT_ENDPOINT      = "assets.${var.env}.seqtoid.org"
-    CZID_CLOUDFRONT_ENDPOINT = local.czid_assets_fqdn
+    CZID_CLOUDFRONT_ENDPOINT = "assets.${var.env}.seqtoid.org"
     S3_DATABASE_BUCKET       = var.s3_bucket_public_references
     CLI_UPLOAD_ROLE_ARN      = aws_iam_role.idseq-upload.arn
   }

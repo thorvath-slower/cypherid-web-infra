@@ -29,7 +29,7 @@ resource "aws_ssm_parameter" "db_master_password" {
 }
 
 module "db_password" {
-  source     = "git@github.com:chanzuckerberg/cztack//aws-param?ref=v0.104.2"
+  source     = "../../../modules/aws-param-v0.104.2"
   project    = var.project
   env        = var.env
   service    = "web"

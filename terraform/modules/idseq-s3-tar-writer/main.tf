@@ -1,5 +1,5 @@
 module "aws-ecr-repo" {
-  source = "git@github.com:chanzuckerberg/cztack//aws-ecr-repo?ref=v0.104.2"
+  source = "../aws-ecr-repo-v0.104.2" # cztack v0.104.2
 
   force_delete    = local.force_delete
   max_image_count = var.max_image_count

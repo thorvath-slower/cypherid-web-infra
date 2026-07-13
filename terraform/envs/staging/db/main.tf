@@ -20,26 +20,8 @@ resource "aws_vpc_security_group_ingress_rule" "rds_private" {
   to_port     = 3306
 }
 
-# resource "aws_vpc_security_group_ingress_rule" "rds_public" {
-#   security_group_id = aws_security_group.rds.id
-#   description       = "Allow MySQL RDS inbound public traffic" # TODO: From Auth0
-#
-#   cidr_ipv4   = "0.0.0.0/0"
-#   from_port   = 3306
-#   ip_protocol = "tcp"
-#   to_port     = 3306
-# }
-
-# resource "aws_vpc_security_group_egress_rule" "rds" {
-#   security_group_id = aws_security_group.rds.id
-#   description       = "Allow MySQL RDS outbound public traffic"
-#
-#   cidr_ipv4   = "0.0.0.0/0"
-#   ip_protocol = "-1"
-# }
-
 module "db-params" {
-  source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.104.2"
+  source  = "../../../modules/aws-ssm-params-writer-v0.104.2"
   project = var.project
   env     = var.env
   service = "web"

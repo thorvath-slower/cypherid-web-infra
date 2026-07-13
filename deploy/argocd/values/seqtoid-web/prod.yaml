@@ -1,0 +1,34 @@
+# prod overrides for the seqtoid-web chart.
+environment: prod
+image:
+  repository: REPLACE_PROD_ACCT.dkr.ecr.us-west-2.amazonaws.com/czid-prod/seqtoid-web
+  # Prod pins an immutable tag (or digest); advanced deliberately on release.
+  tag: REPLACE_WITH_RELEASE_TAG
+replicaCount: 4
+serviceAccount:
+  roleArn: arn:aws:iam::REPLACE_PROD_ACCT:role/czid-prod-seqtoid-web
+blueGreen:
+  autoPromotionEnabled: false    # prod: MANUAL gate — human `argo rollouts promote`
+  scaleDownDelaySeconds: 120     # longer drain window in prod
+  abortScaleDownDelaySeconds: 60
+  analysis:
+    enabled: true                # smoke must pass before promotion is allowed
+    postPromotion: true
+resources:
+  requests:
+    cpu: "1"
+    memory: 2Gi
+  limits:
+    memory: 4Gi
+autoscaling:
+  enabled: true
+  minReplicas: 4
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 65
+# Public edge for prod. ALB via the AWS Load Balancer Controller -> active service.
+ingress:
+  enabled: true
+  host: czid.example.org               # REPLACE with the real prod DNS name
+  certificateArn: arn:aws:acm:us-west-2:REPLACE_PROD_ACCT:certificate/REPLACE_PROD_CERT
+  annotations:
+    alb.ingress.kubernetes.io/subnets: REPLACE_PROD_PUBLIC_SUBNETS

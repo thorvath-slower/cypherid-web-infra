@@ -1,3 +1,10 @@
+# DATA-2 / #419: the customer-managed RDS key ARN when managed (greenfield), else null so the
+# cluster / PI / backup fall back to the AWS-managed key with NO change on this live env. Mirrors
+# dev/staging; declared here because aurora_hardening.tf references local.db_kms_key_arn.
+locals {
+  db_kms_key_arn = var.manage_db_kms_cmk ? aws_kms_key.rds[0].arn : null
+}
+
 resource "aws_rds_cluster" "db" {
   cluster_identifier                  = "${var.project}-${var.env}"
   database_name                       = "${var.project}_${var.env}"
@@ -9,6 +16,8 @@ resource "aws_rds_cluster" "db" {
   iam_database_authentication_enabled = true
   backup_retention_period             = 7
   engine                              = "aurora-mysql"
+  deletion_protection                 = !contains(["dev", "sandbox"], var.env)
+  copy_tags_to_snapshot               = true
 
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.db.id
 
@@ -19,10 +28,11 @@ resource "aws_rds_cluster" "db" {
 }
 
 resource "aws_rds_cluster_instance" "db" {
-  count               = 1
-  identifier          = "${var.project}-${var.env}-${count.index}"
-  cluster_identifier  = aws_rds_cluster.db.id
-  monitoring_interval = 0
+  count                      = 1
+  identifier                 = "${var.project}-${var.env}-${count.index}"
+  cluster_identifier         = aws_rds_cluster.db.id
+  monitoring_interval        = 0
+  auto_minor_version_upgrade = true
 
   # In January 2018 US-West-2
   # r4.4xlarge = 8 physical CPU cores, 122 GiB RAM, ** 437 MB/sec EBS bw **
@@ -43,7 +53,7 @@ resource "aws_rds_cluster_instance" "db" {
 
 resource "aws_rds_cluster_parameter_group" "db" {
   name        = "${var.project}-${var.env}-rds-cluster-pg"
-  family      = "aurora-mysql5.7"
+  family      = "aurora-mysql8.0"
   description = "RDS default cluster parameter group"
 
   parameter {
@@ -59,25 +69,7 @@ resource "aws_rds_cluster_parameter_group" "db" {
   parameter {
     apply_method = "pending-reboot"
     name         = "binlog_format"
-    value        = "row"
-  }
-
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "max_allowed_packet"
-    value        = 1073741824
-  }
-
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "performance_schema"
-    value        = 1
-  }
-
-  parameter {
-    apply_method = "immediate"
-    name         = "group_concat_max_len"
-    value        = "1048576"
+    value        = "ROW"
   }
 
   tags = {
@@ -89,11 +81,11 @@ resource "aws_rds_cluster_parameter_group" "db" {
 
 resource "aws_db_parameter_group" "db" {
   name   = "${var.project}-${var.env}-rds-pg"
-  family = "aurora-mysql5.7"
+  family = "aurora-mysql8.0"
 
   parameter {
     name  = "general_log"
-    value = "1"
+    value = "0"
   }
 
   parameter {
@@ -103,28 +95,17 @@ resource "aws_db_parameter_group" "db" {
 
   parameter {
     name  = "long_query_time"
-    value = "0"
+    value = "2"
   }
 
   parameter {
     name  = "log_output"
-    value = "file"
+    value = "FILE"
   }
 
   parameter {
     name  = "log_queries_not_using_indexes"
     value = "1"
-  }
-
-  parameter {
-    name  = "group_concat_max_len"
-    value = "1073741824"
-  }
-
-  parameter {
-    apply_method = "pending-reboot"
-    name         = "performance_schema"
-    value        = "1"
   }
 
   tags = {

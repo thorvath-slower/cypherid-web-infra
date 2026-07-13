@@ -1,0 +1,21 @@
+# Stacks QUARANTINED from terraform-ci because they have known, pre-existing defects
+# that are tracked separately and are NOT in scope for the current PR. This is
+# distinct from .github/terraform-ci-skip.txt (which is specifically the inaccessible
+# chanzuckerberg/shared-infra dependency, CZID-90). Quarantined stacks are
+# dropped from every bucket and the run prints a notice listing them.
+#
+# Matching: an entry ending in "/" is a PREFIX (quarantines a whole env/tree);
+# any other entry is an EXACT directory match (quarantines one stack/tier).
+#
+# Remove an entry once its tracking issue is resolved, so CI validates it again.
+
+# CZID-91 — sandbox/* : dangling refs incl. retired idseq-newdev remote state.
+#   Confirm live vs retire. (public/* was fixed in bug-#013 — deprecated inline
+#   provider `version=` args removed — and un-quarantined; CI validates it again.)
+terraform/envs/sandbox/
+
+# CZID-92 — RESOLVED: all prod stacks fixed and un-quarantined. redis: prod
+#   locals block restored (PR #16). maintenance/email/zendesk: route53 zone IDs
+#   now sourced via data.aws_route53_zone lookup of the existing czid.org /
+#   idseq.net zones (the idseq-prod remote_state outputs were commented out).
+#   acm-validation: bug-#014. CI validates all of them again.

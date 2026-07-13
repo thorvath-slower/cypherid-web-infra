@@ -1,150 +1,91 @@
-Instructions:
+# seqtoid — web infrastructure (Terraform)
 
-# Setup credentials
+Infrastructure-as-code for the seqtoid stack, using [Terraform](https://terraform.org).
+The repo is divided into **accounts**, **environments** (`dev`, `staging`,
+`sandbox`, `prod`, `public`) and **components**. Changes are applied at the
+component level: `cd` into a component and run Terraform there.
 
-## Login via SSO (why do we need both? Don't ask)
-You should only have to do this once
+> **Naming:** the platform is being renamed to **seqtoid** and the repositories
+> are migrating to the `seqtoid-*` convention over time (this repo:
+> `cypherid-web-infra` → `seqtoid-web-infra`). **Functional** names that map to
+> live AWS resources — the `idseq-<env>` profiles, component directory names,
+> SSM paths — keep the legacy convention until a coordinated cutover, so the
+> commands below are correct as written.
+
+> This repo was previously generated and orchestrated by `fogg` and run through
+> Terraform Cloud/Enterprise. It now runs on plain Terraform with no fogg and no
+> TFC/TFE — the `terraform.tf` in each component is the hand-maintained source of
+> truth (see `specs/002-terraform-conversion/`).
+
+> **Vendored modules are human-maintained.** Some `terraform/modules/*` are in-tree
+> copies of the (inaccessible) `chanzuckerberg/shared-infra` modules, used via a
+> local `source = "../...".` Renovate **cannot** update a local-path module, so they
+> are **frozen snapshots** — updating one is a manual re-vendor, not a version bump.
+> Provider versions (in `_shared/versions.tf`) *are* Renovate-managed. `template` /
+> `cloudinit` are declared module-locally on purpose (never in `_shared`). See
+> [`docs/TERRAFORM.md` → Vendored modules](docs/TERRAFORM.md#vendored-modules-frozen-snapshots-human-maintained).
+
+📖 **Full guide: [`docs/TERRAFORM.md`](docs/TERRAFORM.md)** — layout, state &
+locking, day-to-day workflow, common tasks (add a component, bump a provider,
+update a vendored module, bootstrap an env), conventions, CI, and what changed
+from the fogg/TFC setup. The README below is the quick start.
+
+## Prerequisites
+
+- [Terraform](https://terraform.org/docs/intro/install/) — pinned in
+  `.terraform-version` (`brew install terraform`, or use
+  [`tenv`](https://github.com/tofuutils/tenv)).
+- AWS CLI with an `idseq-<env>` profile in `~/.aws/config`.
+
+## Setup credentials
+
+One-time SSO config:
 ```bash
 aws configure sso --profile idseq-<env>
 ```
-
-You will have to do this every day or so, to re-authenticate
+Re-authenticate (every day or so):
 ```bash
 aws sso login --profile idseq-<env>
-```
-
-## Set environmental variable(s).
-This may be optional.
-```bash
 export AWS_DEFAULT_PROFILE=idseq-<env>
 ```
 
-# Initialize Fogg and Terraform executables (one-time setup)
-This should be done once, unless you want to install a new version of fogg
+## Working with a component
+
+Each component is a self-contained Terraform root module; the S3 backend
+(bucket/key/region/profile) is declared in its `terraform.tf`.
+
 ```bash
-make setup
+cd terraform/envs/<env>/<component>
+terraform init        # one-time per checkout / on backend or provider change
+terraform plan
+terraform apply
 ```
 
-# Run Fogg
-Do this every time you change fogg.yml
+Bootstrapping an environment is the same flow, starting from the account
+stack then the components in dependency order, e.g.:
 ```bash
-./fogg/bin/fogg apply
+cd terraform/accounts/idseq-<env> && terraform apply && cd -
+cd terraform/envs/<env>/iam-password-policy && terraform apply
+# ... params-secrets, route53, czid-services-private-key, cloud-env,
+#     idseq-s3-tar-writer, elb-access-logs, ..., eks, k8s-core, happy
+```
+Dependencies between components are expressed with
+`data "terraform_remote_state"`, so Terraform reads upstream outputs directly.
+
+## Repo-wide helpers
+
+A thin `Makefile` wraps Terraform (no fogg):
+
+```bash
+make fmt          # terraform fmt -recursive across the tree
+make fmt-check    # formatting check (also run in CI)
+make validate     # init -backend=false + validate every stack
+make plan  DIR=terraform/envs/dev/auth0
+make apply DIR=terraform/envs/dev/auth0
 ```
 
-# Create remote Statefile (one-time setup, per environment):
-```bash
-cd terraform/accounts/idseq-<env>/
-make apply
-cd -
-```
-
-Deploy Terraform components
-```bash
-cd terraform/envs/<env>/iam-password-policy
-make apply
-
-cd ../params-secrets
-make apply
-
-cd ../route53
-make apply
-
-cd ../czid-services-private-key
-make apply
-
-cd ../cloud-env
-make apply
-
-cd ../idseq-s3-tar-writer
-make apply
-
-cd ../elb-access-logs
-make apply
-
-cd ../maintenance
-make apply
-
-cd ../heatmap-optimization
-make apply
-
-cd ../db
-make apply
-
-cd ../downloads
-make apply
-
-cd ../ecs
-make apply
-
-cd ../batch
-make apply
-
-cd ../redis
-make apply
-
-cd ../web
-make apply
-
-cd ../web-waf
-make apply
-
-cd ../auth0
-make apply
-
-cd ../resque
-make apply
-
-cd ../access-management
-make apply
-
-cd ../eks
-make apply
-
-cd ../k8s-core
-make apply
-
-cd ../happy
-make apply
-
-cd ../sentry
-make apply
-
-cd -
-```
-
-<!-- START -->
-----
-
-> **FOR CZIF USE ONLY. This repo belongs to [CZIF](https://wiki.czi.team/display/CZIF2/CZIF+2.0+Home). You should only use this repo for Foundation work. Contact [CZIFHelp@chanzuckerberg.com](mailto:CZIFHelp@chanzuckerberg.com) with questions.**
-
-----
-<!-- END -->
-# IDSEQ Infrastructure
-
-This repo exists to configure the infrastructure for the IDSEQ project. Generally we are striving to practice [infrastructure-as-code](https://en.wikipedia.org/wiki/Infrastructure_as_Code) with [Terraform](https://terraform.io) and [fogg](https://github.com/chanzuckerberg/fogg) as the primary tools.
-
-## Setup
-
-To use this repo you need Docker set up and running on the machine from which you are running commands.
-
-You also need your `~/.aws/config` to contain a profile `idseq-dev`, which is [expected by fogg](https://github.com/chanzuckerberg/idseq-infra/blob/master/fogg.yml).
-
-## Making Changes
-
-This repo is managed by `fogg` and is divided up in to environments and components. Changes are always applied at the component level. So run plans or apply changes you need to `cd` to that component's directory.
-
-## Workflow
-
-1. cut branch
-1. loop for dev/sandbox -> staging -> production
-    1. make changes
-    1. verify manually with `make plan`
-    1. submit pull request
-    1. get pull request approved (it's allowable to force merge for dev/sandbox), merge to `main`
-    1. change should be auto-applied. Verify status in [Terraform Enterprise](https://si.prod.tfe.czi.technology/app/idseq-infra/workspaces).
-    1. verify changes on the deployed infra to your satisfaction
-
-- Make intensive use of modules so that differences between the environments are minimal (to avoid typos and divergent infra).
+CI (`.github/workflows/terraform_ci.yml`) runs `terraform fmt -check` + `terraform validate`
+on each changed stack. There is no auto-apply; applies are deliberate.
 
 ## SSH
 

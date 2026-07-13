@@ -10,11 +10,11 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     host                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
     cluster_ca_certificate = base64decode(data.terraform_remote_state.eks.outputs.cluster_certificate_authority_data)
     # token                  = data.aws_eks_cluster_auth.cluster.token
-    exec {
+    exec = {
       api_version = "client.authentication.k8s.io/v1"
       command     = "aws"
       args        = ["eks", "get-token", "--cluster-name", data.terraform_remote_state.eks.outputs.cluster_id, "--profile", var.aws_profile]
@@ -50,8 +50,8 @@ provider "helm" {
 #   org_name  = "czi-prod"
 #   api_token = data.aws_secretsmanager_secret_version.okta.secret_string
 # }
-# this is needed because fogg adds okta/okta in the okta-head and it confuses
-# the providers passed to submodules. TODO: remove the fogg bug
+# the okta-head provider alias (okta/okta) is declared in required_providers;
+# it can confuse the providers passed to submodules
 # for now, configure both providers so they don't throw provider configuration errors
 # provider "okta-head" {
 #   org_name  = "czi-prod"

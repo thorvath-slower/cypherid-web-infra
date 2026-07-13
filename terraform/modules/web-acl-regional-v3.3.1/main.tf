@@ -2,7 +2,16 @@ locals {
   # determine waf's name: if empty, then use the shared-infra format
   web_acl_name = (var.name == "") ? "${var.tags.project}-${var.tags.env}-${var.tags.service}" : var.name
 
-  # Create first set of rule_groups if defined:
+  # CZID-324 (#281): corporate allowlist. When a non-empty IP set ARN is supplied, an ALLOW rule is
+  # evaluated FIRST (priority 0) so known-good corporate egress short-circuits the geo-block +
+  # AnonymousIpList before they can produce a false positive. Empty (default) = no allow rule,
+  # nothing is exempted (fully fail-closed).
+  allowlist_enabled  = var.corporate_allowlist_ip_set_arn != ""
+  allowlist_priority = 0
+  allowlist_rulename = "corporate-allowlist"
+
+  # Create first set of rule_groups if defined. These carry the geo-block (#280) and are evaluated
+  # right after the allowlist. Base priority is 1 so the allowlist (priority 0) always precedes them.
   custom_rule_groups = {
     for index, rule_group in var.rule_groups :
     rule_group.arn => {
@@ -12,13 +21,21 @@ locals {
     }
   }
 
-  # Define Priorities for the WebACL to track
-  many_requests_priority           = length(var.rule_groups) + 2
+  # Define Priorities for the WebACL to track.
+  # CZID-324/325 (#281/#282): the AnonymousIpList + IP-reputation rules slot in right after the custom
+  # rule groups (the geo-block) and before the rate-limit, so anonymizer / bad-reputation traffic is
+  # dropped early. Final ordering: allowlist(0) -> geo-block(1..N) -> anonymous-IP -> ip-reputation
+  # -> rate-limit -> CZI baseline managed rule sets.
+  anonymous_ip_priority            = length(var.rule_groups) + 1 # CZID-324 (#281)
+  ip_reputation_priority           = length(var.rule_groups) + 2 # CZID-325 (#282)
+  many_requests_priority           = length(var.rule_groups) + 3 # was + 2; renumbered for the two new rules
   core_ruleset_priority            = local.many_requests_priority + 1
   bad_inputs_priority              = local.core_ruleset_priority + 1
   sql_ruleset_priority             = local.bad_inputs_priority + 1
   body_size_limit_ruleset_priority = local.sql_ruleset_priority + 1
 
+  anonymous_ip_rulename  = "aws-anonymous-ip-list"  # CZID-324 (#281)
+  ip_reputation_rulename = "aws-ip-reputation-list" # CZID-325 (#282)
   many_requests_rulename = "reaches-1000-per-5-min"
   core_ruleset_rulename  = "aws-common-rule-set"
   bad_inputs_rulename    = "aws-known-bad-inputs"
@@ -27,6 +44,7 @@ locals {
 
 
 resource "aws_wafv2_web_acl" "main" {
+  # checkov:skip=CKV_AWS_192:Log4Shell (CVE-2021-44228) is mitigated by the AWSManagedRulesKnownBadInputsRuleSet rule group configured below; checkov 3.3.x throws a TypeError evaluating this check on the rendered dynamic rule set (upstream bug), so it is skipped rather than left to crash.
   name        = local.web_acl_name
   description = "Regional WAF for ${local.web_acl_name}"
   scope       = "REGIONAL"
@@ -35,7 +53,35 @@ resource "aws_wafv2_web_acl" "main" {
     allow {}
   }
 
-  #   Put some variable-defined priorities as first priority
+  # CZID-324 (#281): corporate allowlist — evaluated FIRST (priority 0). A request from a known-good
+  # corporate IP (var.corporate_allowlist_ip_set_arn) is ALLOWed and short-circuits the rest of the
+  # ACL, so trusted egress is never caught by the geo-block or the AnonymousIpList (false-positive
+  # tuning knob). Only created when an IP set ARN is supplied; empty default = nothing exempted.
+  dynamic "rule" {
+    for_each = local.allowlist_enabled ? [1] : []
+    content {
+      name     = local.allowlist_rulename
+      priority = local.allowlist_priority
+
+      action {
+        allow {}
+      }
+
+      statement {
+        ip_set_reference_statement {
+          arn = var.corporate_allowlist_ip_set_arn
+        }
+      }
+
+      visibility_config {
+        cloudwatch_metrics_enabled = true
+        metric_name                = local.allowlist_rulename
+        sampled_requests_enabled   = true
+      }
+    }
+  }
+
+  #   Put some variable-defined priorities as first priority (the geo-block rule group, #280)
   dynamic "rule" {
     for_each = local.custom_rule_groups
     content {
@@ -60,13 +106,106 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
+  # CZID-324 (#281): AWSManagedRulesAnonymousIpList — block known VPNs, proxies, Tor exit nodes, and
+  # hosting/cloud IPs. This is the core "deny the evasion channel" rule for the export-control
+  # mandate (CZID-321): a blocked-origin user must not be able to mask location via VPN/proxy/Tor.
+  # Enforces (block) unless the count_only canary is on. NOTE: this catches the *known* anonymizer
+  # set; residential proxies are covered by Layer 2 IP-intel (CZID-327). False positives are tuned
+  # via var.anonymous_ip_count_rules (per sub-rule COUNT) and the corporate allowlist above.
+  rule {
+    name     = local.anonymous_ip_rulename
+    priority = local.anonymous_ip_priority
+
+    dynamic "override_action" {
+      for_each = (var.count_only == true) ? [1] : []
+      content {
+        count {}
+      }
+    }
+    dynamic "override_action" {
+      for_each = (var.count_only == false) ? [1] : []
+      content {
+        none {}
+      }
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesAnonymousIpList"
+        vendor_name = "AWS"
+        # Soften individual sub-rules during tuning (e.g. HostingProviderIPList catching legit
+        # cloud-based API/CI clients). Default [] = block all sub-rules
+        # (AnonymousIPList, HostingProviderIPList, TorExitNodeList).
+        dynamic "rule_action_override" {
+          for_each = toset(var.anonymous_ip_count_rules)
+          content {
+            name = rule_action_override.key
+            action_to_use {
+              count {}
+            }
+          }
+        }
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = local.anonymous_ip_rulename
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # CZID-325 (#282): AWSManagedRulesAmazonIpReputationList — malicious / bot / abuse source IPs,
+  # defense-in-depth. Enforces (block) unless the count_only canary is on.
+  rule {
+    name     = local.ip_reputation_rulename
+    priority = local.ip_reputation_priority
+
+    dynamic "override_action" {
+      for_each = (var.count_only == true) ? [1] : []
+      content {
+        count {}
+      }
+    }
+    dynamic "override_action" {
+      for_each = (var.count_only == false) ? [1] : []
+      content {
+        none {}
+      }
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesAmazonIpReputationList"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = local.ip_reputation_rulename
+      sampled_requests_enabled   = true
+    }
+  }
+
   # Limit requests per 5 minutes
   rule {
     name     = local.many_requests_rulename
     priority = local.many_requests_priority
 
-    action {
-      count {}
+    # CZID-325 (#282): enforce (block) unless the count_only canary is on (was observe-only count {}),
+    # so abuse/DDoS throttling actually drops traffic as defense-in-depth.
+    dynamic "action" {
+      for_each = (var.count_only == true) ? [1] : []
+      content {
+        count {}
+      }
+    }
+    dynamic "action" {
+      for_each = (var.count_only == false) ? [1] : []
+      content {
+        block {}
+      }
     }
 
     statement {

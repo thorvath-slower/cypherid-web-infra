@@ -1,0 +1,53 @@
+# Scoped AppProject for per-PR preview sandboxes (#617/#619). DELIBERATELY tighter than
+# the czid project: preview Applications may deploy ONLY into seqtoid-pr-* namespaces,
+# may create NO cluster-scoped resources, and may only use the app chart + this repo's
+# values. This is the Argo-side half of the fail-closed guarantee -- a preview app
+# STRUCTURALLY cannot create/modify anything in seqtoid-dev, argocd, kube-system, or any
+# other namespace, no matter what a PR's chart tries to render.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: seqtoid-preview
+  namespace: argocd
+spec:
+  description: Per-PR preview sandboxes (isolated app + DB + S3; shared dev backend)
+  sourceRepos:
+    - https://github.com/thorvath-slower/seqtoid-web.git        # app chart (@ PR head sha)
+    - https://github.com/thorvath-slower/cypherid-web-infra.git # preview base values
+  # ONLY per-PR namespaces on the dev cluster. Glob -- pr-1, pr-2, ... all match; nothing
+  # else (seqtoid-dev, czid-*, argocd, kube-system) is a valid destination.
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: seqtoid-pr-*
+  # The ONLY cluster-scoped resource a preview may create is its OWN namespace (via
+  # syncOptions CreateNamespace=true). Combined with destinations = seqtoid-pr-* only, a
+  # preview can create nothing but seqtoid-pr-<n> namespaces -- no other cluster object.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  # Exactly the namespaced kinds the chart renders -- nothing else can be created even
+  # inside a pr-* namespace.
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: ""
+      kind: ConfigMap
+    - group: apps
+      kind: Deployment
+    - group: batch
+      kind: Job
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: argoproj.io
+      kind: Rollout
+    - group: argoproj.io
+      kind: AnalysisTemplate
+    - group: argoproj.io
+      kind: AnalysisRun
+  # Reap everything in the namespace when a preview Application is deleted (PR close).
+  orphanedResources:
+    warn: false

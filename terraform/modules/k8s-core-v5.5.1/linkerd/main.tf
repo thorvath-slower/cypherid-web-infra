@@ -3,38 +3,38 @@ data "aws_caller_identity" "current" {}
 
 data "aws_iam_policy_document" "gen_linkerd_ca_policy" {
   statement {
-    sid = "AllowGenerateLinkerdCA"
+    sid    = "AllowGenerateLinkerdCA"
     effect = "Allow"
     actions = [
-        "ssm:PutParameter",
+      "ssm:PutParameter",
     ]
     resources = [
       "arn:aws:ssm:*:${data.aws_caller_identity.current.account_id}:parameter/${var.eks_cluster.cluster_id}/*"
     ]
   }
   statement {
-    sid = "allowdescribe"
+    sid    = "allowdescribe"
     effect = "Allow"
     actions = [
-        "ssm:DescribeParameters",
+      "ssm:DescribeParameters",
     ]
     resources = ["*"]
   }
 }
 
 module "linkerd-service-account" {
-  source = "git@github.com:chanzuckerberg/happy//terraform/modules/happy-iam-service-account-eks?ref=v0.128.8"
+  source              = "github.com/chanzuckerberg/happy//terraform/modules/happy-iam-service-account-eks?ref=v0.128.8"
   aws_iam_policy_json = data.aws_iam_policy_document.gen_linkerd_ca_policy.json
   eks_cluster         = var.eks_cluster
   k8s_namespace       = "kube-system"
-    tags                               =  {
-    happy_env = var.eks_cluster.cluster_id
-    happy_image_tag = "none"
+  tags = {
+    happy_env          = var.eks_cluster.cluster_id
+    happy_image_tag    = "none"
     happy_last_applied = "none"
-    happy_region = "none"
+    happy_region       = "none"
     happy_service_name = "none"
     happy_service_type = "none"
-    happy_stack_name = "linkerd"
+    happy_stack_name   = "linkerd"
   }
 }
 
@@ -77,13 +77,13 @@ resource "kubernetes_job" "setup_linkerd_keys" {
 }
 
 data "aws_ssm_parameter" "ca_key" {
-	name = var.tls_private_key_param_path != ""? var.tls_private_key_param_path : "/${var.eks_cluster.cluster_id}/linkerd/ca.key"
+  name       = var.tls_private_key_param_path != "" ? var.tls_private_key_param_path : "/${var.eks_cluster.cluster_id}/linkerd/ca.key"
   depends_on = [kubernetes_job.setup_linkerd_keys]
 }
 
 data "aws_ssm_parameter" "ca_cert" {
-	name = var.tls_private_cert_param_path != ""? var.tls_private_cert_param_path : "/${var.eks_cluster.cluster_id}/linkerd/ca.crt"
-    depends_on = [kubernetes_job.setup_linkerd_keys]
+  name       = var.tls_private_cert_param_path != "" ? var.tls_private_cert_param_path : "/${var.eks_cluster.cluster_id}/linkerd/ca.crt"
+  depends_on = [kubernetes_job.setup_linkerd_keys]
 }
 
 resource "kubernetes_namespace" "linkerd" {
@@ -120,9 +120,9 @@ resource "kubernetes_secret" "certificate_secret" {
 resource "kubernetes_manifest" "linkerd_issuer" {
   manifest = {
     "apiVersion" = "cert-manager.io/v1"
-    "kind" = "Issuer"
+    "kind"       = "Issuer"
     "metadata" = {
-      "name" = var.linkerd_trust_anchor_secret_name
+      "name"      = var.linkerd_trust_anchor_secret_name
       "namespace" = var.linkerd_namespace
     }
     "spec" = {
@@ -137,9 +137,9 @@ resource "kubernetes_manifest" "linkerd_issuer" {
 resource "kubernetes_manifest" "linkerd-trust-anchor-certificate" {
   manifest = {
     "apiVersion" = "cert-manager.io/v1"
-    "kind" = "Certificate"
+    "kind"       = "Certificate"
     "metadata" = {
-      "name" = var.linkerd_identity_issuer
+      "name"      = var.linkerd_identity_issuer
       "namespace" = var.linkerd_namespace
     }
     "spec" = {
@@ -148,7 +148,7 @@ resource "kubernetes_manifest" "linkerd-trust-anchor-certificate" {
         "identity.linkerd.cluster.local",
       ]
       "duration" = var.proxy_certificate_duration
-      "isCA" = true
+      "isCA"     = true
       "issuerRef" = {
         "kind" = "Issuer"
         "name" = var.linkerd_trust_anchor_secret_name
@@ -157,7 +157,7 @@ resource "kubernetes_manifest" "linkerd-trust-anchor-certificate" {
         "algorithm" = var.tls_private_key_algorithm
       }
       "renewBefore" = var.proxy_certificate_renew_before
-      "secretName" = var.linkerd_identity_issuer
+      "secretName"  = var.linkerd_identity_issuer
       "usages" = [
         "cert sign",
         "crl sign",
@@ -206,18 +206,18 @@ resource "kubernetes_job" "setup_linkerd_webhook_keys" {
 }
 
 data "aws_ssm_parameter" "webhook_ca_key" {
-	name = var.webhook_tls_private_key_param_path != ""? var.webhook_tls_private_key_param_path : "/${var.eks_cluster.cluster_id}/linkerd/webhooks/ca.key"
+  name       = var.webhook_tls_private_key_param_path != "" ? var.webhook_tls_private_key_param_path : "/${var.eks_cluster.cluster_id}/linkerd/webhooks/ca.key"
   depends_on = [kubernetes_job.setup_linkerd_webhook_keys]
 }
 
 data "aws_ssm_parameter" "webhook_ca_cert" {
-	name = var.webhook_tls_private_cert_param_path != ""? var.webhook_tls_private_cert_param_path : "/${var.eks_cluster.cluster_id}/linkerd/webhooks/ca.crt"
-    depends_on = [kubernetes_job.setup_linkerd_webhook_keys]
+  name       = var.webhook_tls_private_cert_param_path != "" ? var.webhook_tls_private_cert_param_path : "/${var.eks_cluster.cluster_id}/linkerd/webhooks/ca.crt"
+  depends_on = [kubernetes_job.setup_linkerd_webhook_keys]
 }
 
 resource "kubernetes_secret" "webhook_certificate_secret" {
   metadata {
-    name = var.linkerd_webhook_trust_anchor_secret_name
+    name      = var.linkerd_webhook_trust_anchor_secret_name
     namespace = kubernetes_namespace.linkerd.id
   }
 
@@ -232,14 +232,14 @@ resource "kubernetes_secret" "webhook_certificate_secret" {
 resource "kubernetes_manifest" "webhook-issuer" {
   manifest = {
     "apiVersion" = "cert-manager.io/v1"
-    "kind" = "Issuer"
+    "kind"       = "Issuer"
     "metadata" = {
-      "name" = var.linkerd_webhook_trust_anchor_secret_name
+      "name"      = var.linkerd_webhook_trust_anchor_secret_name
       "namespace" = var.linkerd_namespace
     }
-    "spec" ={
+    "spec" = {
       "ca" = {
-        "secretName": var.linkerd_webhook_trust_anchor_secret_name
+        "secretName" : var.linkerd_webhook_trust_anchor_secret_name
       }
     }
   }
@@ -252,18 +252,18 @@ resource "kubernetes_manifest" "webhook-issuer" {
 resource "kubernetes_manifest" "linkerd-sp-validator-certificate" {
   manifest = {
     "apiVersion" = "cert-manager.io/v1"
-    "kind" = "Certificate"
-     "metadata" = {
-       "name" = "linkerd-sp-validator"
-       "namespace" = var.linkerd_namespace
-     }
+    "kind"       = "Certificate"
+    "metadata" = {
+      "name"      = "linkerd-sp-validator"
+      "namespace" = var.linkerd_namespace
+    }
     "spec" = {
       "commonName" = "linkerd-sp-validator.linkerd.svc"
       "dnsNames" = [
         "linkerd-sp-validator.linkerd.svc"
       ]
       "duration" = var.webhook_certificate_duration
-      "isCA" = false
+      "isCA"     = false
       "issuerRef" = {
         "kind" = "Issuer"
         "name" = var.linkerd_webhook_trust_anchor_secret_name
@@ -272,7 +272,7 @@ resource "kubernetes_manifest" "linkerd-sp-validator-certificate" {
         "algorithm" = var.tls_private_key_algorithm
       }
       "renewBefore" = var.webhook_certificate_renew_before
-      "secretName" = "linkerd-sp-validator-k8s-tls"
+      "secretName"  = "linkerd-sp-validator-k8s-tls"
       "usages" = [
         "server auth"
       ]
@@ -288,7 +288,7 @@ resource "kubernetes_manifest" "linkerd-sp-validator-certificate" {
 resource "kubernetes_manifest" "linkerd-proxy-injector-certificate" {
   manifest = {
     "apiVersion" = "cert-manager.io/v1"
-    "kind" = "Certificate"
+    "kind"       = "Certificate"
     "metadata" = {
       "name"      = "linkerd-proxy-injector"
       "namespace" = var.linkerd_namespace
@@ -299,7 +299,7 @@ resource "kubernetes_manifest" "linkerd-proxy-injector-certificate" {
         "linkerd-proxy-injector.linkerd.svc"
       ]
       "duration" = var.webhook_certificate_duration
-      "isCA" = false
+      "isCA"     = false
       "issuerRef" = {
         "kind" = "Issuer"
         "name" = var.linkerd_webhook_trust_anchor_secret_name
@@ -324,7 +324,7 @@ resource "kubernetes_manifest" "linkerd-proxy-injector-certificate" {
 resource "kubernetes_manifest" "linkerd-policy-validator-certificate" {
   manifest = {
     "apiVersion" = "cert-manager.io/v1"
-    "kind" = "Certificate"
+    "kind"       = "Certificate"
     "metadata" = {
       "name"      = "linkerd-policy-validator"
       "namespace" = var.linkerd_namespace
@@ -335,14 +335,14 @@ resource "kubernetes_manifest" "linkerd-policy-validator-certificate" {
         "linkerd-policy-validator.linkerd.svc"
       ]
       "duration" = var.webhook_certificate_duration
-      "isCA" = false
+      "isCA"     = false
       "issuerRef" = {
         "kind" = "Issuer"
         "name" = var.linkerd_webhook_trust_anchor_secret_name
       }
       "privateKey" = {
         "algorithm" = var.tls_private_key_algorithm
-        "encoding": "PKCS8"
+        "encoding" : "PKCS8"
       }
       "renewBefore" = var.webhook_certificate_renew_before
       "secretName"  = "linkerd-policy-validator-k8s-tls"
@@ -369,7 +369,7 @@ resource "helm_release" "linkerd_crd" {
     kubernetes_namespace.linkerd,
     kubernetes_manifest.linkerd-trust-anchor-certificate
   ]
-  wait             = true  # do not start control plane upgrade until CRDs are updated
+  wait = true # do not start control plane upgrade until CRDs are updated
 }
 
 resource "helm_release" "linkerd" {
@@ -380,46 +380,50 @@ resource "helm_release" "linkerd" {
   create_namespace = false
   version          = var.linkerd_control_plane_chart_version
 
-  set {
-    name  = "identityTrustAnchorsPEM"
-    value = data.aws_ssm_parameter.ca_cert.value
-  }
-  set {
-    name = "proxy.resources.memory.limit"
-    value = "1Gi"
-  }
-  set {
-    name = "proxy.resources.memory.request"
-    value = "512Mi"
-  }
-  set {
-    name  = "identity.issuer.scheme"
-    value = "kubernetes.io/tls"
-  }
-  set {
-    name = "proxyInjector.externalSecret"
-    value = "true"
-  }
-  set {
-    name = "proxyInjector.caBundle"
-    value = data.aws_ssm_parameter.webhook_ca_cert.value
-  }
-  set {
-    name = "profileValidator.externalSecret"
-    value = "true"
-  }
-  set {
-    name = "profileValidator.caBundle"
-    value = data.aws_ssm_parameter.webhook_ca_cert.value
-  }
-  set {
-    name = "policyValidator.externalSecret"
-    value = "true"
-  }
-  set {
-    name = "policyValidator.caBundle"
-    value = data.aws_ssm_parameter.webhook_ca_cert.value
-  }
+  # CZID-93: helm provider v3 replaced the repeated `set {}` blocks with a
+  # single `set = [{...}]` list attribute.
+  set = [
+    {
+      name  = "identityTrustAnchorsPEM"
+      value = data.aws_ssm_parameter.ca_cert.value
+    },
+    {
+      name  = "proxy.resources.memory.limit"
+      value = "1Gi"
+    },
+    {
+      name  = "proxy.resources.memory.request"
+      value = "512Mi"
+    },
+    {
+      name  = "identity.issuer.scheme"
+      value = "kubernetes.io/tls"
+    },
+    {
+      name  = "proxyInjector.externalSecret"
+      value = "true"
+    },
+    {
+      name  = "proxyInjector.caBundle"
+      value = data.aws_ssm_parameter.webhook_ca_cert.value
+    },
+    {
+      name  = "profileValidator.externalSecret"
+      value = "true"
+    },
+    {
+      name  = "profileValidator.caBundle"
+      value = data.aws_ssm_parameter.webhook_ca_cert.value
+    },
+    {
+      name  = "policyValidator.externalSecret"
+      value = "true"
+    },
+    {
+      name  = "policyValidator.caBundle"
+      value = data.aws_ssm_parameter.webhook_ca_cert.value
+    },
+  ]
   values = [
     "${file("${path.module}/ha.yml")}"
   ]

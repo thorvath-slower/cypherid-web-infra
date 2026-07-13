@@ -1,5 +1,0 @@
-dependencies {
-  paths = [
-    "../route53",
-  ]
-}

@@ -1,0 +1,32 @@
+name: terraform-validate
+description: fmt-check + init (no backend) + validate a single Terraform stack.
+
+inputs:
+  stack:
+    description: Path to the stack directory to validate.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Read Terraform version (SSOT = .terraform-version)
+      id: tfver
+      shell: bash
+      run: echo "version=$(cat .terraform-version)" >> "$GITHUB_OUTPUT"
+    - uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ steps.tfver.outputs.version }}
+    - name: Fetch git module sources over HTTPS (public modules; CI has no SSH key)
+      shell: bash
+      run: |
+        git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+        git config --global url."https://github.com/".insteadOf "git@github.com:"
+    - name: fmt check
+      shell: bash
+      run: terraform fmt -check -diff "${{ inputs.stack }}"
+    - name: init (no backend) + validate
+      shell: bash
+      working-directory: ${{ inputs.stack }}
+      run: |
+        terraform init -backend=false -input=false
+        terraform validate

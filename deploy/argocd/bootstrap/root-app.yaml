@@ -1,0 +1,52 @@
+# =============================================================================
+# App-of-apps root — DEV, app-layer only (ticket #493).
+#
+# Manages ONLY the dev app-layer Argo Applications under deploy/argocd/apps/dev/.
+#
+# It deliberately does NOT manage:
+#   - Infra addons (LBC, argo-rollouts, cert-manager, external-dns, karpenter,
+#     efs-csi, metrics-server). Those are live Helm releases installed and owned
+#     by the eks Terraform module (SSOT). Their Argo Application manifests are
+#     kept for reference under deploy/argocd/_terraform-owned/ and are NOT synced
+#     — applying a root over them would make Argo fight Terraform (e.g. the LBC
+#     Argo app pins chart 1.8.1 vs Terraform's installed 1.7.1, and selfHeal would
+#     churn dev's ALB controller).
+#   - staging / prod. Those are separate clusters (cluster-per-env), each with its
+#     own root over deploy/argocd/apps/{staging,prod}/. NOTE: those manifests still
+#     target server: kubernetes.default.svc and must be repointed at their own
+#     clusters before a staging/prod root is stood up (tracked in #493).
+#   - Deliberate apps under deploy/argocd/_deliberate/ (sigstore #77 warn->enforce
+#     rollout; the Node backend) — applied by hand per their own staged rollout.
+#
+# SAFE ADOPTION: seqtoid-web-dev is already running (registered directly on the dev
+# cluster). This root adopts it; the git spec matches the running app, so the first
+# sync is a no-op. prune + selfHeal START DISABLED — enable them only AFTER verifying
+# the first sync is a clean no-op diff. See bootstrap/README.md for the runbook.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: czid-root-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: czid
+  source:
+    repoURL: https://github.com/thorvath-slower/cypherid-web-infra.git
+    targetRevision: main
+    path: deploy/argocd/apps/dev
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      # Conservative for adoption. Flip both to true (runbook step 3) only after
+      # the initial adoption sync is verified to be a clean no-op.
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

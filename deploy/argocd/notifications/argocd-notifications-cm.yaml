@@ -1,0 +1,82 @@
+# Argo CD Notifications config (platform-overhaul #608).
+# The argocd-notifications-controller ships with the argo-cd chart and already runs, but
+# argocd-notifications-cm was the empty placeholder -- so a failed sync/hook/migrate alerted
+# NOBODY. That is exactly why the 2026-07-10 #606 PreSync-migrate wedge was silent. This wires
+# the triggers + an email delivery + a global subscription so any app failure emails on-call.
+#
+# HAND-APPLIED (like _terraform-owned/): this configures the Argo install's notifications
+# controller, it is not a root-managed Application. Apply with:
+#   kubectl apply -f deploy/argocd/notifications/argocd-notifications-cm.yaml
+#
+# DELIVERY: uses the argocd-notifications-secret keys $email-username / $email-password.
+# The secret resource exists but is EMPTY -- set the SeqtoID-Support (M365) SMTP creds
+# before mail actually sends (see argocd-notifications-secret.example.yaml and the README).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # argocdUrl is intentionally EMPTY until the Argo ingress (#609) lands -- the templates
+  # guard on {{if .context.argocdUrl}} so no dead argocd.example.com links render. Set this
+  # to the real UI URL once #609 is done.
+  context: |
+    argocdUrl: ""
+
+  service.email: |
+    host: smtp.office365.com
+    port: 587
+    from: SeqtoID-Support@ucsf.edu
+    username: $email-username
+    password: $email-password
+
+  template.app-sync-failed: |
+    email:
+      subject: "[Argo] {{.app.metadata.name}}: sync FAILED"
+    message: |
+      Application {{.app.metadata.name}} sync FAILED.
+      Phase:   {{.app.status.operationState.phase}}
+      Message: {{.app.status.operationState.message}}
+      Sync:    {{.app.status.sync.status}}  Health: {{.app.status.health.status}}
+      {{if .context.argocdUrl}}{{.context.argocdUrl}}/applications/{{.app.metadata.name}}{{end}}
+
+  template.app-health-degraded: |
+    email:
+      subject: "[Argo] {{.app.metadata.name}}: health DEGRADED"
+    message: |
+      Application {{.app.metadata.name}} health is DEGRADED.
+      Sync: {{.app.status.sync.status}}
+      {{if .context.argocdUrl}}{{.context.argocdUrl}}/applications/{{.app.metadata.name}}{{end}}
+
+  template.app-sync-status-unknown: |
+    email:
+      subject: "[Argo] {{.app.metadata.name}}: sync status UNKNOWN"
+    message: |
+      Application {{.app.metadata.name}} sync status is UNKNOWN (often a repo/hook error --
+      the #606 class of failure). Investigate the PreSync hooks.
+      {{if .context.argocdUrl}}{{.context.argocdUrl}}/applications/{{.app.metadata.name}}{{end}}
+
+  # Fires when a sync OPERATION errors/fails -- this is the PreSync migrate-hook case that
+  # wedged #606. oncePer the operation so it alerts once per failed sync, not in a loop.
+  trigger.on-sync-failed: |
+    - when: app.status.operationState.phase in ['Error', 'Failed']
+      send: [app-sync-failed]
+      oncePer: app.status.operationState.finishedAt
+
+  trigger.on-health-degraded: |
+    - when: app.status.health.status == 'Degraded'
+      send: [app-health-degraded]
+
+  trigger.on-sync-status-unknown: |
+    - when: app.status.sync.status == 'Unknown'
+      send: [app-sync-status-unknown]
+
+  # Global default subscription -- applies to every Argo Application (seqtoid-web-dev today,
+  # staging/prod later) without per-app annotations.
+  subscriptions: |
+    - recipients:
+        - email:Thomas.Horvath@ucsf.edu
+      triggers:
+        - on-sync-failed
+        - on-health-degraded
+        - on-sync-status-unknown

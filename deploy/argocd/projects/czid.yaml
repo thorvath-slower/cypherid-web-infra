@@ -1,0 +1,35 @@
+# Argo CD AppProject that scopes what the CZ ID delivery apps may deploy and
+# from where. Tightens the default "anything goes" project (Principle VII).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: czid
+  namespace: argocd
+spec:
+  description: CZ ID stack delivery (blue/green via Argo Rollouts)
+  sourceRepos:
+    - https://github.com/thorvath-slower/seqtoid-web.git        # app chart
+    - https://github.com/thorvath-slower/cypherid-web-infra.git # env values + apps
+    - https://argoproj.github.io/argo-helm                     # argo-rollouts controller chart
+    - https://aws.github.io/eks-charts                         # AWS Load Balancer Controller chart (CZID #321)
+    - https://sigstore.github.io/helm-charts                   # sigstore policy-controller chart (#77)
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: czid-dev
+    - server: https://kubernetes.default.svc
+      namespace: czid-staging
+    - server: https://kubernetes.default.svc
+      namespace: czid-prod
+    - server: https://kubernetes.default.svc
+      namespace: argo-rollouts
+    - server: https://kubernetes.default.svc
+      namespace: kube-system # AWS Load Balancer Controller (CZID #321)
+    - server: https://kubernetes.default.svc
+      namespace: cosign-system # sigstore policy-controller + cosign ClusterImagePolicy (#77)
+  # The Rollouts controller installs cluster-scoped CRDs + RBAC.
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

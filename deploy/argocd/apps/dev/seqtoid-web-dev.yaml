@@ -1,0 +1,31 @@
+# seqtoid-web @ dev. Multi-source: the chart comes from the app repo (versions
+# with the code); the env values come from THIS repo (versions with deploy
+# config). $values references the second source's checkout.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seqtoid-web-dev
+  namespace: argocd
+spec:
+  project: default   # proving phase; a scoped `seqtoid` AppProject is a follow-up
+  sources:
+    - repoURL: https://github.com/thorvath-slower/seqtoid-web.git
+      # Pin to a release tag/sha in practice; CI advances it on deploy.
+      targetRevision: main
+      path: deploy/charts/seqtoid-web
+      helm:
+        valueFiles:
+          - $values/deploy/argocd/values/seqtoid-web/dev.yaml
+    - repoURL: https://github.com/thorvath-slower/cypherid-web-infra.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: seqtoid-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

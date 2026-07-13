@@ -1,6 +1,7 @@
 locals {
-  off_hour_utc = 3
-  on_hour_utc  = 13
+  # Off-hours window (UTC) for scheduled scale-to-zero — see ecs_scale_to_zero.tf (CZID-292 / #248).
+  off_hour_utc = 3  # scale cluster to 0
+  on_hour_utc  = 13 # scale cluster back to baseline
 }
 
 module "ecs-cluster" {
@@ -16,8 +17,11 @@ module "ecs-cluster" {
   max_servers                        = 2
   cluster_asg_rolling_interval_hours = 0
 
-  off_hour_utc = local.off_hour_utc
-  on_hour_utc  = local.on_hour_utc
+  # NOTE: off_hour_utc/on_hour_utc were previously passed here but the
+  # ecs-cluster-v2.4.0 module does not declare them (they were silently
+  # broken — `terraform init` errored with "Unsupported argument"). Off-hours
+  # scale-to-zero is now implemented with real aws_autoscaling_schedule
+  # resources in ecs_scale_to_zero.tf, reusing the local.*_hour_utc window.
 
   instance_type = "c6a.xlarge"
   vpc_id        = data.terraform_remote_state.cloud-env.outputs.vpc_id
@@ -28,8 +32,49 @@ module "ecs-cluster" {
   docker_storage_size = "214"
 }
 
+# CZID-63: customer-managed KMS key encrypting the ECS log group. The key policy
+# grants CloudWatch Logs use of the key, scoped to this log group's ARN via the
+# encryption-context condition. Root gets the standard lockout-prevention grant.
+data "aws_iam_policy_document" "ecs_logs_kms" {
+  #checkov:skip=CKV_AWS_111:key policy resource is implicitly the key itself; cannot scope
+  #checkov:skip=CKV_AWS_356:key policy resource is implicitly the key itself; cannot scope
+  #checkov:skip=CKV_AWS_109:root kms:* is the required lockout-prevention grant for a CMK
+  statement {
+    sid       = "RootAdmin"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+  statement {
+    sid       = "CloudWatchLogs"
+    actions   = ["kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
+    resources = ["*"]
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${var.region}.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnLike"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = ["arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:ecs-logs-${var.env}"]
+    }
+  }
+}
+
+resource "aws_kms_key" "ecs_logs" {
+  description             = "ecs-logs-${var.env} CloudWatch log group encryption (CZID-63)"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+  policy                  = data.aws_iam_policy_document.ecs_logs_kms.json
+}
+
 resource "aws_cloudwatch_log_group" "ecs" {
-  name = "ecs-logs-${var.env}"
+  name              = "ecs-logs-${var.env}"
+  retention_in_days = 365                      # >= 1yr (CKV_AWS_338); ECS task logs
+  kms_key_id        = aws_kms_key.ecs_logs.arn # CMK-encrypted (CKV_AWS_158)
 }
 
 resource "aws_autoscaling_policy" "scale-up" {
@@ -160,19 +205,133 @@ resource "aws_ecs_cluster" "idseq-fargate-tasks" {
 
 resource "aws_s3_bucket" "aegea-ecs-execute" {
   bucket = var.s3_bucket_aegea_ecs_execute
-  acl    = "private"
-
-  lifecycle_rule {
-    id      = "ExpireRule"
-    enabled = true
-
-    expiration {
-      days = 30
-    }
-  }
 
   tags = {
     env       = var.env
     terraform = "true"
   }
+}
+
+# Inline `acl` and `lifecycle_rule` were deprecated in AWS provider v4 and moved
+# to dedicated `aws_s3_bucket_*` resources (#475). Apply-safe: no bucket recreation.
+resource "aws_s3_bucket_acl" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+
+  rule {
+    id     = "ExpireRule"
+    status = "Enabled"
+    filter {}
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+    expiration {
+      days = 30
+    }
+  }
+}
+
+resource "aws_s3_bucket_versioning" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "aegea-ecs-execute" {
+  bucket                  = aws_s3_bucket.aegea-ecs-execute.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "aegea-ecs-execute" {
+  bucket = aws_s3_bucket.aegea-ecs-execute.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+# --- S3 server access logging (CZID-343) ---
+data "aws_caller_identity" "current" {}
+
+resource "aws_s3_bucket" "access_logs" {
+  #checkov:skip=CKV_AWS_145:S3 access-log delivery is unsupported with the aws/s3 managed KMS key; AES256 is the supported at-rest option for log destinations
+  #checkov:skip=CKV_AWS_18:a log-destination bucket does not log to itself (would recurse)
+  #checkov:skip=CKV_AWS_144:cross-region replication is not warranted for short-lived access logs
+  #checkov:skip=CKV2_AWS_62:no event-notification consumer for access logs
+  bucket = "ecs-s3-access-logs-${var.env}-${data.aws_caller_identity.current.account_id}"
+  tags   = { terraform = true }
+}
+
+resource "aws_s3_bucket_public_access_block" "access_logs" {
+  bucket                  = aws_s3_bucket.access_logs.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  rule {
+    id     = "expire-access-logs"
+    status = "Enabled"
+    filter {}
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+    expiration {
+      days = 90
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "S3ServerAccessLogsPolicy"
+      Effect    = "Allow"
+      Principal = { Service = "logging.s3.amazonaws.com" }
+      Action    = "s3:PutObject"
+      Resource  = "${aws_s3_bucket.access_logs.arn}/*"
+      Condition = {
+        ArnLike      = { "aws:SourceArn" = [aws_s3_bucket.aegea-ecs-execute.arn] }
+        StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+      }
+    }]
+  })
+}
+
+resource "aws_s3_bucket_logging" "aegea-ecs-execute" {
+  bucket        = aws_s3_bucket.aegea-ecs-execute.id
+  target_bucket = aws_s3_bucket.access_logs.id
+  target_prefix = "aegea-ecs-execute/"
 }

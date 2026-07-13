@@ -1,0 +1,41 @@
+# prod overrides for the seqtoid-node-backend chart.
+# NOT DEPLOYED during the strangler — present for CI parity + the full-cutover
+# step (#457). prod keeps the MANUAL promotion gate.
+environment: prod
+image:
+  repository: REPLACE_PROD_ACCT.dkr.ecr.us-west-2.amazonaws.com/seqtoid-node-backend
+  tag: latest
+replicaCount: 3
+serviceAccount:
+  roleArn: arn:aws:iam::REPLACE_PROD_ACCT:role/czid-prod-seqtoid-node-backend
+blueGreen:
+  autoPromotionEnabled: false    # prod: MANUAL gate (pause after smoke; promote by hand)
+  scaleDownDelaySeconds: 30
+  abortScaleDownDelaySeconds: 30
+  analysis:
+    enabled: true
+    postPromotion: true          # prod also re-checks after promotion
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 65
+ingress:
+  enabled: true
+  # At full cutover (#457) Node becomes the public edge; until then this is not
+  # deployed. internet-facing requires the ACM cert below.
+  scheme: internet-facing
+  host: czid.example.org                  # REPLACE with the real prod DNS name
+  certificateArn: arn:aws:acm:us-west-2:REPLACE_PROD_ACCT:certificate/REPLACE_PROD_CERT
+  annotations:
+    alb.ingress.kubernetes.io/subnets: REPLACE_PROD_PUBLIC_SUBNETS
+extraEnv:
+  - name: SFN_NOTIFICATIONS_QUEUE_ARN
+    value: REPLACE_PROD_NODE_SFN_NOTIFICATIONS_QUEUE_ARN

@@ -1,0 +1,89 @@
+# seqtoid-web @ dev — filled for the EKS/Argo strangler bring-up (#319).
+# PROVING PHASE: ingress is DISABLED — the app runs + the in-cluster blue/green smoke
+# gate curls it (proving it boots + connects to DB/secrets/S3 via chamber+IRSA), and we
+# verify with `kubectl port-forward`. NO ALB, NO cert, NO DNS, zero exposure. The ingress
+# block below is pre-filled with the real cutover values; enabling it (stage 5) creates the
+# ALB and points dev.seqtoid.org at it — the deliberate cutover, do it with a test-host check.
+environment: dev
+image:
+  # Dev-account ECR, go-forward repo (the CZID-76 dual-push lands here too).
+  repository: 491013321714.dkr.ecr.us-west-2.amazonaws.com/seqtoid-web
+  tag: sha-bcddb6a0 # the current hardened known-good build; CI advances this per build
+# COST SPIN-DOWN (dev): scale ALL workloads to 0 and skip the migrate/taxon-load hooks
+# (chart `suspend`). Safe + reversible — the app's data lives in Aurora + OpenSearch, not
+# the pods. The CD keeps advancing `image.tag` while suspended, so flipping this to false
+# (manually or via the weekend cadence, #487) brings the app up on the LATEST build.
+# Now false: dev is live on czid-dev-eks-v2 serving real traffic. The weekend cadence
+# (#487) still flips this to true on its schedule; dev.yaml is the source of truth again
+# now that the old cluster's Argo app (which also read this file) is decommissioned.
+suspend: false
+replicaCount: 2
+# Target the dedicated small Karpenter NodePool `seqtoid-web` (#486). The shared pool
+# floors instance-cpu>8 (16-vCPU nodes) + consolidates empty nodes only after 24h; the
+# dedicated pool allows small nodes (<9 vCPU, verified: a c6a.large/2-vCPU was picked)
+# and reclaims fast (1m) — right-sizes the app AND makes the weekend spin-down actually
+# free the node quickly. Merged with the chart's amd64 pin (both keys kept explicitly).
+nodeSelector:
+  kubernetes.io/arch: amd64
+  seqtoid.io/pool: web
+# Rightsize dev worker memory (#486). The chart defaults (3Gi each) are prod-ish and
+# forced Karpenter onto an oversized node; dev needs far less. Per-worker overrides are
+# possible now that `workers` is a name-keyed map (seqtoid-web #129). NOTE: this reduces
+# memory pressure but the node stays large until seqtoid-web also lands on a dedicated
+# small Karpenter NodePool (the shared NodePool floors instance-cpu > 8) — see #486.
+workers:
+  resque:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+  resque-scheduler:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+  resque-pipeline-monitor:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+  resque-result-monitor:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+  shoryuken:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+serviceAccount:
+  create: true
+  name: seqtoid-web # MUST match the IRSA trust (system:serviceaccount:seqtoid-dev:seqtoid-web)
+  roleArn: arn:aws:iam::491013321714:role/seqtoid-web-dev
+blueGreen:
+  autoPromotionEnabled: true # dev: promote on the smoke AnalysisTemplate passing
+  scaleDownDelaySeconds: 30
+  analysis:
+    enabled: true
+    postPromotion: false
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+autoscaling:
+  enabled: false
+ingress:
+  enabled: true # DNS cutover done — dev.seqtoid.org (+ www via aliasHosts) served by the v2 ALB
+  host: dev.seqtoid.org
+  # www.dev.seqtoid.org is a 301->apex vanity host. Route it through the same EKS
+  # ALB (the app does the redirect) so the old ECS edge — which currently serves
+  # this record — can be retired without breaking www. The ACM cert already covers
+  # www (SAN). Only takes effect where the ingress is enabled (v2 via the app param).
+  aliasHosts:
+    - www.dev.seqtoid.org
+  certificateArn: arn:aws:acm:us-west-2:491013321714:certificate/9881060c-5652-40b6-9132-72a94171e18b
+  annotations:
+    alb.ingress.kubernetes.io/subnets: subnet-06bfffadf91e2c189,subnet-0f94623d782341d71

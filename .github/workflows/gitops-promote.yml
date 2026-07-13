@@ -1,0 +1,101 @@
+name: gitops-promote
+
+# Env promotion for the Argo CD blue/green delivery (#444): copy the image.tag that
+# passed a lower env forward to the next one (dev -> staging -> prod), opening a PR.
+# This replaces the old ECS deploy-promote chain.
+#
+# The promotion GATE is enforced in-cluster, not here: staging has
+# autoPromotionEnabled: true (Rollouts promotes on smoke pass), prod has false (the
+# Rollout PAUSES after smoke for a manual `kubectl argo rollouts promote`). Direct
+# dev -> prod is rejected (mirrors the apply_all no-direct-to-prod rule).
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Env whose current tag to promote FROM'
+        type: choice
+        options: [dev, staging]
+        required: true
+      target:
+        description: 'Env to promote TO'
+        type: choice
+        options: [staging, prod]
+        required: true
+
+concurrency:
+  group: gitops-promote-${{ github.event.inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITOPS_TOKEN }}
+
+      - name: Validate the promotion path
+        env:
+          SRC: ${{ github.event.inputs.source }}
+          DST: ${{ github.event.inputs.target }}
+        run: |
+          set -euo pipefail
+          # ':' separator (not '->'): shellcheck can't parse '>' inside a case pattern.
+          case "${SRC}:${DST}" in
+            dev:staging|staging:prod) echo "promotion ${SRC} -> ${DST} allowed" ;;
+            *) echo "::error::illegal promotion ${SRC} -> ${DST} (only dev->staging, staging->prod)"; exit 1 ;;
+          esac
+
+      - name: Install yq
+        run: |
+          YQ=v4.44.3
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ}/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Copy the source tag onto the target
+        id: promote
+        env:
+          SRC: ${{ github.event.inputs.source }}
+          DST: ${{ github.event.inputs.target }}
+        run: |
+          set -euo pipefail
+          SRC_FILE="deploy/argocd/values/seqtoid-web/${SRC}.yaml"
+          DST_FILE="deploy/argocd/values/seqtoid-web/${DST}.yaml"
+          TAG="$(yq '.image.tag' "$SRC_FILE")"
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ] || [ "$TAG" = "latest" ]; then
+            echo "::error::source ${SRC} has no immutable tag to promote (got '$TAG')"; exit 1
+          fi
+          CURRENT="$(yq '.image.tag' "$DST_FILE")"
+          echo "promoting ${SRC}(${TAG}) -> ${DST}(was ${CURRENT})"
+          if [ "$CURRENT" = "$TAG" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "${DST} already at ${TAG} — nothing to promote."; exit 0
+          fi
+          yq -i ".image.tag = \"$TAG\"" "$DST_FILE"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"      >> "$GITHUB_OUTPUT"
+
+      - name: Open the promotion PR
+        if: steps.promote.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+          SRC: ${{ github.event.inputs.source }}
+          DST: ${{ github.event.inputs.target }}
+          TAG: ${{ steps.promote.outputs.tag }}
+        run: |
+          set -euo pipefail
+          BRANCH="gitops/promote-${DST}-${TAG}"
+          git config user.name  "seqtoid-gitops"
+          git config user.email "gitops@seqtoid.local"
+          git checkout -b "$BRANCH"
+          git add "deploy/argocd/values/seqtoid-web/${DST}.yaml"
+          git commit -m "gitops(${DST}): promote seqtoid-web image.tag -> ${TAG} (from ${SRC})"
+          git push -u origin "$BRANCH" --force-with-lease
+          GATE="staging auto-promotes on smoke pass"
+          if [ "$DST" = "prod" ]; then GATE="prod PAUSES after smoke — run \`kubectl argo rollouts promote\` to release"; fi
+          gh pr create \
+            --title "gitops(${DST}): promote seqtoid-web -> ${TAG}" \
+            --body "Promote ${TAG} from ${SRC} to ${DST}. After merge, Argo CD syncs; ${GATE}." \
+            --base main --head "$BRANCH" || echo "PR may already exist for $BRANCH"

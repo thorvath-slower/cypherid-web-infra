@@ -104,6 +104,7 @@ data "aws_iam_policy_document" "idseq-web" {
   statement {
     actions = [
       "s3:GetObject",
+      "s3:GetObjectTagging",
     ]
 
     resources = [
@@ -177,7 +178,7 @@ data "aws_iam_policy_document" "idseq-web" {
     ]
 
     resources = [
-      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:*",
+      "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.env}/*",
     ]
   }
 }
@@ -199,8 +200,12 @@ data "aws_iam_policy_document" "idseq-upload-assume-role" {
     sid     = "WebAssumeRole"
 
     principals {
-      type        = "AWS"
-      identifiers = [aws_iam_role.idseq-web.arn]
+      type = "AWS"
+      # The web app assumes this role to mint scoped S3 upload creds for the browser
+      # (get_upload_credentials -> CLI_UPLOAD_ROLE_ARN). BOTH the ECS task role AND the
+      # EKS/IRSA pod role must be trusted so uploads work on either runtime during the
+      # ECS->EKS strangler (#489). Drop idseq-web once ECS dev is decommissioned (Phase 5).
+      identifiers = [aws_iam_role.idseq-web.arn, aws_iam_role.seqtoid_web_eks.arn]
     }
   }
   # statement {
@@ -246,7 +251,7 @@ resource "aws_iam_role_policy" "idseq-upload" {
 }
 
 module "parameters-policy" {
-  source = "github.com/chanzuckerberg/cztack//aws-params-reader-policy?ref=v0.104.2"
+  source = "../../../modules/aws-params-reader-policy-v0.104.2" # cztack v0.104.2
 
   project   = var.project
   env       = var.env
@@ -265,30 +270,29 @@ resource "random_string" "secret_key_base" {
 }
 
 module "web-service-params" {
-  source  = "github.com/chanzuckerberg/cztack//aws-ssm-params-writer?ref=v0.104.2"
+  source  = "../../../modules/aws-ssm-params-writer-v0.104.2" # cztack v0.104.2
   project = var.project
   env     = var.env
   service = var.component
   owner   = var.owner
 
   parameters = {
-    REDISCLOUD_URL                 = "rediss://${data.terraform_remote_state.redis.outputs.primary_endpoint_address}:6379"
-    ALIGNMENT_CONFIG_DEFAULT_NAME  = var.alignment_index_date
-    CLOUDFRONT_ENDPOINT            = local.assets_fqdn
-    CZID_CLOUDFRONT_ENDPOINT       = local.assets_fqdn
-    S3_DATABASE_BUCKET             = var.s3_bucket_public_references
-    CLI_UPLOAD_ROLE_ARN            = aws_iam_role.idseq-upload.arn
-    SECRET_KEY_BASE                = random_string.secret_key_base.result
-    SERVER_DOMAIN                  = "https://${data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn}"
-    GRAPHQL_FEDERATION_SERVICE_URL = "https://${data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn}/graphqlfed"
-    AUTO_ACCOUNT_CREATION_V1       = 1
-    S3_WORKFLOWS_BUCKET            = local.s3_bucket_workflows
-    LAMBDA_ENV                     = var.env # TODO: Only necessary for dev, as it defaults to Rails.env ('development') in the code
+    REDISCLOUD_URL                = "rediss://${data.terraform_remote_state.redis.outputs.primary_endpoint_address}:6379"
+    ALIGNMENT_CONFIG_DEFAULT_NAME = var.alignment_index_date
+    CLOUDFRONT_ENDPOINT           = local.assets_fqdn
+    CZID_CLOUDFRONT_ENDPOINT      = local.assets_fqdn
+    S3_DATABASE_BUCKET            = var.s3_bucket_public_references
+    CLI_UPLOAD_ROLE_ARN           = aws_iam_role.idseq-upload.arn
+    SECRET_KEY_BASE               = random_string.secret_key_base.result
+    SERVER_DOMAIN                 = "https://${data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn}"
+    AUTO_ACCOUNT_CREATION_V1      = 1
+    S3_WORKFLOWS_BUCKET           = local.s3_bucket_workflows
+    LAMBDA_ENV                    = var.env # TODO: Only necessary for dev, as it defaults to Rails.env ('development') in the code
   }
 }
 
 module "staging" {
-  source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.104.2"
+  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
 
   cert_domain_name    = local.env_fqdn
   aws_route53_zone_id = local.zone_id
@@ -300,7 +304,7 @@ module "staging" {
 }
 
 module "staging_east" {
-  source = "github.com/chanzuckerberg/cztack//aws-acm-certificate?ref=v0.104.2"
+  source = "../../../modules/aws-acm-certificate-v0.104.2" # cztack v0.104.2
 
   cert_domain_name    = local.env_fqdn
   aws_route53_zone_id = local.zone_id
@@ -358,12 +362,28 @@ resource "aws_route53_record" "www" {
 }
 
 resource "aws_ecr_repository" "web-repository" {
-  name                 = "idseq-web"
-  image_tag_mutability = "MUTABLE"
-  force_delete         = true
+  #checkov:skip=CKV_AWS_51:image tag immutability is intentionally gated behind var.ecr_immutable_tags (default MUTABLE) — flipping it unconditionally broke the latest-tag dual-push deploy (see #59/PR#110); re-enable once the deploy uses immutable sha/SemVer tags.
+  name = "idseq-web"
+  # CZID-59: IMMUTABLE tags (CKV_AWS_51). This is an in-place update on an existing
+  # repo (PutImageTagMutability), NOT a replacement.
+  image_tag_mutability = var.ecr_immutable_tags ? "IMMUTABLE" : "MUTABLE"
+  force_delete         = contains(["dev", "sandbox"], var.env)
 
   image_scanning_configuration {
     scan_on_push = true
+  }
+
+  # CZID-59: customer-managed KMS encryption of image layers (CKV_AWS_136), gated on
+  # var.manage_ecr_kms_cmk. encryption_configuration is IMMUTABLE — enabling it on an
+  # existing repo forces DESTROY+RECREATE, so it is emitted ONLY on greenfield envs
+  # (see ecr_hardening.tf). When the var is false the block is absent and the repo
+  # keeps the AWS-owned key with no change.
+  dynamic "encryption_configuration" {
+    for_each = var.manage_ecr_kms_cmk ? [1] : []
+    content {
+      encryption_type = "KMS"
+      kms_key         = local.ecr_kms_key_arn
+    }
   }
 }
 

@@ -1,0 +1,277 @@
+provider "aws" {
+
+  region  = "us-west-2"
+  profile = "default"
+
+  # this is the new way of injecting AWS tags to all AWS resources
+  # var.tags should be considered deprecated
+  default_tags {
+    tags = {
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
+    }
+  }
+  allowed_account_ids = ["941377154785"]
+}
+# Aliased Providers (for doing things in every region).
+
+
+provider "aws" {
+  alias   = "us-east-1"
+  region  = "us-east-1"
+  profile = "default"
+
+  # this is the new way of injecting AWS tags to all AWS resources
+  # var.tags should be considered deprecated
+  default_tags {
+    tags = {
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
+    }
+  }
+  allowed_account_ids = ["941377154785"]
+}
+
+
+provider "aws" {
+  alias   = "czi-si-us-east-1"
+  region  = "us-east-1"
+  profile = "idseq-prod"
+
+  # this is the new way of injecting AWS tags to all AWS resources
+  # var.tags should be considered deprecated
+  default_tags {
+    tags = {
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
+    }
+  }
+  allowed_account_ids = ["283694049553"]
+}
+
+
+provider "aws" {
+  alias   = "czi-si"
+  region  = "us-west-2"
+  profile = "idseq-prod"
+
+  # this is the new way of injecting AWS tags to all AWS resources
+  # var.tags should be considered deprecated
+  default_tags {
+    tags = {
+      project   = coalesce(var.tags.project, "unknown")
+      env       = coalesce(var.tags.env, "unknown")
+      service   = coalesce(var.tags.service, "unknown")
+      owner     = coalesce(var.tags.owner, "unknown")
+      managedBy = "terraform"
+    }
+  }
+  allowed_account_ids = ["283694049553"]
+}
+
+
+provider "assert" {}
+terraform {
+  backend "s3" {
+    use_lockfile = true # bug-#006: native state locking (Terraform >= 1.10), portable (no DynamoDB)
+
+    bucket = "tfstate-941377154785-test"
+
+    key     = "terraform/idseq/envs/sandbox/components/web.tfstate"
+    encrypt = true
+    region  = "us-west-2"
+    profile = "default"
+
+
+  }
+}
+# tflint-ignore: terraform_unused_declarations
+variable "env" {
+  type    = string
+  default = "sandbox"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "project" {
+  type    = string
+  default = "idseq"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "region" {
+  type    = string
+  default = "us-west-2"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "component" {
+  type    = string
+  default = "web"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "aws_profile" {
+  type    = string
+  default = "default"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "owner" {
+  type    = string
+  default = "biohub-tech@chanzuckerberg.com"
+}
+# tflint-ignore: terraform_unused_declarations
+# DEPRECATED: this field is deprecated in favor or 
+# AWS provider default tags.
+variable "tags" {
+  type = object({ project : string, env : string, service : string, owner : string, managedBy : string })
+  default = {
+    project   = "idseq"
+    env       = "sandbox"
+    service   = "web"
+    owner     = "biohub-tech@chanzuckerberg.com"
+    managedBy = "terraform"
+  }
+}
+# CZID-59: greenfield gate for ECR customer-managed KMS encryption. false on LIVE
+# envs so the immutable encryption_configuration is NOT added to an existing repo
+# (which would force DESTROY+RECREATE); true only on a fresh/greenfield account.
+variable "manage_ecr_kms_cmk" {
+  type    = bool
+  default = false
+}
+# tflint-ignore: terraform_unused_declarations
+variable "alignment_index_date" {
+  type    = string
+  default = "2021-01-22"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "base_domain" {
+  type    = string
+  default = "seqtoid.org"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "build_index_date" {
+  type    = string
+  default = "2021-01-22"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "eks_cluster_name" {
+  type    = string
+  default = "czid-sandbox-eks"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "s3_bucket_aegea_ecs_execute" {
+  type    = string
+  default = "aegea-ecs-execute-sandbox-941377154785"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "s3_bucket_idseq_bench" {
+  type    = string
+  default = "idseq-bench"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "s3_bucket_public_references" {
+  type    = string
+  default = "seqtoid-public-references"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "s3_bucket_samples" {
+  type    = string
+  default = "idseq-samples-sandbox-941377154785"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "s3_bucket_samples_v1" {
+  type    = string
+  default = "czi-infectious-disease-sandbox-samples-941377154785"
+}
+# tflint-ignore: terraform_unused_declarations
+variable "s3_bucket_secrets" {
+  type    = string
+  default = "idseq-secrets"
+}
+data "terraform_remote_state" "cloud-env" {
+  backend = "s3"
+  config = {
+
+
+    bucket = "tfstate-941377154785-test"
+
+    key     = "terraform/idseq/envs/sandbox/components/cloud-env.tfstate"
+    region  = "us-west-2"
+    profile = "default"
+
+
+  }
+}
+data "terraform_remote_state" "ecs" {
+  backend = "s3"
+  config = {
+
+
+    bucket = "tfstate-941377154785-test"
+
+    key     = "terraform/idseq/envs/sandbox/components/ecs.tfstate"
+    region  = "us-west-2"
+    profile = "default"
+
+
+  }
+}
+data "terraform_remote_state" "elb-access-logs" {
+  backend = "s3"
+  config = {
+
+
+    bucket = "tfstate-941377154785-test"
+
+    key     = "terraform/idseq/envs/sandbox/components/elb-access-logs.tfstate"
+    region  = "us-west-2"
+    profile = "default"
+
+
+  }
+}
+data "terraform_remote_state" "redis" {
+  backend = "s3"
+  config = {
+
+
+    bucket = "tfstate-941377154785-test"
+
+    key     = "terraform/idseq/envs/sandbox/components/redis.tfstate"
+    region  = "us-west-2"
+    profile = "default"
+
+
+  }
+}
+# tflint-ignore: terraform_unused_declarations
+variable "aws_accounts" {
+  type = map(string)
+  default = {
+
+    idseq-dev = "491013321714"
+
+    idseq-prod = "283694049553"
+
+    idseq-staging = "030998640247"
+
+    idseq-support = "941377154785"
+
+  }
+}
+
+# VERIFY (adversarial review, 2026-07-03): #59 flipped image_tag_mutability to IMMUTABLE
+# unconditionally, which breaks the `latest`-tag dual-push deploy (ImageTagAlreadyExistsException on
+# every deploy after the first — a hazard that was explicitly documented as held). Gate it: default
+# MUTABLE (restores the working deploy); flip to true per-env only after the deploy is moved to
+# immutable sha/SemVer tags with `latest` dropped.
+variable "ecr_immutable_tags" {
+  type    = bool
+  default = false
+}

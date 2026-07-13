@@ -11,7 +11,7 @@ locals {
 data "aws_region" "current" {}
 
 module "images" {
-  source = "git@github.com:chanzuckerberg/shared-infra//terraform/modules/machine-images?ref=v0.66.0"
+  source = "../../../modules/machine-images"
 }
 
 ######## Lambda NCBI copy tool
@@ -42,7 +42,6 @@ data "aws_iam_policy_document" "lambda_ncbi_copy_role_policy" {
       "cloudwatch:PutMetricData",
       "iam:List*",
       "iam:Get*",
-      "iam:PassRole",
       "logs:CreateLogStream",
       "logs:CreateLogGroup",
       "logs:Describe*",
@@ -69,6 +68,29 @@ data "aws_iam_policy_document" "lambda_ncbi_copy_role_policy" {
     ]
 
     resources = ["*"]
+  }
+
+  # CZID-18 (least-privilege, low-risk slice): split iam:PassRole into its own statement and constrain
+  # it with iam:PassedToService so this role can only hand roles to the COMPUTE services it actually
+  # uses (Batch jobs run as ECS tasks; EC2 for the compute environment) — never to arbitrary services
+  # (lambda, iam, etc.), which is the privilege-escalation surface. The service list is a safe superset
+  # of actual usage, so it does not remove any pass the lambda performs. Tightening to named role ARNs
+  # is the Access-Analyzer follow-up (#361). See IAM-LEAST-PRIVILEGE-2026-06-29.md.
+  statement {
+    sid     = "PassRoleToComputeOnly"
+    actions = ["iam:PassRole"]
+
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values = [
+        "ecs-tasks.amazonaws.com",
+        "batch.amazonaws.com",
+        "ec2.amazonaws.com",
+      ]
+    }
   }
 }
 
@@ -105,7 +127,7 @@ resource "aws_batch_job_queue" "idseq-lomem" {
 }
 
 module "idseq-batch" {
-  source      = "github.com/chanzuckerberg/cztack//aws-iam-instance-profile?ref=v0.104.2"
+  source      = "../../../modules/aws-iam-instance-profile-v0.104.2" # cztack v0.104.2
   name_prefix = "idseq-batch-${var.env}"
 }
 

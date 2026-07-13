@@ -50,196 +50,162 @@ resource "helm_release" "nginx_ingress" {
   version          = var.nginx_version
   namespace        = var.namespace
   create_namespace = true
-  set {
-    name  = "controller.allowSnippetAnnotations"
-    value = "true"
-  }
-
-  set {
-    name  = "controller.service.type"
-    value = "NodePort"
-  }
-
-  set {
-    name  = "controller.podAnnotations.linkerd\\.io/inject"
-    value = var.linkerd_annotations.linkerd_inject
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.podAnnotations.config\\.alpha\\.linkerd\\.io/proxy-wait-before-exit-seconds"
-    value = var.linkerd_annotations.proxy_wait_before_exit_seconds
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.config.proxy-buffer-size"
-    value = "16k"
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.config.client-body-buffer-size"
-    value = "32k"
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.config.annotations-risk-level"
-    value = "Critical"
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.config.strict-validate-path-type"
-    value = "false"
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.replicaCount"
-    value = var.replicas
-  }
-
-  set {
-    name  = "controller.config.use-proxy-protocol"
-    value = var.enable_proxy_protocol_v2 ? "true" : "false"
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.autoscaling.enabled"
-    value = var.enable_autoscaling ? true : false
-    type  = "auto"
-  }
-
-  set {
-    name  = "controller.autoscaling.minReplicas"
-    value = var.min_replicas
-  }
-
-  set {
-    name  = "controller.autoscaling.maxReplicas"
-    value = var.max_replicas
-  }
-
-  set {
-    name  = "controller.service.externalTrafficPolicy"
-    value = var.external_traffic_policy
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.config.allow-snippet-annotations"
-    value = "true"
-  }
-
-  set {
-    name  = "controller.config.proxy-body-size"
-    value = var.proxy_body_size
-    type  = "string"
-  }
-
-  set {
-    name  = "controller.resources.requests.cpu"
-    value = var.controller_cpu_request
-    type  = "string"
-  }
-  set {
-    name  = "controller.resources.requests.memory"
-    value = var.controller_memory_request
-    type  = "string"
-  }
-
-  dynamic "set" {
-    for_each = var.enable_metrics ? ["enabled"] : []
-    content {
+  # CZID-93: helm provider v3 replaced the repeated `set {}` blocks (static and
+  # `dynamic "set"`) with a single `set = [{...}]` list attribute. The former
+  # dynamic blocks become conditional/for-expression list fragments joined with
+  # concat(). Every element carries name/value/type (type = null == unset) and
+  # values are strings so the list has a single, well-formed element type.
+  set = concat(
+    [
+      {
+        name  = "controller.allowSnippetAnnotations"
+        value = "true"
+        type  = null
+      },
+      {
+        name  = "controller.service.type"
+        value = "NodePort"
+        type  = null
+      },
+      {
+        name  = "controller.podAnnotations.linkerd\\.io/inject"
+        value = var.linkerd_annotations.linkerd_inject
+        type  = "string"
+      },
+      {
+        name  = "controller.podAnnotations.config\\.alpha\\.linkerd\\.io/proxy-wait-before-exit-seconds"
+        value = var.linkerd_annotations.proxy_wait_before_exit_seconds
+        type  = "string"
+      },
+      {
+        name  = "controller.config.proxy-buffer-size"
+        value = "16k"
+        type  = "string"
+      },
+      {
+        name  = "controller.config.client-body-buffer-size"
+        value = "32k"
+        type  = "string"
+      },
+      {
+        name  = "controller.config.annotations-risk-level"
+        value = "Critical"
+        type  = "string"
+      },
+      {
+        name  = "controller.config.strict-validate-path-type"
+        value = "false"
+        type  = "string"
+      },
+      {
+        name  = "controller.replicaCount"
+        value = tostring(var.replicas)
+        type  = null
+      },
+      {
+        name  = "controller.config.use-proxy-protocol"
+        value = var.enable_proxy_protocol_v2 ? "true" : "false"
+        type  = "string"
+      },
+      {
+        name  = "controller.autoscaling.enabled"
+        value = var.enable_autoscaling ? "true" : "false"
+        type  = "auto"
+      },
+      {
+        name  = "controller.autoscaling.minReplicas"
+        value = tostring(var.min_replicas)
+        type  = null
+      },
+      {
+        name  = "controller.autoscaling.maxReplicas"
+        value = tostring(var.max_replicas)
+        type  = null
+      },
+      {
+        name  = "controller.service.externalTrafficPolicy"
+        value = var.external_traffic_policy
+        type  = "string"
+      },
+      {
+        name  = "controller.config.allow-snippet-annotations"
+        value = "true"
+        type  = null
+      },
+      {
+        name  = "controller.config.proxy-body-size"
+        value = var.proxy_body_size
+        type  = "string"
+      },
+      {
+        name  = "controller.resources.requests.cpu"
+        value = var.controller_cpu_request
+        type  = "string"
+      },
+      {
+        name  = "controller.resources.requests.memory"
+        value = var.controller_memory_request
+        type  = "string"
+      },
+    ],
+    var.enable_metrics ? [{
       name  = "controller.metrics.enabled"
       value = "true"
       type  = "string"
-    }
-  }
-
-  dynamic "set" {
-    for_each = var.enable_prometheus_scraping ? ["enabled"] : []
-    content {
+    }] : [],
+    var.enable_prometheus_scraping ? [{
       name  = "controller.podAnnotations.prometheus\\.io/port"
       value = "10254"
       type  = "string"
-    }
-  }
-
-  dynamic "set" {
-    for_each = var.enable_prometheus_scraping ? ["enabled"] : []
-    content {
+    }] : [],
+    var.enable_prometheus_scraping ? [{
       name  = "controller.podAnnotations.prometheus\\.io/scrape"
       value = "true"
       type  = "string"
-    }
-  }
-
-  dynamic "set" {
-    for_each = var.extra_args
-    content {
-      name  = "controller.extraArgs.${set.key}"
-      value = set.value
-    }
-  }
-
-  dynamic "set" {
-    for_each = var.extra_config_settings
-    content {
-      name  = "controller.config.${set.key}"
-      value = set.value
-    }
-  }
-
-  set {
-    name  = "controller.config.allow-snippet-annotations"
-    value = "true"
-  }
-
-  dynamic "set" {
-    for_each = var.enable_geo_ip_config ? [true] : []
-    content {
+    }] : [],
+    [for k, v in var.extra_args : {
+      name  = "controller.extraArgs.${k}"
+      value = v
+      type  = null
+    }],
+    [for k, v in var.extra_config_settings : {
+      name  = "controller.config.${k}"
+      value = v
+      type  = null
+    }],
+    [{
+      name  = "controller.config.allow-snippet-annotations"
+      value = "true"
+      type  = null
+    }],
+    var.enable_geo_ip_config ? [{
       name  = "controller.config.use-geoip"
       value = "false"
-    }
-  }
-
-  dynamic "set" {
-    for_each = var.enable_geo_ip_config ? [true] : []
-    content {
+      type  = null
+    }] : [],
+    var.enable_geo_ip_config ? [{
       name  = "controller.config.use-geoip2"
       value = "true"
-    }
-  }
-
-  dynamic "set" {
-    for_each = local.load_geoip_inline_snippets ? [true] : []
-    content {
+      type  = null
+    }] : [],
+    local.load_geoip_inline_snippets ? [{
       name  = "controller.config.http-snippet"
       value = local.cluster_geo_restriction_http_snippet
-    }
-  }
-
-  dynamic "set" {
+      type  = null
+    }] : [],
     # https://stackoverflow.com/a/30550574
-    for_each = local.load_geoip_inline_snippets ? [true] : []
-    content {
+    local.load_geoip_inline_snippets ? [{
       name  = "controller.config.server-snippet"
       value = local.geo_restriction_server_snippet
-    }
-  }
-
-  # We need to set this in place if the argus app attempts to set a variable but this doesn't have it
-  dynamic "set" {
-    for_each = local.load_geoip_inline_snippets ? [] : [true]
-    content {
+      type  = null
+    }] : [],
+    # We need to set this in place if the argus app attempts to set a variable but this doesn't have it
+    local.load_geoip_inline_snippets ? [] : [{
       name  = "controller.config.server-snippet"
       value = local.general_server_snippet
-    }
-  }
+      type  = null
+    }],
+  )
 
   values = [templatefile("${path.module}/templates/values.yaml", {
     role_arn = module.eks_service_account_nginx_role.iam_role_arn
