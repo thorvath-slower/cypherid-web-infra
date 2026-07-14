@@ -143,7 +143,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "bucket" {
     for_each = var.lifecycle_rules
 
     content {
-      id     = lookup(rule.value, "id", null)
+      # The provider REQUIRES rule[*].id ("Must set a configuration value for the rule[0].id
+      # attribute"); passing null fails the plan outright for any caller that omits it, which
+      # broke elb-access-logs + heatmap-optimization. Fall back to a stable index-based id.
+      # Callers that DO set an id are unaffected. See platform-overhaul #687.
+      id     = lookup(rule.value, "id", "lifecycle-rule-${rule.key}")
       status = lookup(rule.value, "enabled", false) ? "Enabled" : "Disabled"
 
       # `prefix` (and `tags`) moved under a `filter` block in the standalone

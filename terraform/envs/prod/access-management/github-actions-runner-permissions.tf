@@ -194,6 +194,32 @@ resource "aws_iam_role_policy_attachment" "apply_ci_cd" {
   policy_arn = aws_iam_policy.czid_ci_cd.arn
 }
 
+# --- PLAN role: decrypt SecureString SSM params (#687) ------------------------
+# terraform PLAN reads SecureString SSM parameters (e.g. /idseq-dev-web/db_password via the
+# aws-param module). AWS's ReadOnlyAccess grants ssm:GetParameter but deliberately NOT
+# kms:Decrypt, so the plan role could not decrypt them and the `db` component failed to plan:
+#   AccessDeniedException: ... not authorized to perform: kms:Decrypt on resource: <key>
+# Grant decrypt-only (no key management: no Create/Schedule/Disable/Put/Revoke) on this
+# account's keys. Read-only in effect -- the plan role still cannot mutate anything.
+data "aws_iam_policy_document" "plan_kms_decrypt" {
+  statement {
+    sid       = "DecryptSecureStringParamsForPlan"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt", "kms:DescribeKey"]
+    resources = ["arn:aws:kms:${var.region}:${local.account_id}:key/*"]
+  }
+}
+
+resource "aws_iam_policy" "plan_kms_decrypt" {
+  name   = "czid-${var.env}-gh-actions-plan-kms-decrypt"
+  policy = data.aws_iam_policy_document.plan_kms_decrypt.json
+}
+
+resource "aws_iam_role_policy_attachment" "plan_kms_decrypt" {
+  role       = module.czid_gh_actions_plan.role.name
+  policy_arn = aws_iam_policy.plan_kms_decrypt.arn
+}
+
 # --- Infrastructure PROVISIONING grant (#684) ---------------------------------
 # The apply role was originally scoped for APP deploys (ECS/ECR/S3/batch, via czid_ci_cd).
 # But terraform PROVISIONS the platform: it creates KMS keys, VPC endpoints, RDS, EKS
