@@ -131,7 +131,7 @@ jobs:
       - name: Checkout seqtoid-web (the chart)
         uses: actions/checkout@v6
         with:
-          repository: ${{ vars.CHART_REPO || 'thorvath-slower/seqtoid-web' }}
+          repository: ${{ vars.CHART_REPO || format('{0}/seqtoid-web', github.repository_owner) }}
           # `main` is the trunk post-promotion (integration→main); Argo also renders the
           # chart from seqtoid-web@main, so CI must validate against the same ref.
           ref: ${{ vars.CHART_REF || 'main' }}

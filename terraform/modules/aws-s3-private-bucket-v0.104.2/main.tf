@@ -29,6 +29,13 @@ locals {
     ]
   ])
 
+  # S3 disabled ACLs by default (BucketOwnerEnforced) in April 2023. An ACL can only be PUT
+  # when ownership is explicitly BucketOwnerPreferred/ObjectWriter. On an ACL-disabled bucket a
+  # canned "private" ACL is a legacy no-op that AWS now REJECTS outright (PutBucketAcl -> 400
+  # InvalidArgument), which fails the whole stack. Skip the ACL entirely in that case: the
+  # bucket is private by default and access is governed by the bucket policy / IAM.
+  acls_enabled = var.object_ownership != null && var.object_ownership != "BucketOwnerEnforced"
+
   tags = {
     project   = var.project
     env       = var.env
@@ -60,7 +67,10 @@ resource "aws_s3_bucket" "bucket" {
 # ACLs require object ownership other than BucketOwnerEnforced; the caller is
 # responsible for setting var.object_ownership accordingly when using grants.
 resource "aws_s3_bucket_acl" "bucket" {
-  count = length(local.valid_grants) == 0 ? (local.acl == null ? 0 : 1) : 1
+  count = local.acls_enabled ? (length(local.valid_grants) == 0 ? (local.acl == null ? 0 : 1) : 1) : 0
+
+  # The ownership controls must land BEFORE the ACL, or S3 still considers ACLs disabled.
+  depends_on = [aws_s3_bucket_ownership_controls.bucket]
 
   bucket = aws_s3_bucket.bucket.id
 
@@ -133,7 +143,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "bucket" {
     for_each = var.lifecycle_rules
 
     content {
-      id     = lookup(rule.value, "id", null)
+      # The provider REQUIRES rule[*].id ("Must set a configuration value for the rule[0].id
+      # attribute"); passing null fails the plan outright for any caller that omits it, which
+      # broke elb-access-logs + heatmap-optimization. Fall back to a stable index-based id.
+      # Callers that DO set an id are unaffected. See platform-overhaul #687.
+      id     = lookup(rule.value, "id", "lifecycle-rule-${rule.key}")
       status = lookup(rule.value, "enabled", false) ? "Enabled" : "Disabled"
 
       # `prefix` (and `tags`) moved under a `filter` block in the standalone
