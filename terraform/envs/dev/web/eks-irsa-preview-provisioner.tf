@@ -87,6 +87,18 @@ data "aws_iam_policy_document" "seqtoid_web_provisioner" {
     actions   = ["ssm:DescribeParameters"]
     resources = ["*"]
   }
+  # chamber reads its OWN store-config parameter before it will write to any path. It lives at
+  # /_chamber/store-config, outside every idseq-* path granted above, so `chamber import` failed
+  # AccessDenied on the sandbox provision Job even though the sandbox path itself was writable.
+  # Read-only, and a single fixed key -- chamber's bookkeeping, not application config.
+  statement {
+    sid = "ChamberStoreConfig"
+    actions = [
+      "ssm:GetParameters",
+      "ssm:GetParameter",
+    ]
+    resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/_chamber/store-config"]
+  }
 }
 
 resource "aws_iam_role_policy" "seqtoid_web_provisioner" {
