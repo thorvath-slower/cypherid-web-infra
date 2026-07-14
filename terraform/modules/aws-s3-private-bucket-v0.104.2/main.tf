@@ -14,6 +14,21 @@ locals {
     )
   ]
 
+  # The standalone aws_s3_bucket_acl grant block takes a SINGLE permission string,
+  # unlike the deprecated inline aws_s3_bucket grant which took a permissions list.
+  # Expand each grant into one (grantee, permission) pair per permission so a
+  # multi-permission grant maps to one grant block each. Assigning the list
+  # directly to permission fails: "string required, but have tuple".
+  grant_permissions = flatten([
+    for grant in local.valid_grants : [
+      for permission in grant.permissions : {
+        canonical_user_id = grant.canonical_user_id
+        uri               = grant.uri
+        permission        = permission
+      }
+    ]
+  ])
+
   tags = {
     project   = var.project
     env       = var.env
@@ -58,15 +73,15 @@ resource "aws_s3_bucket_acl" "bucket" {
 
     content {
       dynamic "grant" {
-        for_each = local.valid_grants
+        for_each = local.grant_permissions
 
         content {
           grantee {
-            id   = lookup(grant.value, "canonical_user_id", null)
-            uri  = lookup(grant.value, "uri", null)
-            type = lookup(grant.value, "canonical_user_id", null) == null ? "Group" : "CanonicalUser"
+            id   = grant.value.canonical_user_id
+            uri  = grant.value.uri
+            type = grant.value.canonical_user_id == null ? "Group" : "CanonicalUser"
           }
-          permission = grant.value.permissions
+          permission = grant.value.permission
         }
       }
 
