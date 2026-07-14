@@ -323,15 +323,21 @@ module "staging_east" {
 module "web-service" {
   source = "../../../modules/ecs-service-with-alb-v0.421.0"
 
-  service                           = "web"
-  project                           = var.project
-  owner                             = var.owner
-  container_port                    = 3000
-  container_name                    = "rails"
-  env                               = var.env
-  vpc_id                            = data.terraform_remote_state.cloud-env.outputs.vpc_id
-  cluster_id                        = data.terraform_remote_state.ecs.outputs.cluster_id
-  task_role_arn                     = aws_iam_role.idseq-web.arn
+  service        = "web"
+  project        = var.project
+  owner          = var.owner
+  container_port = 3000
+  container_name = "rails"
+  env            = var.env
+  vpc_id         = data.terraform_remote_state.cloud-env.outputs.vpc_id
+  cluster_id     = data.terraform_remote_state.ecs.outputs.cluster_id
+  task_role_arn  = aws_iam_role.idseq-web.arn
+  # Dev runs on EKS/Argo (the app + resque are k8s pods) and the ECS cluster was torn down at
+  # the migration, so creating an ECS service here fails with ClusterNotFoundException. Keep the
+  # ALB / target group / task definition (still present and still referenced) but do NOT create
+  # the service. staging/prod are unaffected -- the module defaults create_service = true.
+  # See platform-overhaul #687.
+  create_service                    = false
   desired_count                     = 1
   lb_subnets                        = data.terraform_remote_state.cloud-env.outputs.public_subnets
   route53_zone_id                   = local.zone_id

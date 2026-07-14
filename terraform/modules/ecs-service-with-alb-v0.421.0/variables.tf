@@ -204,3 +204,14 @@ variable "alb_protocol" {
   }
   description = "Specify the ALB protocol version to use. Modify, for example, if you need HTTP/2 or gRPC."
 }
+
+# Dev migrated to EKS/Argo: the app + resque now run as k8s pods and the ECS cluster was torn
+# down, so creating an ECS service there fails with ClusterNotFoundException. This lets a caller
+# keep the ALB / target group / task definition (which still exist and are still referenced)
+# while NOT creating the ECS service. Defaults to true so staging/prod -- still on ECS -- are
+# completely unaffected. See platform-overhaul #687.
+variable "create_service" {
+  type        = bool
+  default     = true
+  description = "Create the ECS service. Set false where the workload has moved off ECS (e.g. dev on EKS)."
+}
