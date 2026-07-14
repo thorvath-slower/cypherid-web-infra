@@ -304,12 +304,21 @@ module "auth0-ssm-params" {
   owner   = var.owner
 
   parameters = {
-    AUTH0_CLIENT_ID                = auth0_client.idseq_web.client_id
-    AUTH0_CLIENT_SECRET            = data.auth0_client.idseq_web.client_secret
-    AUTH0_CONNECTION               = auth0_connection.username_password_authentication.name
-    AUTH0_DOMAIN                   = data.auth0_tenant.env_tenant.domain
+    AUTH0_CLIENT_ID     = auth0_client.idseq_web.client_id
+    AUTH0_CLIENT_SECRET = data.auth0_client.idseq_web.client_secret
+    AUTH0_CONNECTION    = auth0_connection.username_password_authentication.name
+    # The CUSTOM domain, not the tenant domain. This is what is live in SSM (auth.dev.seqtoid.org,
+    # v10) and what the app actually authenticates against; the config computed the tenant domain
+    # instead, so a refreshed plan wanted to overwrite a working login setting with a different value.
+    # It is also what upstream intended -- a2b4ff7: "Revert AUTH0_MANAGEMENT_DOMAIN to be the tenant
+    # domain, instead of the custom DNS name. The AUTH0_DOMAIN is still the custom DNS name."
+    # Config now matches reality, so the diff disappears and nothing changes in Auth0. See #695.
+    AUTH0_DOMAIN                   = auth0_custom_domain.auth_env_seqtoid_org.domain
     AUTH0_MANAGEMENT_CLIENT_ID     = auth0_client.idseq_web_management.client_id
     AUTH0_MANAGEMENT_CLIENT_SECRET = data.auth0_client.idseq_web_management.client_secret
-    AUTH0_MANAGEMENT_DOMAIN        = data.auth0_tenant.env_tenant.domain # TODO: Obsolete this, as it is always the same as AUTH0_DOMAIN; Need to replace it in idseq-web first, though.
+    # Deliberately the TENANT domain, NOT the custom one -- that is the whole point of a2b4ff7. The
+    # old TODO here ("always the same as AUTH0_DOMAIN") is the assumption that commit reverted: the
+    # Management API is addressed at the tenant domain even when logins use the custom domain.
+    AUTH0_MANAGEMENT_DOMAIN = data.auth0_tenant.env_tenant.domain
   }
 }

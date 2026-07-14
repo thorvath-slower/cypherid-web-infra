@@ -35,7 +35,12 @@ concurrency:
 
 jobs:
   promote:
-    if: github.repository == 'thorvath-slower/cypherid-web-infra'
+    # Was `github.repository == 'thorvath-slower/cypherid-web-infra'`. That compare is FALSE in the UCSF
+    # org (IT-Academic-Research-Services), so the integration -> main roll-up would NEVER RUN there --
+    # merged gitops/terraform changes would never reach main, and it would report as a SKIPPED, GREEN
+    # job. Now an explicit repo variable. NOT `!github.event.repository.fork`: GitHub's fork flags are
+    # inverted here relative to which repo is really canonical. See platform-overhaul #692.
+    if: ${{ vars.TRUNK_ROLLUP_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

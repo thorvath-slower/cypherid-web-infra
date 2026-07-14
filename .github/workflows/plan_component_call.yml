@@ -117,7 +117,15 @@ jobs:
           # read-only by design and cannot write the S3 .tflock object. A plan
           # never mutates state, so skipping the lock is safe and keeps the role
           # incapable of any write (least-privilege). The apply role keeps locking.
-          terraform plan -input=false -lock=false -detailed-exitcode -refresh=false -out="${{ github.workspace }}/tf.plan"
+          #
+          # REFRESH IS ON DELIBERATELY. This previously ran -refresh=false, which compares the
+          # config only against STATE and never against AWS -- so drift was structurally invisible
+          # and a "no changes" plan proved nothing about reality. That is exactly how a deleted
+          # karpenter subnet tag went unnoticed while it left Karpenter unable to provision any
+          # node cluster-wide: state said the tag existed, AWS disagreed, and every plan reported
+          # clean. Refresh is read-only (Describe/Get), which the plan role's ReadOnlyAccess
+          # already permits. Slower plans are the price of plans that mean something.
+          terraform plan -input=false -lock=false -detailed-exitcode -out="${{ github.workspace }}/tf.plan"
           exitcode=$?
           echo "Terraform exited with exit-code $exitcode"
           if [[ $exitcode -eq 1 ]]; then

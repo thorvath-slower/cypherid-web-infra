@@ -7,6 +7,7 @@ module "eks-cluster" {
   iam_cluster_name_prefix = local.iam_cluster_name_prefix
   node_groups             = local.node_groups
   owner_roles             = local.owner_roles
+  read_only_roles         = local.read_only_roles
   subnet_ids              = local.subnet_ids
   tags                    = local.tags
   vpc_id                  = local.vpc_id

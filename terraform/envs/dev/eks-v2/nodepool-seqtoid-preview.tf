@@ -27,9 +27,19 @@ resource "kubectl_manifest" "seqtoid_preview_nodepool" {
         cpu    = "16"
         memory = "64Gi"
       }
+      # consolidateAfter was 1m, which is aggressive enough to be actively harmful: Karpenter kept
+      # reclaiming preview nodes out from under pods that were still PULLING their image (the Rails
+      # image is large), so the pull restarted on a fresh node -- forever. It also evicted the sandbox
+      # provision/migrate Jobs mid-run. 15m lets a node finish what it started.
+      #
+      # budgets caps how much may be disrupted at once, so one consolidation sweep can never take out
+      # the whole pool simultaneously. See platform-overhaul #696.
       disruption = {
         consolidationPolicy = "WhenEmptyOrUnderutilized"
-        consolidateAfter    = "1m"
+        consolidateAfter    = "15m"
+        budgets = [
+          { nodes = "10%" },
+        ]
       }
       template = {
         metadata = { labels = { "seqtoid.io/pool" = "preview" } }
