@@ -278,25 +278,16 @@ resource "aws_iam_role_policy_attachment" "apply_iam_provisioning" {
   policy_arn = aws_iam_policy.apply_iam_provisioning.arn
 }
 
-# --- KEPT managed policies (already least-priv / read-only) --------------------
+# NOTE (#684): AWS caps a role at 10 managed policies (PoliciesPerRole). Attaching
+# PowerUserAccess + the IAM-provisioning policy blew that quota, so the attachments below
+# were removed: PowerUserAccess is a strict SUPERSET of each (it grants every service except
+# IAM/Organizations). The policies themselves remain defined but unattached. What the apply
+# role now carries: PowerUserAccess (all services), apply_iam_provisioning (the IAM half
+# PowerUser omits, scoped + with the self-escalation Deny), IAMReadOnlyAccess (IAM reads,
+# which PowerUser excludes), plus czid_ci_cd and tfstate_rw retained deliberately.
 resource "aws_iam_role_policy_attachment" "apply_iam_read" {
   role       = module.czid_gh_actions_apply.role.name
   policy_arn = "arn:aws:iam::aws:policy/IAMReadOnlyAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "apply_ec2_read" {
-  role       = module.czid_gh_actions_apply.role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "apply_lambda_read" {
-  role       = module.czid_gh_actions_apply.role.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "apply_tagging" {
-  role       = module.czid_gh_actions_apply.role.name
-  policy_arn = "arn:aws:iam::aws:policy/ResourceGroupsTaggingAPITagUntagSupportedResources"
 }
 
 # --- Scoped terraform-state READ/WRITE ----------------------------------------
@@ -386,11 +377,6 @@ data "aws_iam_policy_document" "apply_cw_logs" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "apply_cw_logs" {
-  role       = module.czid_gh_actions_apply.role.name
-  policy_arn = aws_iam_policy.apply_cw_logs.arn
-}
-
 # --- D4: scoped ECR (replaces AmazonEC2ContainerRegistryPowerUser) -------------
 # The deploy logs in to ECR and pushes/pulls the app image. GetAuthorizationToken
 # has no resource scoping (must be "*"); the push/pull layer actions are scoped
@@ -427,11 +413,6 @@ data "aws_iam_policy_document" "apply_ecr" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "apply_ecr" {
-  role       = module.czid_gh_actions_apply.role.name
-  policy_arn = aws_iam_policy.apply_ecr.arn
-}
-
 # --- D4: scoped SSM param read (replaces AmazonSSMManagedInstanceCore) ----------
 # The deploy reads app config/secrets from SSM Parameter Store (Chamber uses the
 # /idseq-<env>-* path). AmazonSSMManagedInstanceCore was for EC2 instance mgmt
@@ -457,11 +438,6 @@ data "aws_iam_policy_document" "apply_ssm_params" {
       "arn:aws:ssm:*:${local.account_id}:parameter/idseq-${var.env}-*",
     ]
   }
-}
-
-resource "aws_iam_role_policy_attachment" "apply_ssm_params" {
-  role       = module.czid_gh_actions_apply.role.name
-  policy_arn = aws_iam_policy.apply_ssm_params.arn
 }
 
 # ===========================================================================
