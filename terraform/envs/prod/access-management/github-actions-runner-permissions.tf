@@ -76,9 +76,15 @@ module "czid_gh_actions_apply" {
   authorized_github_repos = {
     for org in local.gh_orgs : org => local.gh_repos
   }
-  # D2: only merges to main may apply. Combined with the module's C1 deny this
-  # restricts the write role to sub `repo:<org>/<repo>:refs/heads/main`.
-  subject_ref_pattern = "refs/heads/main"
+  # The apply job runs under a GitHub Environment (apply_component_call sets
+  # `environment: <env>`), so GitHub issues the OIDC token with sub
+  # `repo:<org>/<repo>:environment:<env>` -- the git ref is NOT in the sub once an
+  # environment is attached, so a `refs/heads/main` pattern never matches and every
+  # AssumeRoleWithWebIdentity is denied. Match the environment sub here instead.
+  # The "only main may apply" guard now comes from each GitHub Environment's
+  # deployment-branch restriction (dev/staging/prod set to deploy only from `main`),
+  # NOT the IAM sub. The module's C1 :pull_request deny still applies.
+  subject_ref_pattern = "environment:${var.env}"
 }
 
 # ---------------------------------------------------------------------------
