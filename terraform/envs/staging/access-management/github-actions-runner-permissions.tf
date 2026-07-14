@@ -194,6 +194,90 @@ resource "aws_iam_role_policy_attachment" "apply_ci_cd" {
   policy_arn = aws_iam_policy.czid_ci_cd.arn
 }
 
+# --- Infrastructure PROVISIONING grant (#684) ---------------------------------
+# The apply role was originally scoped for APP deploys (ECS/ECR/S3/batch, via czid_ci_cd).
+# But terraform PROVISIONS the platform: it creates KMS keys, VPC endpoints, RDS, EKS
+# nodegroups, WAF ACLs, ACM certs, Route53 records, CloudWatch alarms -- and IAM roles.
+# The first time CI could actually assume this role (the CZID-81 trust fix), 19 of 20
+# components failed on AccessDenied across ~37 distinct actions (run 29346421280).
+#
+# PowerUserAccess covers every one of those services. It deliberately EXCLUDES IAM, which
+# terraform also needs, so the IAM half is granted explicitly below -- narrowly.
+resource "aws_iam_role_policy_attachment" "apply_poweruser" {
+  role       = module.czid_gh_actions_apply.role.name
+  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
+}
+
+# The IAM half PowerUserAccess omits: manage ROLES, POLICIES and INSTANCE PROFILES -- what
+# terraform provisions -- and nothing else. No CreateUser / AccessKey / LoginProfile / MFA /
+# group / identity-provider / account-alias actions, so this grants no credential surface and
+# no way to mint a new principal.
+data "aws_iam_policy_document" "apply_iam_provisioning" {
+  statement {
+    sid    = "ProvisionRolesPoliciesInstanceProfiles"
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole", "iam:DeleteRole", "iam:UpdateRole", "iam:UpdateRoleDescription",
+      "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole",
+      "iam:PutRolePolicy", "iam:DeleteRolePolicy",
+      "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+      "iam:CreatePolicy", "iam:DeletePolicy",
+      "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion",
+      "iam:TagPolicy", "iam:UntagPolicy",
+      "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
+      "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
+      "iam:TagInstanceProfile", "iam:UntagInstanceProfile",
+      "iam:CreateServiceLinkedRole",
+      "iam:PassRole",
+    ]
+    # Scoped to this account's roles / policies / instance profiles. Terraform derives many
+    # of these names at plan time (eks, batch, lambda, service-linked), so a name-prefix
+    # allowlist would break provisioning; constraining by ACCOUNT + RESOURCE TYPE keeps the
+    # grant real while structurally excluding users, groups and identity providers -- which
+    # the action list already omits. Belt and braces.
+    resources = [
+      "arn:aws:iam::${local.account_id}:role/*",
+      "arn:aws:iam::${local.account_id}:policy/*",
+      "arn:aws:iam::${local.account_id}:instance-profile/*",
+    ]
+  }
+
+  # ANTI-ESCALATION. The apply role must never rewrite the CI identity itself -- neither the
+  # gh-actions roles nor the policies ATTACHED to them (widening czid_ci_cd would widen this
+  # very role just as surely as attaching AdministratorAccess to it). Denying the WRITE verbs
+  # only (reads stay allowed, so terraform refresh still works) means any change to the CI
+  # identity must be applied out-of-band with admin creds -- exactly as the CZID-81 bootstrap
+  # was. Deliberate: `access-management` self-changes are expected to fail in CI.
+  statement {
+    sid    = "DenyCIIdentitySelfModification"
+    effect = "Deny"
+    actions = [
+      "iam:CreateRole", "iam:DeleteRole", "iam:UpdateRole",
+      "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole",
+      "iam:PutRolePolicy", "iam:DeleteRolePolicy",
+      "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+      "iam:CreatePolicy", "iam:DeletePolicy",
+      "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion",
+      "iam:TagPolicy", "iam:UntagPolicy",
+    ]
+    resources = [
+      "arn:aws:iam::${local.account_id}:role/czid-${var.env}-gh-actions-*",
+      "arn:aws:iam::${local.account_id}:policy/czid-${var.env}-gh-actions-*",
+      "arn:aws:iam::${local.account_id}:policy/czid-${var.env}-ci-cd",
+    ]
+  }
+}
+
+resource "aws_iam_policy" "apply_iam_provisioning" {
+  name   = "czid-${var.env}-gh-actions-apply-iam-provisioning"
+  policy = data.aws_iam_policy_document.apply_iam_provisioning.json
+}
+
+resource "aws_iam_role_policy_attachment" "apply_iam_provisioning" {
+  role       = module.czid_gh_actions_apply.role.name
+  policy_arn = aws_iam_policy.apply_iam_provisioning.arn
+}
+
 # --- KEPT managed policies (already least-priv / read-only) --------------------
 resource "aws_iam_role_policy_attachment" "apply_iam_read" {
   role       = module.czid_gh_actions_apply.role.name
