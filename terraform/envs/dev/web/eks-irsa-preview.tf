@@ -78,6 +78,21 @@ data "aws_iam_policy_document" "seqtoid_web_preview_params" {
     actions   = ["ssm:DescribeParameters"]
     resources = ["*"]
   }
+  # chamber reads its OWN store-config parameter before it will read ANY path. It lives at
+  # /_chamber/store-config, outside the idseq-sandbox-* path granted above, so `chamber exec` -- which
+  # is how every sandbox pod starts -- died with AccessDenied BEFORE Rails booted. The pod exited 1
+  # with zero log lines, which makes this look like a crash rather than a permissions problem.
+  #
+  # The provisioner role hit exactly the same gap (see eks-irsa-preview-provisioner.tf). Read-only, a
+  # single fixed key, and it is chamber's bookkeeping -- not application config.
+  statement {
+    sid = "ChamberStoreConfig"
+    actions = [
+      "ssm:GetParameters",
+      "ssm:GetParameter",
+    ]
+    resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/_chamber/store-config"]
+  }
 }
 
 resource "aws_iam_role_policy" "seqtoid_web_preview_params" {
