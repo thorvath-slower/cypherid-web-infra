@@ -2,6 +2,11 @@ locals {
   owner_roles = [
     # TODO: Not sure if it is required to prevent Unauthorized in Github Actions
     data.terraform_remote_state.access-management.outputs.gh_actions_executor_role.name,
+    # The APPLY role is the identity CI actually assumes for terraform apply (the executor role
+    # above is legacy). The kubernetes/helm/kubectl providers authenticate via `aws eks get-token`
+    # as the caller, so without an aws-auth mapping the cluster answers "the server has asked for
+    # the client to provide credentials" and every eks/eks-v2 apply fails. Map it. See #687.
+    data.terraform_remote_state.access-management.outputs.gh_actions_apply_role.name,
     # TODO: SSO role used when locally applying terraform with an SSO profile; shouldn't be hardcoded tho!
     "AWSReservedSSO_AWSAdministratorAccess_0527ae95c0a72f8c",
     # "gha-seqtoid", // Role used by GH Actions for applying terraform (cypherid-infra & cypherid-web-infra)
