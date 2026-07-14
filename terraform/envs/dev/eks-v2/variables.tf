@@ -17,6 +17,22 @@ locals {
     # "tfe-si",
   ]
 
+  read_only_roles = [
+    # The PLAN role. With `-refresh=false` a plan never touched the cluster, so this was never
+    # needed; now that refresh is on, the kubernetes/helm providers must READ k8s state during
+    # plan, and they authenticate via `aws eks get-token` as the CALLING identity. Without an
+    # aws-auth mapping the cluster answers "the server has asked for the client to provide
+    # credentials" and the whole eks-v2 plan fails Unauthorized.
+    #
+    # It goes in read_only_roles, NOT owner_roles: owner_roles grants system:masters, and the
+    # plan role is read-only in AWS by deliberate design (least-privilege). read_only_roles binds
+    # it to the eks-readonly ClusterRole -- get/list/watch on everything, write nothing -- so a
+    # read-only identity stays read-only inside the cluster too. The cluster-wide read does cover
+    # Secrets, which is unavoidable: helm_release stores its state in them, so refreshing a helm
+    # release requires reading them.
+    data.terraform_remote_state.access-management.outputs.gh_actions_plan_role.name,
+  ]
+
   cluster_name            = var.eks_cluster_name
   iam_cluster_name_prefix = null
 
