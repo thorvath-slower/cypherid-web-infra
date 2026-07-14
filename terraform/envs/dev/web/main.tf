@@ -337,7 +337,13 @@ module "web-service" {
   # ALB / target group / task definition (still present and still referenced) but do NOT create
   # the service. staging/prod are unaffected -- the module defaults create_service = true.
   # See platform-overhaul #687.
-  create_service                    = false
+  create_service = false
+  # The edge is a Kubernetes Ingress now: the AWS load-balancer controller owns the k8s-seqtoidd-*
+  # ALB and external-dns owns dev.seqtoid.org. This module still declared the same records pointing
+  # at the ECS ALB, so a refreshed plan wanted to repoint the live hostname at an ALB with ZERO
+  # healthy targets -- i.e. take dev offline. Terraform must stop claiming records it no longer owns.
+  # staging/prod still front on ECS and keep their records (the module defaults to true). See #693.
+  manage_dns_records                = false
   desired_count                     = 1
   lb_subnets                        = data.terraform_remote_state.cloud-env.outputs.public_subnets
   route53_zone_id                   = local.zone_id
@@ -355,15 +361,18 @@ module "web-service" {
   ssl_policy              = "ELBSecurityPolicy-TLS-1-2-2017-01"
 }
 
-resource "aws_route53_record" "www" {
-  zone_id = local.zone_id
-  name    = local.www_env_fqdn
-  type    = "A"
+# www.dev.seqtoid.org was declared here, aliased to the ECS ALB. external-dns now owns it (it points
+# at the k8s Ingress ALB), so terraform must let go -- but it must NOT delete the record on the way
+# out, which is exactly what removing the resource block alone would do (destroy = the hostname stops
+# resolving). `removed` with destroy = false drops it from state and leaves the live record standing.
+#
+# Keep this block. Deleting it does nothing once state is clean, but while any state still carries the
+# resource, removing this block silently re-arms the destroy.
+removed {
+  from = aws_route53_record.www
 
-  alias {
-    name                   = module.web-service.alb_dns_name
-    zone_id                = module.web-service.alb_route53_zone_id
-    evaluate_target_health = false
+  lifecycle {
+    destroy = false
   }
 }
 
