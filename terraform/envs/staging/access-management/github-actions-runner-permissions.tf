@@ -230,7 +230,16 @@ data "aws_iam_policy_document" "apply_iam_provisioning" {
       "iam:CreateServiceLinkedRole",
       "iam:PassRole",
     ]
-    resources = ["*"]
+    # Scoped to this account's roles / policies / instance profiles. Terraform derives many
+    # of these names at plan time (eks, batch, lambda, service-linked), so a name-prefix
+    # allowlist would break provisioning; constraining by ACCOUNT + RESOURCE TYPE keeps the
+    # grant real while structurally excluding users, groups and identity providers -- which
+    # the action list already omits. Belt and braces.
+    resources = [
+      "arn:aws:iam::${local.account_id}:role/*",
+      "arn:aws:iam::${local.account_id}:policy/*",
+      "arn:aws:iam::${local.account_id}:instance-profile/*",
+    ]
   }
 
   # ANTI-ESCALATION. The apply role must never rewrite the CI identity itself -- neither the
