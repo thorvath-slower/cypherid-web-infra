@@ -152,19 +152,21 @@ module "eks_addons" {
       service_account_role_arn = aws_iam_role.vpc_cni.arn
       configuration_values = jsonencode({
         # AWS_PROFILE=czi-si  aws eks describe-addon-configuration --addon-name vpc-cni --addon-version v1.15.1-eksbuild.1
-        # Prefix delegation (dev eks-v2 node-death incident 2026-07-15). ROOT CAUSE: the CNI
-        # attaches a 3rd ENI to small t3 spot nodes (driven by WARM_ENI_TARGET=1 keeping a spare
-        # ENI the node does not need), and a 3-ENI config breaks the node dataplane -> kubelet +
+        # CNI IP tuning (dev eks-v2 node-death incident 2026-07-15). ROOT CAUSE: the CNI attaches a
+        # 3rd ENI to small t3 spot nodes -- driven by the default WARM_ENI_TARGET=1 keeping a SPARE
+        # ENI the node does not need -- and a 3-ENI config breaks the node dataplane, so kubelet +
         # SSM lose connectivity ~10min after boot while the instance stays "running". Nodes that
-        # stay <=2 ENIs survive indefinitely (verified against an 18h survivor). Fix: prefix
-        # delegation gives each ENI a /28 (16 IPs), so a ~10-pod node fits in ONE ENI and never
-        # reaches the fatal 3rd; WARM_ENI_TARGET=0 removes the spare ENI entirely. Applied live to
-        # the managed addon 2026-07-15; this keeps TF in sync. (More IP capacity in us-west-2a is
-        # tracked in platform-overhaul #699.)
+        # stay <=2 ENIs survive indefinitely (verified vs an 18h survivor); the spot nodes only run
+        # ~5-6 IP-pods so <=2 ENIs is plenty. Fix: WARM_ENI_TARGET=0 (no spare ENI) + small warm IP
+        # pool. NON-prefix on purpose: prefix delegation needs contiguous /28 blocks the churned /24
+        # subnets do not have (it starved pods when tried live). Applied live to the managed addon
+        # 2026-07-15; this keeps TF in sync. The bulletproof endgame -- a dedicated 100.64.0.0/10
+        # secondary CIDR + prefix delegation so nodes never need a 2nd ENI at any scale -- is tracked
+        # in platform-overhaul #699.
         env = {
-          ENABLE_PREFIX_DELEGATION = "true"
-          WARM_PREFIX_TARGET       = "1"
-          WARM_ENI_TARGET          = "0"
+          WARM_ENI_TARGET   = "0"
+          WARM_IP_TARGET    = "4"
+          MINIMUM_IP_TARGET = "8"
         }
         livenessProbeTimeoutSeconds  = 30
         readinessProbeTimeoutSeconds = 30
