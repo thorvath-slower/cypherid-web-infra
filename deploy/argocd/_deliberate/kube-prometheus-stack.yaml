@@ -120,6 +120,14 @@ spec:
             create: true
             annotations:
               eks.amazonaws.com/role-arn: arn:aws:iam::491013321714:role/czid-dev-eks-v2-grafana-cloudwatch
+          # Enable the alerting sidecar so Grafana-managed CloudWatch alert rules (grafana-cw-alerts.yaml,
+          # label grafana_alert) are provisioned the same way dashboards are. Dashboards + datasources
+          # sidecars are on by default; this adds the alerts one.
+          sidecar:
+            alerts:
+              enabled: true
+              label: grafana_alert
+              searchNamespace: monitoring
           # Admin creds come from a pre-created secret, NOT from git.
           admin:
             existingSecret: grafana-admin
