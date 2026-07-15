@@ -62,6 +62,14 @@ module "karpenter_controller" {
         value = "true"
       },
       {
+        # Auto-replace nodes that go unhealthy (Ready=Unknown/False past Karpenter's
+        # toleration) instead of letting them accumulate. Without this, 9 spot nodes sat
+        # NotReady for ~17h holding ~114 subnet IPs and starved new nodes (dev eks-v2
+        # incident 2026-07-15). Karpenter drains + terminates + replaces them.
+        name  = "settings.featureGates.nodeRepair"
+        value = "true"
+      },
+      {
         name  = "controller.resources.requests.cpu"
         value = "1"
       },
@@ -144,6 +152,22 @@ module "eks_addons" {
       service_account_role_arn = aws_iam_role.vpc_cni.arn
       configuration_values = jsonencode({
         # AWS_PROFILE=czi-si  aws eks describe-addon-configuration --addon-name vpc-cni --addon-version v1.15.1-eksbuild.1
+        # CNI IP tuning (dev eks-v2 node-death incident 2026-07-15). ROOT CAUSE: the CNI attaches a
+        # 3rd ENI to small t3 spot nodes -- driven by the default WARM_ENI_TARGET=1 keeping a SPARE
+        # ENI the node does not need -- and a 3-ENI config breaks the node dataplane, so kubelet +
+        # SSM lose connectivity ~10min after boot while the instance stays "running". Nodes that
+        # stay <=2 ENIs survive indefinitely (verified vs an 18h survivor); the spot nodes only run
+        # ~5-6 IP-pods so <=2 ENIs is plenty. Fix: WARM_ENI_TARGET=0 (no spare ENI) + small warm IP
+        # pool. NON-prefix on purpose: prefix delegation needs contiguous /28 blocks the churned /24
+        # subnets do not have (it starved pods when tried live). Applied live to the managed addon
+        # 2026-07-15; this keeps TF in sync. The bulletproof endgame -- a dedicated 100.64.0.0/10
+        # secondary CIDR + prefix delegation so nodes never need a 2nd ENI at any scale -- is tracked
+        # in platform-overhaul #699.
+        env = {
+          WARM_ENI_TARGET   = "0"
+          WARM_IP_TARGET    = "4"
+          MINIMUM_IP_TARGET = "8"
+        }
         livenessProbeTimeoutSeconds  = 30
         readinessProbeTimeoutSeconds = 30
         resources = {
