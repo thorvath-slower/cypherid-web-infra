@@ -10,6 +10,9 @@ path**. Each has a rollout that must be driven deliberately, so auto-sync is wro
 | `sigstore-policy-controller.yaml` + `sigstore-cosign-policy.yaml` | Cosign admission gate (#77). Installs a cluster-wide admission webhook. Follows a staged **warn → observe → enforce** rollout (see the PR that added it, #148). Auto-syncing it would skip the observation gate. Apply per its documented steps; it comes up in `mode: warn` with `failurePolicy: Ignore`. |
 | `seqtoid-node-backend-dev.yaml` | The Node/NestJS backend strangler. Not yet deployed on dev. Apply deliberately when that slice is ready — not as a side effect of standing up the dev root. |
 | `kube-prometheus-stack.yaml` | Observability Phase 1 (#608/#426): Prometheus + Alertmanager + Grafana + cluster metrics. Installs large prometheus-operator CRDs (ServerSideApply) and a cluster-wide monitoring stack, so it is applied and observed deliberately. Needs the `grafana-admin` secret first (below). Phase 2 layers Tempo/Loki as Grafana datasources; Phase 3 points the in-cluster OTel collector at it. |
+| `tempo.yaml` | Observability Phase 2a: Grafana Tempo (traces backend), single-binary + local gp2 storage, OTLP receiver. The OTel collector (Phase 3) exports spans here. |
+| `loki.yaml` | Observability Phase 2b: Grafana Loki (logs backend), SingleBinary + filesystem gp2 storage. The OTel collector exports app logs here; pod-log shipping is Phase 5. |
+| `grafana-lgtm-datasources.yaml` | Observability Phase 2: sidecar-loaded ConfigMap adding the Tempo + Loki Grafana datasources. A raw resource (not an Application) so provisioning stays decoupled from the kps chart sync. |
 
 ## To apply one (deliberately)
 

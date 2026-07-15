@@ -87,6 +87,10 @@ spec:
             userKey: admin-user
             passwordKey: admin-password
           defaultDashboardsEnabled: true   # k8s / node / workload dashboards out of the box
+          # Tempo (traces) + Loki (logs) datasources are provisioned by a SEPARATE sidecar-
+          # loaded ConfigMap (grafana-lgtm-datasources.yaml), NOT via additionalDataSources
+          # here -- that keeps datasource provisioning decoupled from this chart's sync (which
+          # can stall on node-exporter DaemonSet health when cluster nodes are NotReady).
           persistence:
             enabled: true
             storageClassName: gp2   # no default SC on the dev cluster (see Prometheus note)
@@ -109,6 +113,18 @@ spec:
           {}
         nodeExporter:
           enabled: true
+        # node-exporter is a DaemonSet with hostPath/hostNetwork -- it cannot schedule on
+        # Fargate nodes, which otherwise leaves the DaemonSet perpetually "not fully ready".
+        # Keep it to EC2 nodes so the app reports Healthy. (Verified: 2 Fargate nodes on dev.)
+        prometheus-node-exporter:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: eks.amazonaws.com/compute-type
+                        operator: NotIn
+                        values: ["fargate"]
         # kube-prometheus-stack ships default alert rules (K8s, node, etc.) -- keep them
         # as the #608 cluster-alert baseline; app/deploy rules are layered in later.
   destination:
