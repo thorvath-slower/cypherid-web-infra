@@ -1,0 +1,123 @@
+# Observability Phase 1 (platform-overhaul #608 / #426 backend decision, 2026-07-15):
+# self-hosted LGTM on dev eks-v2. This installs kube-prometheus-stack -- Prometheus
+# (metrics + cluster monitoring), Alertmanager (alerting), Grafana (the dev-accessible
+# frontend), kube-state-metrics + node-exporter. It is the METRICS + FRONTEND + ALERTING
+# base; Phase 2 adds Tempo (traces) and Loki (logs) as additional Grafana datasources,
+# and Phase 3 points the in-cluster OTel collector's exporters at these.
+#
+# Deliberate (see ../README.md): the CRDs are large and this is a cluster-wide control-
+# plane component, so it is applied by hand, never by a root app. Once applied it self-
+# syncs (ServerSideApply handles the oversized CRDs, like argo-rollouts).
+#
+# Frontend access: NO ingress yet (mirrors the dev app's proving phase) -- reach Grafana
+# with `kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80`.
+# The stable internal ALB ingress at grafana.dev.seqtoid.org is a deliberate follow-up
+# (Phase 1b) so we do not guess subnet/cert wiring here.
+#
+# Grafana admin creds are NOT in git: the chart reads them from the `grafana-admin`
+# secret (create it before/at apply, see the PR / runbook). This avoids the well-known
+# default password and keeps secrets out of the repo.
+#
+# Backend/exporters are swappable at the collector alone -- switching to DataDog later
+# does not touch this stack; it just stops being the collector's export target.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  # project: default (not czid) on purpose -- on the current pre-cutover dev cluster the
+  # app-of-apps was never bootstrapped and the dev app itself runs in project=default
+  # (platform-overhaul #698). default is unrestricted, so this syncs reliably today. Move
+  # to a scoped project (czid, + monitoring namespace + the prometheus/grafana repos in its
+  # allowlists) once the app-of-apps/czid project is live post-cutover (#18/#692).
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 87.16.1   # app: prometheus-operator v0.92.1. Pinned; bump deliberately.
+    helm:
+      values: |
+        # --- Prometheus: cluster + app metrics -------------------------------------
+        prometheus:
+          prometheusSpec:
+            retention: 15d
+            # Discover ServiceMonitors/PodMonitors from ALL namespaces (so the OTel
+            # collector, the app, and any Phase-2 component are scraped without editing
+            # this app). false selectors == "match everything".
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            # Accept remote-write from the OTel collector (metrics pipeline, Phase 3).
+            enableRemoteWriteReceiver: true
+            resources:
+              requests: { cpu: 250m, memory: 1Gi }
+              limits: { memory: 2Gi }
+            # The dev cluster has NO default StorageClass, so pin gp2 explicitly (the only
+            # SC present; kubernetes.io/aws-ebs, WaitForFirstConsumer). Verified 2026-07-15.
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp2
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 20Gi
+        # --- Alertmanager: routing for #608 alerting -------------------------------
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests: { cpu: 50m, memory: 128Mi }
+              limits: { memory: 256Mi }
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp2
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 2Gi
+        # --- Grafana: the dev observability frontend -------------------------------
+        grafana:
+          enabled: true
+          # Admin creds come from a pre-created secret, NOT from git.
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
+          defaultDashboardsEnabled: true   # k8s / node / workload dashboards out of the box
+          persistence:
+            enabled: true
+            storageClassName: gp2   # no default SC on the dev cluster (see Prometheus note)
+            size: 5Gi
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+          # Phase 2 adds Tempo + Loki here as additional datasources (traces + logs);
+          # Prometheus is auto-wired by the chart as the default datasource.
+          # grafana.ini hardening: no anonymous access, sign-out redirect, etc.
+          grafana.ini:
+            users:
+              allow_sign_up: false
+            auth.anonymous:
+              enabled: false
+          ingress:
+            enabled: false   # Phase 1b: internal ALB at grafana.dev.seqtoid.org
+        # --- Cluster metrics sources ----------------------------------------------
+        kube-state-metrics:
+          {}
+        nodeExporter:
+          enabled: true
+        # kube-prometheus-stack ships default alert rules (K8s, node, etc.) -- keep them
+        # as the #608 cluster-alert baseline; app/deploy rules are layered in later.
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # the prometheus-operator CRDs exceed the annotation-size limit

@@ -9,12 +9,32 @@ path**. Each has a rollout that must be driven deliberately, so auto-sync is wro
 |------|---------------------|
 | `sigstore-policy-controller.yaml` + `sigstore-cosign-policy.yaml` | Cosign admission gate (#77). Installs a cluster-wide admission webhook. Follows a staged **warn → observe → enforce** rollout (see the PR that added it, #148). Auto-syncing it would skip the observation gate. Apply per its documented steps; it comes up in `mode: warn` with `failurePolicy: Ignore`. |
 | `seqtoid-node-backend-dev.yaml` | The Node/NestJS backend strangler. Not yet deployed on dev. Apply deliberately when that slice is ready — not as a side effect of standing up the dev root. |
+| `kube-prometheus-stack.yaml` | Observability Phase 1 (#608/#426): Prometheus + Alertmanager + Grafana + cluster metrics. Installs large prometheus-operator CRDs (ServerSideApply) and a cluster-wide monitoring stack, so it is applied and observed deliberately. Needs the `grafana-admin` secret first (below). Phase 2 layers Tempo/Loki as Grafana datasources; Phase 3 points the in-cluster OTel collector at it. |
 
 ## To apply one (deliberately)
 
 ```
 kubectl apply -f deploy/argocd/_deliberate/<app>.yaml      # creates the Application
 # then sync + observe in the Argo UI / CLI per that app's rollout notes
+```
+
+## kube-prometheus-stack apply steps
+
+```
+# 1. Grafana admin creds (NOT in git) -- create before applying the app:
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n monitoring create secret generic grafana-admin \
+  --from-literal=admin-user=admin \
+  --from-literal=admin-password="$(openssl rand -base64 24)"   # capture it in the password manager
+
+# 2. Create the Application + let Argo sync it:
+kubectl apply -f deploy/argocd/_deliberate/kube-prometheus-stack.yaml
+argocd app sync kube-prometheus-stack   # or the Argo UI
+
+# 3. Verify + reach the frontend (no ingress yet -- port-forward):
+kubectl -n monitoring get pods            # prometheus / alertmanager / grafana / kube-state-metrics Running
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80
+#   -> http://localhost:3000 (admin / the generated password)
 ```
 
 Do not `git mv` these into `../apps/<env>/` unless you intend them to become
