@@ -9,6 +9,19 @@
 #   kubectl -n monitoring annotate sa kube-prometheus-stack-grafana \
 #     eks.amazonaws.com/role-arn=<grafana_cloudwatch_role_arn> --overwrite
 #   kubectl -n monitoring rollout restart deploy/kube-prometheus-stack-grafana
+# If the role was created out-of-band (CLI) to light up the CloudWatch datasource ahead of a full
+# eks-v2 apply, these import blocks make the next plan/apply ADOPT the existing role+policy instead of
+# erroring on "EntityAlreadyExists". Harmless no-ops once the resources are in state; remove after the
+# first apply that imports them.
+import {
+  to = aws_iam_role.grafana_cloudwatch
+  id = "czid-dev-eks-v2-grafana-cloudwatch"
+}
+import {
+  to = aws_iam_role_policy.grafana_cloudwatch
+  id = "czid-dev-eks-v2-grafana-cloudwatch:cloudwatch-read"
+}
+
 data "aws_iam_policy_document" "grafana_cloudwatch_assume" {
   statement {
     effect  = "Allow"
