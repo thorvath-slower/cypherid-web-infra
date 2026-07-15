@@ -40,5 +40,27 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80
 #   -> http://localhost:3000 (admin / the generated password)
 ```
 
+## Alerting email delivery (#608) -- needs the UCSF SMTP password (Tom)
+
+The chart already ships every node/pod alert (KubeNodeNotReady, KubeNodeUnreachable, KubePodNotReady,
+etc.) and Alertmanager is now configured to email `Thomas.Horvath@ucsf.edu` via the UCSF Office365
+mailbox `SeqtoID-Support@ucsf.edu`. Argo CD Notifications (deploy/sync failures) is already wired to the
+same mailbox. Both just need the SMTP password secret (a credential -- Tom creates it, not in git):
+
+```
+# 1. Alertmanager SMTP password (key MUST be 'password'):
+kubectl -n monitoring create secret generic alertmanager-smtp \
+  --from-literal=password='<Office365 app password for SeqtoID-Support@ucsf.edu>'
+
+# 2. Argo CD Notifications SMTP creds (referenced by argocd-notifications-cm as $email-username/$email-password):
+kubectl -n argocd create secret generic argocd-notifications-secret \
+  --from-literal=email-username='SeqtoID-Support@ucsf.edu' \
+  --from-literal=email-password='<same Office365 app password>'
+```
+
+Until then, alerts still FIRE and are visible in Alertmanager/Grafana (port-forward) -- they just do not
+email. Verify after creating the secret: `kubectl -n monitoring logs sts/alertmanager-kube-prometheus-stack-alertmanager`
+shows no SMTP auth errors, and a test alert (or the current node alerts) arrives by email.
+
 Do not `git mv` these into `../apps/<env>/` unless you intend them to become
 root-managed and auto-synced.
