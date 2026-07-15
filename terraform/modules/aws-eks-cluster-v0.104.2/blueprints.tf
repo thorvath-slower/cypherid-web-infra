@@ -62,6 +62,14 @@ module "karpenter_controller" {
         value = "true"
       },
       {
+        # Auto-replace nodes that go unhealthy (Ready=Unknown/False past Karpenter's
+        # toleration) instead of letting them accumulate. Without this, 9 spot nodes sat
+        # NotReady for ~17h holding ~114 subnet IPs and starved new nodes (dev eks-v2
+        # incident 2026-07-15). Karpenter drains + terminates + replaces them.
+        name  = "settings.featureGates.nodeRepair"
+        value = "true"
+      },
+      {
         name  = "controller.resources.requests.cpu"
         value = "1"
       },
@@ -144,6 +152,17 @@ module "eks_addons" {
       service_account_role_arn = aws_iam_role.vpc_cni.arn
       configuration_values = jsonencode({
         # AWS_PROFILE=czi-si  aws eks describe-addon-configuration --addon-name vpc-cni --addon-version v1.15.1-eksbuild.1
+        # IP-target tuning (dev eks-v2 subnet-exhaustion incident 2026-07-15): the default
+        # WARM_ENI_TARGET=1 makes every node reserve a whole spare ENI (~6 warm IPs) it is not
+        # using. Across many small spot nodes churning in a /24 that hoards the subnet dry.
+        # Switch to IP-level warming -- keep a small warm pool instead of a whole ENI -- so
+        # nodes consume far fewer subnet IPs. (Longer term: prefix delegation + more IP capacity
+        # in us-west-2a; tracked separately.)
+        env = {
+          WARM_ENI_TARGET   = "0"
+          WARM_IP_TARGET    = "4"
+          MINIMUM_IP_TARGET = "8"
+        }
         livenessProbeTimeoutSeconds  = 30
         readinessProbeTimeoutSeconds = 30
         resources = {
