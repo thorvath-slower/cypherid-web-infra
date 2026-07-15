@@ -12,10 +12,13 @@
 # cannot exhaust. Both subnets route through the existing private NAT route table (egress unchanged).
 
 locals {
-  # AZ -> CIDR. Both ranges are unused in 10.132.0.0/16 (existing subnets are .1/.2/.101/.102/.201/.202).
+  # AZ -> CIDR, carved from the free space in 10.132.0.0/16. The existing subnets sit at 3rd-octets
+  # .1/.2 (public), .101/.102 (private nodes), .201/.202 (db). A /18 spans 64 3rd-octet values, so the
+  # only /18 that avoids all of those is .128-.191 (2b). 2a therefore uses a /19 in the clear .64-.95
+  # block (8,192 IPs / 512 /28 prefixes -- still ample for prefix delegation at dev scale).
   karpenter_node_subnets = {
-    "us-west-2a" = "10.132.64.0/18"
-    "us-west-2b" = "10.132.128.0/18"
+    "us-west-2a" = "10.132.64.0/19"  # .64-.95, free
+    "us-west-2b" = "10.132.128.0/18" # .128-.191, free
   }
 }
 

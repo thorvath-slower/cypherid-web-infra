@@ -164,9 +164,10 @@ module "eks_addons" {
         # secondary CIDR + prefix delegation so nodes never need a 2nd ENI at any scale -- is tracked
         # in platform-overhaul #699.
         env = {
-          WARM_ENI_TARGET   = "0"
-          WARM_IP_TARGET    = "4"
-          MINIMUM_IP_TARGET = "8"
+          ENABLE_PREFIX_DELEGATION = "false" # explicit so TF matches the live addon (no perpetual diff)
+          WARM_ENI_TARGET          = "0"
+          WARM_IP_TARGET           = "4"
+          MINIMUM_IP_TARGET        = "8"
         }
         livenessProbeTimeoutSeconds  = 30
         readinessProbeTimeoutSeconds = 30
