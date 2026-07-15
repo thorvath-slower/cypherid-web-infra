@@ -111,6 +111,15 @@ spec:
         # --- Grafana: the dev observability frontend -------------------------------
         grafana:
           enabled: true
+          # IRSA for the CloudWatch datasource (Phase 4, #700): the Grafana SA assumes the
+          # read-only grafana-cloudwatch role (terraform grafana-cloudwatch-irsa.tf) so the
+          # CloudWatch datasource can query AWS. Deterministic ARN (cluster-name-derived); the
+          # role is created on the eks-v2 apply. Applying this triggers a kps sync -- do it once
+          # the cluster is stable (kps sync can stall on node-exporter health while nodes churn).
+          serviceAccount:
+            create: true
+            annotations:
+              eks.amazonaws.com/role-arn: arn:aws:iam::491013321714:role/czid-dev-eks-v2-grafana-cloudwatch
           # Admin creds come from a pre-created secret, NOT from git.
           admin:
             existingSecret: grafana-admin
@@ -136,6 +145,9 @@ spec:
               allow_sign_up: false
             auth.anonymous:
               enabled: false
+            server:
+              # so Grafana-generated links (shares, alert URLs) use the real host, not localhost
+              root_url: https://grafana.dev.seqtoid.org
           ingress:
             enabled: false   # Phase 1b: internal ALB at grafana.dev.seqtoid.org
         # --- Cluster metrics sources ----------------------------------------------
