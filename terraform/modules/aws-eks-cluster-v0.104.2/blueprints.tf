@@ -130,24 +130,28 @@ module "eks_addons" {
   cluster_version   = module.cluster.cluster_version
 
   # Only EKS addons in this stage
+  # Addon versions PINNED (platform-overhaul #690). Previously most_recent=true, which resolved the
+  # version at APPLY time -> a perpetual "addon_version -> (known after apply)" diff on every plan AND
+  # a silent-bump risk (any apply could upgrade coredns/vpc-cni/etc. on the live cluster). Pinned to
+  # the versions live on dev 2026-07-15; bump deliberately via a version-bump PR.
   eks_addons = {
     eks-pod-identity-agent = {
       resolve_conflicts = "OVERWRITE"
-      most_recent       = true
+      addon_version     = "v1.3.10-eksbuild.3"
     }
 
     coredns = {
-      most_recent       = true
+      addon_version     = "v1.14.3-eksbuild.3"
       resolve_conflicts = "OVERWRITE"
     }
 
     kube-proxy = {
-      most_recent       = true
+      addon_version     = "v1.35.3-eksbuild.13"
       resolve_conflicts = "OVERWRITE"
     }
 
     vpc-cni = {
-      most_recent              = true
+      addon_version            = "v1.22.3-eksbuild.1"
       resolve_conflicts        = "OVERWRITE"
       service_account_role_arn = aws_iam_role.vpc_cni.arn
       configuration_values = jsonencode({
@@ -190,13 +194,13 @@ module "eks_addons" {
 
     aws-ebs-csi-driver = {
       resolve_conflicts        = "OVERWRITE"
-      most_recent              = true
+      addon_version            = "v1.62.0-eksbuild.1"
       service_account_role_arn = aws_iam_role.ebs_csi.arn
     }
 
     aws-mountpoint-s3-csi-driver = {
       resolve_conflicts        = "OVERWRITE"
-      most_recent              = true
+      addon_version            = "v2.7.0-eksbuild.1"
       service_account_role_arn = aws_iam_role.s3_csi.arn
     }
   }
