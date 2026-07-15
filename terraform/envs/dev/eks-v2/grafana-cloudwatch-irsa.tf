@@ -48,6 +48,10 @@ data "aws_iam_policy_document" "grafana_cloudwatch_assume" {
 
 # Read-only CloudWatch metrics + Logs Insights, mirrors Grafana's documented minimum policy.
 data "aws_iam_policy_document" "grafana_cloudwatch" {
+  # checkov:skip=CKV_AWS_356:CloudWatch metric + Logs Insights read APIs (GetMetricData, ListMetrics,
+  # GetMetricStatistics, StartQuery, DescribeLogGroups, ec2/tag Describe for dimensions) are account-
+  # wide and NOT resource-scopable; "*" is required and matches Grafana's documented CloudWatch policy.
+  # All actions are read-only -- no Put/Create/Delete anywhere.
   statement {
     sid    = "CloudWatchMetricsRead"
     effect = "Allow"
