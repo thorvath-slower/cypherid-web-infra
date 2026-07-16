@@ -84,6 +84,25 @@ data:
 
     loki.process "default" {
       forward_to = [loki.write.default.receiver]
+
+      // Parse a log LEVEL and expose it as a sortable `level` label so logs can be filtered by
+      // debug/info/warn/error in Grafana (instead of everything reading as "unknown"). The app emits
+      // two shapes: (1) structured JSON (the otel_action_logging concern) with a level/severity field;
+      // (2) Ruby/Rails Logger lines like "D, [2026-... #1] DEBUG -- : msg". Try both; anything that
+      // matches neither becomes "unknown" (a real, filterable bucket rather than an empty value).
+      stage.json {
+        expressions = { jlevel = "level", jsev = "severity" }
+      }
+      stage.regex {
+        expression = "\\]\\s+(?P<rlevel>DEBUG|INFO|WARN|ERROR|FATAL|UNKNOWN)\\s+--"
+      }
+      stage.template {
+        source   = "level"
+        template = "{{ ToLower (or .jlevel .jsev .rlevel \"unknown\") }}"
+      }
+      stage.labels {
+        values = { level = "level" }
+      }
     }
 
     loki.write "default" {
