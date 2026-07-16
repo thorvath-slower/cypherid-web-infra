@@ -34,9 +34,11 @@ spec:
                   endpoint: 0.0.0.0:4317
                 http:
                   endpoint: 0.0.0.0:4318
+          # Raised from 512Mi: with real trace volume flowing (app spans + spanmetrics), Tempo
+          # OOMKilled (exit 137) during WAL replay + compaction and crash-looped. 1.5Gi gives headroom.
           resources:
-            requests: { cpu: 100m, memory: 256Mi }
-            limits: { memory: 512Mi }
+            requests: { cpu: 100m, memory: 512Mi }
+            limits: { memory: 1536Mi }
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
