@@ -154,6 +154,10 @@ module "eks_addons" {
       addon_version            = "v1.22.3-eksbuild.1"
       resolve_conflicts        = "OVERWRITE"
       service_account_role_arn = aws_iam_role.vpc_cni.arn
+      # This cluster's aws-node roll on a vpc-cni addon update can exceed the AWS provider's default
+      # 20m wait, so `apply` reports "timeout waiting for state Successful (InProgress)" even though
+      # AWS finishes the update. Give it 40m so a real apply does not flap on a success. (#690/#699)
+      timeouts = { update = "40m" }
       configuration_values = jsonencode({
         # AWS_PROFILE=czi-si  aws eks describe-addon-configuration --addon-name vpc-cni --addon-version v1.15.1-eksbuild.1
         # CNI IP tuning (dev eks-v2 node-death incident 2026-07-15). ROOT CAUSE: the CNI attaches a
