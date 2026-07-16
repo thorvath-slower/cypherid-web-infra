@@ -7,6 +7,18 @@
 #
 # Apply by hand: kubectl apply -f deploy/argocd/_deliberate/grafana-alloy-logs.yaml
 # Verify: Grafana Explore -> Loki -> `{namespace="seqtoid-dev"}` returns app logs.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: alloy-logs
+value: 1000000000   # below system-cluster-critical (2000000000); above default app pods (0)
+globalDefault: false
+description: >-
+  Node-level log agent. High priority so the scheduler always finds it a pod slot -- on nodes at
+  their max-pods cap (non-prefix vpc-cni limits pods/node), a normal-priority Alloy pod is left
+  Pending and that node's logs go unshipped. This lets it preempt a lower-priority pod for a slot,
+  the way aws-node/kube-proxy DaemonSets do, guaranteeing full log coverage.
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -131,8 +143,20 @@ spec:
         app.kubernetes.io/name: alloy-logs
     spec:
       serviceAccountName: alloy-logs
+      priorityClassName: alloy-logs   # always get a pod slot on busy (max-pods) EC2 nodes
+      # Exclude Fargate nodes: they are one-pod-per-microVM (pod-capacity=1, already used by the
+      # workload pod) so a DaemonSet agent can NEVER schedule there and sits Pending forever. Fargate
+      # pods route their own logs (Fargate logging -> CloudWatch), so nothing is lost here.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: eks.amazonaws.com/compute-type
+                    operator: NotIn
+                    values: ["fargate"]
       tolerations:
-        - operator: Exists   # ship logs from every node, including tainted/control-plane
+        - operator: Exists   # ship logs from every (non-Fargate) node, including tainted/control-plane
       containers:
         - name: alloy
           image: grafana/alloy:v1.5.1
