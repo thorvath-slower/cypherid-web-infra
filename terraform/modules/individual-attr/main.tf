@@ -17,9 +17,47 @@ resource "aws_iam_role" "on_call" {
   description        = "Allows IDSeq Developers to perform on call maintenence tasks from EC2 instances"
 }
 
-resource "aws_iam_role_policy_attachment" "on_call_poweruser" {
+# On-call break-glass role: least-privilege (#375, replaces PowerUserAccess). Broad READ for
+# incident diagnosis via the AWS-managed ReadOnlyAccess policy, plus a narrow customer-managed
+# policy for the two things ReadOnlyAccess omits that on-call provably needs (see
+# amis/on-call/idseq-web.sh): KMS decrypt of SSM SecureString / SSE-S3, and scoped write into
+# the samples bucket for remediation. Everything else PowerUserAccess granted (EC2/SG mutate,
+# resource create/delete, KMS key admin, Route53, etc.) is intentionally dropped.
+# SECURITY-REVIEW-GATED: confirm the true action set from CloudTrail / the Snowflake
+# ADMIN_IAM_ROLES_* audit views (last 90d of czid-on-call) and add any real write before apply;
+# apply dev-first + validate a real on-call dry run. See docs/IAM-DEPLOY-ROLES.md for precedent.
+resource "aws_iam_role_policy_attachment" "on_call_readonly" {
   role       = aws_iam_role.on_call.name
-  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
+
+data "aws_iam_policy_document" "on_call_incident_response" {
+  # Decrypt SSM SecureString secrets ("aws ssm get-parameter --with-decryption") and SSE-S3
+  # objects. Constrained via kms:ViaService to ssm/s3 so the role cannot use account KMS keys
+  # for any other purpose.
+  statement {
+    sid       = "DecryptSsmAndS3ViaService"
+    actions   = ["kms:Decrypt", "kms:GenerateDataKey"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.us-west-2.amazonaws.com", "s3.us-west-2.amazonaws.com"]
+    }
+  }
+
+  # Remediation writes into the samples bucket only (mirrors the comp_bio workspace write).
+  # Read of samples / public-references is already covered by ReadOnlyAccess.
+  statement {
+    sid       = "SamplesRemediationWrite"
+    actions   = ["s3:PutObject", "s3:DeleteObject"]
+    resources = ["arn:aws:s3:::${var.s3_bucket_samples}/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "on_call_incident_response" {
+  role   = aws_iam_role.on_call.name
+  policy = data.aws_iam_policy_document.on_call_incident_response.json
 }
 
 resource "aws_iam_instance_profile" "on_call" {
