@@ -9,6 +9,17 @@ image:
   # Dev-account ECR, go-forward repo (the CZID-76 dual-push lands here too).
   repository: 491013321714.dkr.ecr.us-west-2.amazonaws.com/seqtoid-web
   tag: sha-288c4aab # the current hardened known-good build; CI advances this per build
+# Benchmark bucket repoint: move the Benchmark truth-files read off the CZI-owned, public-read
+# s3://idseq-bench and onto the UCSF-owned dev bucket (seqtoid-bench-dev-491013321714,
+# created in cypherid-workflow-infra terraform/buckets.tf; read granted to the pod's
+# seqtoid-web-dev IRSA role in envs/dev/web/main.tf). The code default in
+# app/models/benchmark_workflow_run.rb stays s3://idseq-bench for back-compat; this env
+# wins. extraEnv is merged into the shared pod env (web + workers + migrate) by the chart
+# (_helpers.tpl commonEnv). Trailing slash + datasets/truth_files/ prefix mirror the
+# idseq-bench layout the app `aws s3 ls`-es.
+extraEnv:
+  - name: S3_TRUTH_FILES_BUCKET
+    value: s3://seqtoid-bench-dev-491013321714/datasets/truth_files/
 # COST SPIN-DOWN (dev): scale ALL workloads to 0 and skip the migrate/taxon-load hooks
 # (chart `suspend`). Safe + reversible — the app's data lives in Aurora + OpenSearch, not
 # the pods. The CD keeps advancing `image.tag` while suspended, so flipping this to false

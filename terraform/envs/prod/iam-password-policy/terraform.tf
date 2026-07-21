@@ -123,11 +123,6 @@ variable "s3_bucket_aegea_ecs_execute" {
   default = "aegea-ecs-execute-prod-283694049553"
 }
 # tflint-ignore: terraform_unused_declarations
-variable "s3_bucket_idseq_bench" {
-  type    = string
-  default = "idseq-bench"
-}
-# tflint-ignore: terraform_unused_declarations
 variable "s3_bucket_public_references" {
   type    = string
   default = "seqtoid-public-references"
@@ -141,11 +136,6 @@ variable "s3_bucket_samples" {
 variable "s3_bucket_samples_v1" {
   type    = string
   default = "czi-infectious-disease-prod-samples-283694049553"
-}
-# tflint-ignore: terraform_unused_declarations
-variable "s3_bucket_secrets" {
-  type    = string
-  default = "idseq-secrets"
 }
 # tflint-ignore: terraform_unused_declarations
 variable "aws_accounts" {

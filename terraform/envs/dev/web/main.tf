@@ -2,6 +2,13 @@ locals {
   s3_bucket_workflows         = "seqtoid-workflows-${var.env}-${var.aws_accounts.idseq-dev}"
   s3_bucket_aegea_ecs_execute = data.terraform_remote_state.ecs.outputs.s3_bucket_aegea_ecs_execute
 
+  # Benchmark bucket repoint: UCSF-owned benchmark truth-files bucket, CREATED in cypherid-workflow-infra
+  # (terraform/buckets.tf, local.s3_bucket_benchmark). Same per-account name, referenced
+  # here by name to grant the app read (the Benchmark validator reads truth_files to score
+  # AUPR). Replaces the CZI-owned, public-read s3://idseq-bench on the runtime path; the
+  # app's S3_TRUTH_FILES_BUCKET env (deploy/argocd/values/seqtoid-web/dev.yaml) points at it.
+  s3_bucket_benchmark = "seqtoid-bench-${var.env}-${var.aws_accounts.idseq-dev}"
+
   zone_id      = data.terraform_remote_state.route53.outputs.env_seqtoid_org_zone_id
   env_fqdn     = data.terraform_remote_state.route53.outputs.env_seqtoid_org_fqdn
   www_env_fqdn = "www.${local.env_fqdn}"
@@ -96,6 +103,7 @@ data "aws_iam_policy_document" "idseq-web" {
       "arn:aws:s3:::${var.s3_bucket_samples_v1}",
       "arn:aws:s3:::${var.s3_bucket_public_references}",
       "arn:aws:s3:::${var.s3_bucket_idseq_bench}",
+      "arn:aws:s3:::${local.s3_bucket_benchmark}",
       "arn:aws:s3:::${local.s3_bucket_aegea_ecs_execute}",
       "arn:aws:s3:::${local.s3_bucket_workflows}",
     ]
@@ -113,6 +121,7 @@ data "aws_iam_policy_document" "idseq-web" {
       "arn:aws:s3:::${var.s3_bucket_samples_v1}/*",
       "arn:aws:s3:::${var.s3_bucket_public_references}/*",
       "arn:aws:s3:::${var.s3_bucket_idseq_bench}/*",
+      "arn:aws:s3:::${local.s3_bucket_benchmark}/*",
       "arn:aws:s3:::${local.s3_bucket_aegea_ecs_execute}/*",
       "arn:aws:s3:::${local.s3_bucket_workflows}/*",
     ]

@@ -163,11 +163,6 @@ variable "dynamodb_enabled" {
   default = "false"
 }
 # tflint-ignore: terraform_unused_declarations
-variable "s3_bucket_idseq_bench" {
-  type    = string
-  default = "idseq-bench"
-}
-# tflint-ignore: terraform_unused_declarations
 variable "s3_bucket_name" {
   type    = string
   default = "tfstate-030998640247"
@@ -176,11 +171,6 @@ variable "s3_bucket_name" {
 variable "s3_bucket_public_references" {
   type    = string
   default = "seqtoid-public-references"
-}
-# tflint-ignore: terraform_unused_declarations
-variable "s3_bucket_secrets" {
-  type    = string
-  default = "idseq-secrets"
 }
 # tflint-ignore: terraform_unused_declarations
 variable "aws_accounts" {
